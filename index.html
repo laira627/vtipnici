@@ -407,6 +407,7 @@
   .fav-tile .fav-desc {
     font-size: 13.5px;
     line-height: 1.4;
+    white-space: pre-wrap;
     display: -webkit-box;
     -webkit-line-clamp: 3;
     -webkit-box-orient: vertical;
@@ -800,6 +801,8 @@
         vytvoreno: serverTimestamp()
       });
       noteForm.reset();
+      document.getElementById("datum").value = new Date().toISOString().slice(0, 10);
+      document.getElementById("popis").focus();
       showToast("Záznam uložen");
     } catch (err) {
       showToast("Chyba: " + err.message);
