@@ -253,13 +253,45 @@
     display: flex; justify-content: space-between; flex-shrink: 0;
   }
 
+  .editor-import-row {
+    padding: 0 20px 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  }
+  .editor-import-row input[type=url] {
+    flex: 1; min-width: 160px; padding: 8px 11px; border-radius: 9px; border: 1.5px solid var(--line);
+    font-size: 13px; background: var(--panel); outline: none; color: var(--ink);
+  }
+  .editor-import-row input[type=url]:focus { border-color: var(--accent); background: #fff; }
+  .editor-import-row .icon-btn { flex-shrink: 0; }
+  #importStatus { font-size: 12px; color: var(--ink-soft); flex-shrink: 0; }
+
+  .modal-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(43,38,32,0.35);
+    align-items: center; justify-content: center; z-index: 300; padding: 20px;
+  }
+  .modal-overlay.visible { display: flex; }
+  .modal-card {
+    background: var(--paper); border-radius: 16px; padding: 24px; width: 100%; max-width: 340px;
+    box-shadow: var(--shadow);
+  }
+  .modal-card h3 { margin: 0 0 6px; font-size: 17px; }
+  .modal-card .modal-sub { color: var(--ink-soft); font-size: 13px; margin: 0 0 16px; }
+  .modal-card .row-btns { display: flex; gap: 8px; margin-top: 6px; }
+  .modal-card .row-btns .btn { padding: 10px; font-size: 14px; }
+
   .toast {
     position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
     background: var(--ink); color: #fff; padding: 11px 20px; border-radius: 10px;
     font-size: 14px; font-weight: 600; opacity: 0; pointer-events: none;
     transition: opacity .2s, transform .2s; z-index: 200;
+    display: flex; align-items: center; gap: 10px;
   }
-  .toast.visible { opacity: 1; transform: translateX(-50%) translateY(-6px); }
+  .toast.visible { opacity: 1; transform: translateX(-50%) translateY(-6px); pointer-events: auto; }
+  .toast-undo-btn {
+    background: transparent; border: 1.5px solid rgba(255,255,255,0.5); color: #fff;
+    border-radius: 7px; padding: 4px 11px; font-size: 12.5px; font-weight: 700; cursor: pointer;
+    white-space: nowrap;
+  }
+  .toast-undo-btn:hover { background: rgba(255,255,255,0.18); }
 
   /* ---------- Print ---------- */
   #printArea { display: none; }
@@ -328,8 +360,8 @@
       <div class="col-head">
         <div class="brand">📓 Vtipníci</div>
         <div class="head-actions">
-          <button class="icon-btn small" id="jsonExportBtn" title="Záloha JSON">⬇</button>
-          <button class="icon-btn small" id="logoutBtn" title="Odhlásit">⏻</button>
+          <button class="icon-btn small" id="jsonExportBtn" title="Záloha JSON" aria-label="Záloha JSON">⬇</button>
+          <button class="icon-btn small" id="logoutBtn" title="Odhlásit" aria-label="Odhlásit">⏻</button>
         </div>
       </div>
       <div class="folders-list" id="foldersList"></div>
@@ -351,17 +383,17 @@
     <!-- NOTES COLUMN -->
     <div class="col col-notes">
       <div class="col-head">
-        <button class="icon-btn small back-btn" id="backToFolders">←</button>
+        <button class="icon-btn small back-btn" id="backToFolders" aria-label="Zpět na složky">←</button>
         <h2 id="notesColTitle">Všechny poznámky</h2>
         <div class="head-actions">
-          <button class="icon-btn small" id="exportPdfBtn" title="Export do PDF">🖨</button>
-          <button class="icon-btn small" id="newNoteBtn" title="Nová poznámka">＋</button>
+          <button class="icon-btn small" id="exportPdfBtn" title="Export do PDF" aria-label="Export do PDF">🖨</button>
+          <button class="icon-btn small" id="newNoteBtn" title="Nová poznámka" aria-label="Nová poznámka">＋</button>
         </div>
       </div>
       <div class="search-wrap">
         <div class="search-box">
           <input type="text" id="searchInput" placeholder="Hledat v poznámkách i štítcích…">
-          <button class="search-clear-btn" id="searchClearBtn" type="button" title="Vymazat hledání">×</button>
+          <button class="search-clear-btn" id="searchClearBtn" type="button" title="Vymazat hledání" aria-label="Vymazat hledání">×</button>
         </div>
       </div>
       <div class="notes-list" id="notesList">
@@ -374,12 +406,12 @@
       <div class="editor-empty" id="editorEmpty">Vyber poznámku vlevo, nebo vytvoř novou.</div>
       <div class="editor-wrap" id="editorWrap">
         <div class="editor-topbar">
-          <button class="icon-btn small back-btn" id="backToNotes">←</button>
+          <button class="icon-btn small back-btn" id="backToNotes" aria-label="Zpět na poznámky">←</button>
           <select id="editorFolder"></select>
           <input type="date" id="editorDate">
           <div class="spacer"></div>
-          <button class="icon-btn small" id="editorFavBtn" title="Oblíbené">★</button>
-          <button class="icon-btn small" id="editorDeleteBtn" title="Smazat">🗑</button>
+          <button class="icon-btn small" id="editorFavBtn" title="Oblíbené" aria-label="Oblíbené">★</button>
+          <button class="icon-btn small" id="editorDeleteBtn" title="Smazat poznámku" aria-label="Smazat poznámku">🗑</button>
         </div>
         <div class="editor-title-row">
           <input type="text" id="editorTitle" placeholder="Název poznámky">
@@ -387,6 +419,11 @@
         <div class="editor-tags-row" id="editorTagsRow">
           <div class="tag-chips" id="tagChips"></div>
           <input type="text" id="tagInput" placeholder="+ štítek (Enter)">
+        </div>
+        <div class="editor-import-row" id="editorImportRow">
+          <input type="url" id="importUrlInput" placeholder="Vlož odkaz na recept / stránku…">
+          <button class="icon-btn small" id="importUrlBtn" type="button" title="Načíst text ze stránky" aria-label="Načíst text ze stránky">🌐 Načíst z webu</button>
+          <span id="importStatus"></span>
         </div>
         <div id="quillContainer"></div>
         <div class="editor-statusbar">
@@ -401,6 +438,25 @@
 
 <div id="printArea"></div>
 <div class="toast" id="toast"></div>
+
+<div class="modal-overlay" id="pdfRangeModal">
+  <div class="modal-card">
+    <h3>Export do PDF</h3>
+    <p class="modal-sub">Nech pole prázdná pro export všech poznámek v aktuálním pohledu.</p>
+    <div class="field">
+      <label for="pdfFromDate">Od</label>
+      <input type="date" id="pdfFromDate">
+    </div>
+    <div class="field">
+      <label for="pdfToDate">Do</label>
+      <input type="date" id="pdfToDate">
+    </div>
+    <div class="row-btns">
+      <button class="btn btn-secondary" id="pdfCancelBtn" type="button">Zrušit</button>
+      <button class="btn" id="pdfConfirmBtn" type="button">Exportovat</button>
+    </div>
+  </div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
 <script type="module">
@@ -478,6 +534,14 @@
   const tagInput = document.getElementById("tagInput");
   const saveStatus = document.getElementById("saveStatus");
   const editedStatus = document.getElementById("editedStatus");
+  const importUrlInput = document.getElementById("importUrlInput");
+  const importUrlBtn = document.getElementById("importUrlBtn");
+  const importStatus = document.getElementById("importStatus");
+  const pdfRangeModal = document.getElementById("pdfRangeModal");
+  const pdfFromDate = document.getElementById("pdfFromDate");
+  const pdfToDate = document.getElementById("pdfToDate");
+  const pdfCancelBtn = document.getElementById("pdfCancelBtn");
+  const pdfConfirmBtn = document.getElementById("pdfConfirmBtn");
 
   const backToFolders = document.getElementById("backToFolders");
   const backToNotes = document.getElementById("backToNotes");
@@ -493,11 +557,40 @@
   let quill = null;
   let saveTimer = null;
   let suppressAutosave = false;
+  let pendingDeletes = new Map(); // id -> { timeoutId }
+  let undoToastTimer = null;
 
   function showToast(msg) {
+    clearTimeout(undoToastTimer);
+    toast.innerHTML = "";
     toast.textContent = msg;
     toast.classList.add("visible");
     setTimeout(() => toast.classList.remove("visible"), 2200);
+  }
+
+  function showUndoToast(msg, onUndo) {
+    clearTimeout(undoToastTimer);
+    toast.innerHTML = "";
+    const msgSpan = document.createElement("span");
+    msgSpan.textContent = msg;
+    const undoBtn = document.createElement("button");
+    undoBtn.type = "button";
+    undoBtn.className = "toast-undo-btn";
+    undoBtn.textContent = "Zpět";
+    toast.appendChild(msgSpan);
+    toast.appendChild(undoBtn);
+    toast.classList.add("visible");
+    const hide = () => { toast.classList.remove("visible"); toast.innerHTML = ""; };
+    undoBtn.addEventListener("click", () => {
+      onUndo();
+      clearTimeout(undoToastTimer);
+      hide();
+    });
+    undoToastTimer = setTimeout(hide, 5000);
+  }
+
+  function visibleNotes() {
+    return allNotes.filter(n => !pendingDeletes.has(n.id));
   }
 
   function escapeHtml(str) {
@@ -670,7 +763,8 @@
   }
 
   function renderFolders() {
-    const favCount = allNotes.filter(n => n.oblibene).length;
+    const notesForCounts = visibleNotes();
+    const favCount = notesForCounts.filter(n => n.oblibene).length;
     let html = "";
     html += `<div class="folder-row ${view.type === "dashboard" ? "active" : ""}" data-view="dashboard">
       <span class="folder-dot" style="background:#e0a733"></span>
@@ -680,11 +774,11 @@
     html += `<div class="folder-row ${view.type === "all" ? "active" : ""}" data-view="all">
       <span class="folder-dot" style="background:#8a8a8a"></span>
       <span class="folder-name">Všechny poznámky</span>
-      <span class="folder-count">${allNotes.length}</span>
+      <span class="folder-count">${notesForCounts.length}</span>
     </div>`;
     html += `<div class="folder-section-label">Složky</div>`;
     folders.forEach(f => {
-      const count = allNotes.filter(n => n.druh === f.nazev).length;
+      const count = notesForCounts.filter(n => n.druh === f.nazev).length;
       const isActive = view.type === "folder" && view.id === f.id;
       html += `<div class="folder-row ${isActive ? "active" : ""}" data-view="folder" data-id="${f.id}">
         <span class="folder-dot" style="background:${f.barva}"></span>
@@ -692,11 +786,11 @@
         <span class="folder-count">${count}</span>
         <div class="folder-tools">
           <span style="position:relative;">
-            <button class="folder-tool-btn" title="Barva">🎨</button>
+            <button class="folder-tool-btn" title="Barva složky" aria-label="Barva složky">🎨</button>
             <input type="color" class="folder-color-input" data-id="${f.id}" value="${f.barva}">
           </span>
-          <button class="folder-tool-btn" data-rename="${f.id}" title="Přejmenovat">✎</button>
-          <button class="folder-tool-btn" data-delete="${f.id}" title="Smazat">🗑</button>
+          <button class="folder-tool-btn" data-rename="${f.id}" title="Přejmenovat složku" aria-label="Přejmenovat složku">✎</button>
+          <button class="folder-tool-btn" data-delete="${f.id}" title="Smazat složku" aria-label="Smazat složku">🗑</button>
         </div>
       </div>`;
     });
@@ -837,9 +931,10 @@
 
   function currentViewNotes() {
     let list;
-    if (view.type === "dashboard") list = allNotes.filter(n => n.oblibene);
-    else if (view.type === "all") list = allNotes;
-    else list = allNotes.filter(n => n.druh === view.nazev);
+    const base = visibleNotes();
+    if (view.type === "dashboard") list = base.filter(n => n.oblibene);
+    else if (view.type === "all") list = base;
+    else list = base.filter(n => n.druh === view.nazev);
 
     const term = searchInput.value.trim().toLowerCase();
     if (term) {
@@ -877,10 +972,10 @@
         ? `<div class="note-row-tags">${tags.map(t => `<span class="tag-pill">#${escapeHtml(t)}</span>`).join("")}</div>`
         : "";
       return `<div class="note-row ${isActive ? "active" : ""}" style="border-left-color:${color}" data-id="${n.id}">
-        <button class="note-row-del" data-id="${n.id}" title="Smazat">🗑</button>
+        <button class="note-row-del" data-id="${n.id}" title="Smazat poznámku" aria-label="Smazat poznámku">🗑</button>
         <div class="note-row-top">
           <span class="note-row-badge" style="background:${color}22;color:${color}">${escapeHtml(n.druh || "")}</span>
-          <button class="note-row-star ${n.oblibene ? "active" : ""}" data-id="${n.id}">★</button>
+          <button class="note-row-star ${n.oblibene ? "active" : ""}" data-id="${n.id}" title="Oblíbené" aria-label="Oblíbené">★</button>
         </div>
         <div class="note-row-title">${escapeHtml(title)}</div>
         <div class="note-row-meta">${formatDate(n.datum)}</div>
@@ -905,7 +1000,7 @@
 
   function renderDashboardView() {
     notesColTitle.textContent = "🏠 Dashboard";
-    const favs = allNotes.filter(n => n.oblibene);
+    const favs = visibleNotes().filter(n => n.oblibene);
     if (favs.length === 0) {
       notesList.innerHTML = `<div class="empty-state">Zatím žádné oblíbené poznámky.</div>`;
       return;
@@ -940,10 +1035,10 @@
           ? `<div class="note-row-tags">${tags.map(t => `<span class="tag-pill">#${escapeHtml(t)}</span>`).join("")}</div>`
           : "";
         html += `<div class="note-row dashboard-tile" style="border-left-color:${color}" data-id="${n.id}">
-          <button class="note-row-del" data-id="${n.id}" title="Smazat">🗑</button>
+          <button class="note-row-del" data-id="${n.id}" title="Smazat poznámku" aria-label="Smazat poznámku">🗑</button>
           <div class="note-row-top">
             <span class="note-row-badge" style="background:${color}22;color:${color}">${escapeHtml(n.druh || "")}</span>
-            <button class="note-row-star active" data-id="${n.id}">★</button>
+            <button class="note-row-star active" data-id="${n.id}" title="Oblíbené" aria-label="Oblíbené">★</button>
           </div>
           <div class="note-row-title">${escapeHtml(title)}</div>
           <div class="note-row-meta">${formatDate(n.datum)}</div>
@@ -1021,9 +1116,36 @@
 
   async function deleteNoteRow(id) {
     if (!confirm("Opravdu smazat tuto poznámku?")) return;
-    await deleteDoc(doc(db, NOTES_COL, id));
+    if (pendingDeletes.has(id)) return;
     if (selectedNoteId === id) closeEditor();
-    showToast("Poznámka smazána");
+    const timeoutId = setTimeout(() => finalizeDeleteNote(id), 5000);
+    pendingDeletes.set(id, { timeoutId });
+    renderFolders();
+    renderNotes();
+    showUndoToast("Poznámka smazána", () => undoDeleteNote(id));
+  }
+
+  async function finalizeDeleteNote(id) {
+    const entry = pendingDeletes.get(id);
+    if (!entry) return;
+    pendingDeletes.delete(id);
+    try {
+      await deleteDoc(doc(db, NOTES_COL, id));
+    } catch (err) {
+      showToast("Chyba při mazání: " + err.message);
+      renderFolders();
+      renderNotes();
+    }
+  }
+
+  function undoDeleteNote(id) {
+    const entry = pendingDeletes.get(id);
+    if (!entry) return;
+    clearTimeout(entry.timeoutId);
+    pendingDeletes.delete(id);
+    renderFolders();
+    renderNotes();
+    showToast("Smazání zrušeno");
   }
 
   // ---------- New note ----------
@@ -1186,8 +1308,37 @@
 
   // ---------- PDF export ----------
   exportPdfBtn.addEventListener("click", () => {
-    const list = [...currentViewNotes()].sort((a, b) => (a.datum < b.datum ? 1 : -1));
-    if (list.length === 0) { showToast("Není co exportovat"); return; }
+    if (currentViewNotes().length === 0) { showToast("Není co exportovat"); return; }
+    pdfFromDate.value = "";
+    pdfToDate.value = "";
+    pdfRangeModal.classList.add("visible");
+    setTimeout(() => pdfFromDate.focus(), 50);
+  });
+
+  pdfCancelBtn.addEventListener("click", () => pdfRangeModal.classList.remove("visible"));
+  pdfRangeModal.addEventListener("click", (e) => {
+    if (e.target === pdfRangeModal) pdfRangeModal.classList.remove("visible");
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && pdfRangeModal.classList.contains("visible")) {
+      pdfRangeModal.classList.remove("visible");
+    }
+  });
+
+  pdfConfirmBtn.addEventListener("click", () => {
+    const from = pdfFromDate.value;
+    const to = pdfToDate.value;
+    if (from && to && from > to) { showToast("Datum „Od“ je později než „Do“"); return; }
+    pdfRangeModal.classList.remove("visible");
+    runPdfExport(from, to);
+  });
+
+  function runPdfExport(from, to) {
+    let list = [...currentViewNotes()];
+    if (from) list = list.filter(n => n.datum >= from);
+    if (to) list = list.filter(n => n.datum <= to);
+    list.sort((a, b) => (a.datum < b.datum ? 1 : -1));
+    if (list.length === 0) { showToast("V daném rozsahu nejsou žádné poznámky"); return; }
     const printArea = document.getElementById("printArea");
     let html = `<div class="print-folder-title">${escapeHtml(notesColTitle.textContent)}</div>`;
     list.forEach(n => {
@@ -1201,7 +1352,7 @@
     printArea.innerHTML = html;
     document.body.classList.add("printing");
     setTimeout(() => window.print(), 50);
-  });
+  }
 
   window.addEventListener("afterprint", () => {
     document.body.classList.remove("printing");
@@ -1224,6 +1375,150 @@
     URL.revokeObjectURL(url);
     showToast("Export stažen");
   });
+
+  // ---------- Import textu z webu (typicky recepty) ----------
+  const CORS_PROXY = "https://api.allorigins.win/raw?url=";
+
+  importUrlBtn.addEventListener("click", () => importFromWeb());
+  importUrlInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); importFromWeb(); }
+  });
+
+  async function importFromWeb() {
+    const raw = importUrlInput.value.trim();
+    if (!raw) { importUrlInput.focus(); return; }
+    let parsed;
+    try {
+      parsed = new URL(raw);
+    } catch {
+      showToast("Neplatná webová adresa");
+      return;
+    }
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      showToast("Podporované jsou jen http/https odkazy");
+      return;
+    }
+
+    importUrlBtn.disabled = true;
+    importStatus.textContent = "Načítám…";
+    try {
+      const res = await fetch(CORS_PROXY + encodeURIComponent(parsed.href));
+      if (!res.ok) throw new Error("stránka odpověděla chybou " + res.status);
+      const html = await res.text();
+      const extracted = extractContentFromHtml(html);
+      insertImportedContent(extracted, parsed.href);
+      importStatus.textContent = "Načteno ✓";
+      setTimeout(() => { importStatus.textContent = ""; }, 3000);
+    } catch (err) {
+      importStatus.textContent = "";
+      showToast("Nepodařilo se načíst stránku (" + err.message + ")");
+    } finally {
+      importUrlBtn.disabled = false;
+    }
+  }
+
+  function textOfLdField(val) {
+    if (!val) return "";
+    if (typeof val === "string") return val;
+    if (Array.isArray(val)) return val.map(textOfLdField).join(" ");
+    if (typeof val === "object") return val.text || val.name || "";
+    return String(val);
+  }
+
+  function buildRecipeResult(item) {
+    const name = textOfLdField(item.name) || "";
+    const ingredients = Array.isArray(item.recipeIngredient) ? item.recipeIngredient
+                       : Array.isArray(item.ingredients) ? item.ingredients : [];
+    let instructions = [];
+    if (Array.isArray(item.recipeInstructions)) {
+      instructions = item.recipeInstructions.map(step => {
+        if (typeof step === "string") return step;
+        if (step.itemListElement) return textOfLdField(step.itemListElement);
+        return textOfLdField(step.text || step.name);
+      }).filter(Boolean);
+    } else if (typeof item.recipeInstructions === "string") {
+      instructions = item.recipeInstructions.split(/\n+/).map(s => s.trim()).filter(Boolean);
+    }
+    return { title: name, ingredients, instructions, isRecipe: true };
+  }
+
+  function findRecipeJsonLd(doc) {
+    const scripts = doc.querySelectorAll('script[type="application/ld+json"]');
+    for (const s of scripts) {
+      let data;
+      try { data = JSON.parse(s.textContent); } catch { continue; }
+      const items = Array.isArray(data) ? data : (Array.isArray(data["@graph"]) ? data["@graph"] : [data]);
+      for (const item of items) {
+        if (!item || !item["@type"]) continue;
+        const types = Array.isArray(item["@type"]) ? item["@type"] : [item["@type"]];
+        if (types.includes("Recipe")) return buildRecipeResult(item);
+      }
+    }
+    return null;
+  }
+
+  function findRecipeMicrodata(doc) {
+    const ingredientEls = doc.querySelectorAll('[itemprop="recipeIngredient"], [itemprop="ingredients"]');
+    const instructionEls = doc.querySelectorAll('[itemprop="recipeInstructions"]');
+    if (!ingredientEls.length && !instructionEls.length) return null;
+    const nameEl = doc.querySelector('[itemprop="name"]');
+    const ingredients = [...ingredientEls].map(el => el.textContent.trim()).filter(Boolean);
+    let instructions = [];
+    instructionEls.forEach(el => {
+      const steps = el.querySelectorAll("li, p");
+      if (steps.length) instructions.push(...[...steps].map(s => s.textContent.trim()).filter(Boolean));
+      else {
+        const t = el.textContent.trim();
+        if (t) instructions.push(t);
+      }
+    });
+    return { title: nameEl ? nameEl.textContent.trim() : "", ingredients, instructions, isRecipe: true };
+  }
+
+  function extractGenericText(doc) {
+    doc.querySelectorAll("script, style, nav, header, footer, aside, noscript, form, iframe").forEach(el => el.remove());
+    const titleEl = doc.querySelector("h1") || doc.querySelector("title");
+    const title = titleEl ? titleEl.textContent.trim() : "";
+    const root = doc.querySelector("article") || doc.querySelector("main") || doc.body;
+    const paragraphs = root ? [...root.querySelectorAll("p, li")]
+      .map(el => el.textContent.replace(/\s+/g, " ").trim())
+      .filter(t => t.length > 20) : [];
+    const text = paragraphs.slice(0, 60).join("\n\n");
+    return { title, text, isRecipe: false };
+  }
+
+  function extractContentFromHtml(html) {
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    return findRecipeJsonLd(doc) || findRecipeMicrodata(doc) || extractGenericText(doc);
+  }
+
+  function insertImportedContent(data, sourceUrl) {
+    if (!editorTitle.value.trim() && data.title) {
+      editorTitle.value = data.title;
+      scheduleSave();
+    }
+
+    let html = "";
+    if (data.isRecipe) {
+      if (data.ingredients && data.ingredients.length) {
+        html += "<h3>Ingredience</h3><ul>" + data.ingredients.map(i => `<li>${escapeHtml(i)}</li>`).join("") + "</ul>";
+      }
+      if (data.instructions && data.instructions.length) {
+        html += "<h3>Postup</h3><ol>" + data.instructions.map(i => `<li>${escapeHtml(i)}</li>`).join("") + "</ol>";
+      }
+      if (!html) html = "<p>Nepodařilo se rozpoznat ingredience ani postup, zkus obecné načtení textu.</p>";
+    } else if (data.text) {
+      html = data.text.split("\n\n").map(p => `<p>${escapeHtml(p)}</p>`).join("");
+    } else {
+      html = "<p>Ze stránky se nepodařilo získat žádný čitelný text.</p>";
+    }
+    html += `<p><em>Zdroj: <a href="${escapeHtml(sourceUrl)}" target="_blank" rel="noopener">${escapeHtml(sourceUrl)}</a></em></p>`;
+
+    const len = quill.getLength();
+    quill.clipboard.dangerouslyPasteHTML(len > 1 ? len - 1 : 0, html, "user");
+    scheduleSave();
+    importUrlInput.value = "";
+  }
 </script>
 </body>
 </html>
