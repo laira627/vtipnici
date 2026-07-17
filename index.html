@@ -108,6 +108,7 @@
   }
   .icon-btn:hover { background: var(--accent-soft); color: var(--accent-dark); border-color: var(--accent-soft); }
   .icon-btn.small { padding: 5px 8px; font-size: 15px; }
+  #editorFavBtn.active { color: #e0a733; border-color: #e0a733; background: rgba(224,167,51,0.12); }
 
   /* ---------- Folders column ---------- */
   .folders-list { flex: 1; overflow-y: auto; padding: 10px 8px; }
@@ -997,7 +998,25 @@
   async function toggleFavorite(id) {
     const n = allNotes.find(x => x.id === id);
     if (!n) return;
-    await updateDoc(doc(db, NOTES_COL, id), { oblibene: !n.oblibene });
+    const newVal = !n.oblibene;
+
+    // Optimisticky aktualizuj lokální stav, ať se hvězdička projeví okamžitě
+    // a nečeká se na doručení onSnapshot listeneru.
+    allNotes = allNotes.map(x => x.id === id ? { ...x, oblibene: newVal } : x);
+    renderFolders();
+    renderNotes();
+    if (selectedNoteId === id) editorFavBtn.classList.toggle("active", newVal);
+
+    try {
+      await updateDoc(doc(db, NOTES_COL, id), { oblibene: newVal });
+    } catch (err) {
+      // Rollback při chybě zápisu
+      allNotes = allNotes.map(x => x.id === id ? { ...x, oblibene: !newVal } : x);
+      renderFolders();
+      renderNotes();
+      if (selectedNoteId === id) editorFavBtn.classList.toggle("active", !newVal);
+      showToast("Chyba při ukládání oblíbené poznámky: " + err.message);
+    }
   }
 
   async function deleteNoteRow(id) {
@@ -1014,7 +1033,7 @@
     else targetFolder = folders[0] ? folders[0].nazev : null;
     if (!targetFolder) { showToast("Nejprve vytvoř složku"); return; }
 
-    const ref = await addDoc(collection(db, NOTES_COL), {
+    const newNoteData = {
       datum: new Date().toISOString().slice(0, 10),
       druh: targetFolder,
       nazev: "",
@@ -1024,7 +1043,22 @@
       uid: currentUid,
       vytvoreno: serverTimestamp(),
       upraveno: serverTimestamp()
-    });
+    };
+
+    let ref;
+    try {
+      ref = await addDoc(collection(db, NOTES_COL), newNoteData);
+    } catch (err) {
+      showToast("Chyba při vytváření poznámky: " + err.message);
+      return;
+    }
+
+    // Optimisticky přidej poznámku do lokálního stavu hned, ať se editor
+    // otevře okamžitě a nečeká se na doručení onSnapshot listeneru.
+    if (!allNotes.some(n => n.id === ref.id)) {
+      allNotes = [{ id: ref.id, ...newNoteData }, ...allNotes];
+    }
+
     if (view.type !== "folder") {
       const f = folderByName(targetFolder);
       selectView({ type: "folder", id: f.id, nazev: f.nazev, barva: f.barva });
@@ -1113,7 +1147,6 @@
 
   editorFavBtn.addEventListener("click", () => {
     if (!selectedNoteId) return;
-    editorFavBtn.classList.toggle("active");
     toggleFavorite(selectedNoteId);
   });
 
