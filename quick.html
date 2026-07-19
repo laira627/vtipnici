@@ -135,6 +135,10 @@
       <label for="stitky">Štítky</label>
       <input type="text" id="stitky" placeholder="oddělené čárkou, např. výlet, vtip">
     </div>
+    <div class="field">
+      <label for="termin">Termín (nepovinné)</label>
+      <input type="date" id="termin">
+    </div>
     <button type="submit" class="btn">Uložit záznam</button>
   </form>
   <div class="link-row">
@@ -184,6 +188,7 @@
   const nazevEl = document.getElementById("nazev");
   const popisEl = document.getElementById("popis");
   const stitkyEl = document.getElementById("stitky");
+  const terminEl = document.getElementById("termin");
   const toast = document.getElementById("toast");
 
   let currentUid = null;
@@ -263,9 +268,11 @@
       .filter(Boolean);
     if (!datum || !druh || !popis) return;
 
+    const termin = terminEl.value;
+
     try {
       await addDoc(collection(db, NOTES_COL), {
-        datum, druh, popis, nazev, stitky,
+        datum, druh, popis, nazev, stitky, termin,
         oblibene: false,
         uid: currentUid,
         vytvoreno: serverTimestamp(),
@@ -274,6 +281,7 @@
       nazevEl.value = "";
       popisEl.value = "";
       stitkyEl.value = "";
+      terminEl.value = "";
       resetDate();
       popisEl.focus();
       showToast("Uloženo ✓");

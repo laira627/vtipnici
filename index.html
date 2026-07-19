@@ -137,6 +137,15 @@
     width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: 11px;
   }
   .folder-row.active .folder-tool-btn { background: rgba(255,255,255,0.25); color: #fff; }
+  .termin-badges { display: flex; gap: 4px; align-items: center; flex-shrink: 0; }
+  .termin-badge {
+    min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px;
+    font-size: 10.5px; font-weight: 700; color: #fff; display: flex; align-items: center; justify-content: center;
+    line-height: 1;
+  }
+  .termin-badge-overdue { background: #c0392b; }
+  .termin-badge-today { background: #e0a733; }
+  .folder-row.active .termin-badge { box-shadow: 0 0 0 1.5px rgba(255,255,255,0.7); }
   .folder-color-input { position: absolute; opacity: 0; width: 20px; height: 20px; left: 0; top: 0; cursor: pointer; }
   .folder-name-input {
     flex: 1; border: none; background: rgba(255,255,255,0.6); border-radius: 5px;
@@ -321,11 +330,13 @@
   .back-btn { display: none; }
   @media (max-width: 900px) {
     .columns { grid-template-columns: 100%; }
+    .columns.dashboard-mode { grid-template-columns: 100%; }
     .col { display: none; height: 100vh; }
     .columns[data-view="folders"] .col-folders { display: flex; }
     .columns[data-view="notes"] .col-notes { display: flex; }
     .columns[data-view="editor"] .col-editor { display: flex; }
     .back-btn { display: inline-flex; }
+    .dashboard-tile { flex: 1 1 100%; max-width: 100%; }
   }
 </style>
 </head>
@@ -408,7 +419,8 @@
         <div class="editor-topbar">
           <button class="icon-btn small back-btn" id="backToNotes" aria-label="Zpět na poznámky">←</button>
           <select id="editorFolder"></select>
-          <input type="date" id="editorDate">
+          <input type="date" id="editorDate" title="Datum poznámky" aria-label="Datum poznámky">
+          <input type="date" id="editorTermin" title="Termín (nepovinné)" aria-label="Termín (nepovinné)">
           <div class="spacer"></div>
           <button class="icon-btn small" id="editorFavBtn" title="Oblíbené" aria-label="Oblíbené">★</button>
           <button class="icon-btn small" id="editorDeleteBtn" title="Smazat poznámku" aria-label="Smazat poznámku">🗑</button>
@@ -527,6 +539,7 @@
   const editorWrap = document.getElementById("editorWrap");
   const editorFolder = document.getElementById("editorFolder");
   const editorDate = document.getElementById("editorDate");
+  const editorTermin = document.getElementById("editorTermin");
   const editorTitle = document.getElementById("editorTitle");
   const editorFavBtn = document.getElementById("editorFavBtn");
   const editorDeleteBtn = document.getElementById("editorDeleteBtn");
@@ -765,11 +778,22 @@
   function renderFolders() {
     const notesForCounts = visibleNotes();
     const favCount = notesForCounts.filter(n => n.oblibene).length;
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const terminOverdueCount = notesForCounts.filter(n => n.termin && n.termin < todayStr).length;
+    const terminTodayCount = notesForCounts.filter(n => n.termin === todayStr).length;
     let html = "";
     html += `<div class="folder-row ${view.type === "dashboard" ? "active" : ""}" data-view="dashboard">
       <span class="folder-dot" style="background:#e0a733"></span>
       <span class="folder-name">🏠 Dashboard</span>
       <span class="folder-count">${favCount}</span>
+    </div>`;
+    html += `<div class="folder-row ${view.type === "termin" ? "active" : ""}" data-view="termin">
+      <span class="folder-dot" style="background:#4a90d9"></span>
+      <span class="folder-name">🗓️ Termín</span>
+      <span class="termin-badges">
+        ${terminOverdueCount > 0 ? `<span class="termin-badge termin-badge-overdue" title="Po termínu">${terminOverdueCount}</span>` : ""}
+        ${terminTodayCount > 0 ? `<span class="termin-badge termin-badge-today" title="Dnes">${terminTodayCount}</span>` : ""}
+      </span>
     </div>`;
     html += `<div class="folder-row ${view.type === "all" ? "active" : ""}" data-view="all">
       <span class="folder-dot" style="background:#8a8a8a"></span>
@@ -801,6 +825,7 @@
         if (e.target.closest(".folder-tools")) return;
         const type = row.dataset.view;
         if (type === "dashboard") selectView({ type: "dashboard" });
+        else if (type === "termin") selectView({ type: "termin" });
         else if (type === "all") selectView({ type: "all" });
         else {
           const f = folders.find(x => x.id === row.dataset.id);
@@ -906,8 +931,8 @@
     view = v;
     searchInput.value = "";
     updateSearchClearBtn();
-    columnsEl.classList.toggle("dashboard-mode", v.type === "dashboard");
-    if (v.type === "dashboard") closeEditor();
+    columnsEl.classList.toggle("dashboard-mode", v.type === "dashboard" || v.type === "termin");
+    if (v.type === "dashboard" || v.type === "termin") closeEditor();
     renderFolders();
     renderNotes();
     if (window.innerWidth <= 900) columnsEl.dataset.view = "notes";
@@ -933,6 +958,7 @@
     let list;
     const base = visibleNotes();
     if (view.type === "dashboard") list = base.filter(n => n.oblibene);
+    else if (view.type === "termin") list = base.filter(n => n.termin);
     else if (view.type === "all") list = base;
     else list = base.filter(n => n.druh === view.nazev);
 
@@ -951,6 +977,7 @@
 
   function renderNotes() {
     if (view.type === "dashboard") { renderDashboardView(); return; }
+    if (view.type === "termin") { renderTerminView(); return; }
 
     if (view.type === "all") notesColTitle.textContent = "Všechny poznámky";
     else notesColTitle.textContent = view.nazev;
@@ -1064,6 +1091,75 @@
     });
   }
 
+  function terminSectionHtml(label, notesInSection) {
+    if (notesInSection.length === 0) return "";
+    let html = `<div class="dashboard-group">
+      <div class="dashboard-group-label">
+        <span class="folder-dot" style="background:#4a90d9"></span>${escapeHtml(label)}
+      </div>
+      <div class="dashboard-row">`;
+    notesInSection.forEach(n => {
+      const folder = folderByName(n.druh);
+      const color = folder ? folder.barva : "#999";
+      const snippet = stripHtml(n.popis || "");
+      const title = (n.nazev && n.nazev.trim()) ? n.nazev.trim() : (snippet.slice(0, 40) || "Bez názvu");
+      const tags = Array.isArray(n.stitky) ? n.stitky : [];
+      const tagsHtml = tags.length
+        ? `<div class="note-row-tags">${tags.map(t => `<span class="tag-pill">#${escapeHtml(t)}</span>`).join("")}</div>`
+        : "";
+      html += `<div class="note-row dashboard-tile" style="border-left-color:${color}" data-id="${n.id}">
+        <button class="note-row-del" data-id="${n.id}" title="Smazat poznámku" aria-label="Smazat poznámku">🗑</button>
+        <div class="note-row-top">
+          <span class="note-row-badge" style="background:${color}22;color:${color}">${escapeHtml(n.druh || "")}</span>
+          <button class="note-row-star ${n.oblibene ? "active" : ""}" data-id="${n.id}" title="Oblíbené" aria-label="Oblíbené">★</button>
+        </div>
+        <div class="note-row-title">${escapeHtml(title)}</div>
+        <div class="note-row-meta">🗓️ ${formatDate(n.termin)}</div>
+        <div class="note-row-snippet">${escapeHtml(snippet.slice(0, 70) || "Prázdná poznámka")}</div>
+        ${tagsHtml}
+      </div>`;
+    });
+    html += `</div></div>`;
+    return html;
+  }
+
+  function renderTerminView() {
+    notesColTitle.textContent = "🗓️ Termín";
+    const withTermin = visibleNotes().filter(n => n.termin);
+    if (withTermin.length === 0) {
+      notesList.innerHTML = `<div class="empty-state">Žádné poznámky s termínem.</div>`;
+      return;
+    }
+
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const tomorrowStr = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+
+    const byTerminAsc = (a, b) => (a.termin < b.termin ? -1 : a.termin > b.termin ? 1 : 0);
+
+    const overdueToday = withTermin.filter(n => n.termin <= todayStr).sort(byTerminAsc);
+    const tomorrow = withTermin.filter(n => n.termin === tomorrowStr).sort(byTerminAsc);
+    const later = withTermin.filter(n => n.termin > tomorrowStr).sort(byTerminAsc);
+
+    let html = "";
+    html += terminSectionHtml("Po termínu a dnes", overdueToday);
+    html += terminSectionHtml("Zítra", tomorrow);
+    html += terminSectionHtml("Později", later);
+    notesList.innerHTML = html;
+
+    notesList.querySelectorAll(".dashboard-tile").forEach(tile => {
+      tile.addEventListener("click", (e) => {
+        if (e.target.closest(".note-row-del") || e.target.closest(".note-row-star")) return;
+        goToNoteInFolder(tile.dataset.id);
+      });
+    });
+    notesList.querySelectorAll(".note-row-del").forEach(btn => {
+      btn.addEventListener("click", (e) => { e.stopPropagation(); deleteNoteRow(btn.dataset.id); });
+    });
+    notesList.querySelectorAll(".note-row-star").forEach(btn => {
+      btn.addEventListener("click", (e) => { e.stopPropagation(); toggleFavorite(btn.dataset.id); });
+    });
+  }
+
   function goToNoteInFolder(id) {
     const n = allNotes.find(x => x.id === id);
     if (!n) return;
@@ -1160,6 +1256,7 @@
       druh: targetFolder,
       nazev: "",
       popis: "",
+      termin: "",
       oblibene: false,
       stitky: [],
       uid: currentUid,
@@ -1201,6 +1298,7 @@
     suppressAutosave = true;
     editorFolder.value = n.druh || "";
     editorDate.value = n.datum || "";
+    editorTermin.value = n.termin || "";
     editorTitle.value = n.nazev || "";
     editorFavBtn.classList.toggle("active", !!n.oblibene);
     currentTags = Array.isArray(n.stitky) ? [...n.stitky] : [];
@@ -1265,6 +1363,7 @@
 
   editorFolder.addEventListener("change", () => scheduleSave());
   editorDate.addEventListener("change", () => scheduleSave());
+  editorTermin.addEventListener("change", () => scheduleSave());
   editorTitle.addEventListener("input", () => scheduleSave());
 
   editorFavBtn.addEventListener("click", () => {
@@ -1289,6 +1388,7 @@
       await updateDoc(doc(db, NOTES_COL, selectedNoteId), {
         druh: editorFolder.value,
         datum: editorDate.value,
+        termin: editorTermin.value,
         nazev: editorTitle.value,
         popis: quill.root.innerHTML,
         stitky: currentTags,
@@ -1363,7 +1463,7 @@
     if (allNotes.length === 0) { showToast("Není co exportovat"); return; }
     const sorted = [...allNotes].sort((a, b) => (a.datum < b.datum ? 1 : -1));
     const exportData = sorted.map(n => ({
-      datum: n.datum, druh: n.druh, nazev: n.nazev || "", popis: n.popis, oblibene: !!n.oblibene, stitky: n.stitky || []
+      datum: n.datum, druh: n.druh, nazev: n.nazev || "", popis: n.popis, termin: n.termin || "", oblibene: !!n.oblibene, stitky: n.stitky || []
     }));
     const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -1377,44 +1477,143 @@
   });
 
   // ---------- Import textu z webu (typicky recepty) ----------
-  const CORS_PROXY = "https://api.allorigins.win/raw?url=";
+  // Prohlížeč blokuje cross-origin fetch cizích stránek (CORS), appka nemá vlastní server,
+  // takže se musí jít přes veřejné proxy služby. Zkouší se jich víc po sobě, protože
+  // jednotlivé veřejné proxy bývají nespolehlivé/nedostupné.
+  const HTML_PROXIES = [
+    (u) => "https://api.allorigins.win/raw?url=" + encodeURIComponent(u),
+    (u) => "https://corsproxy.io/?url=" + encodeURIComponent(u),
+    (u) => "https://api.codetabs.com/v1/proxy?quest=" + encodeURIComponent(u)
+  ];
+  const READABLE_TEXT_PROXY = (u) => "https://r.jina.ai/" + u;
 
   importUrlBtn.addEventListener("click", () => importFromWeb());
   importUrlInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter") { e.preventDefault(); importFromWeb(); }
   });
 
+  function fetchWithTimeout(url, ms) {
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), ms);
+    return fetch(url, { signal: controller.signal }).finally(() => clearTimeout(t));
+  }
+
+  function normalizeUrl(raw) {
+    let candidate = raw;
+    if (!/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(candidate)) {
+      candidate = "https://" + candidate;
+    }
+    const parsed = new URL(candidate);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      throw new Error("podporované jsou jen http/https odkazy");
+    }
+    return parsed;
+  }
+
+  async function fetchRawHtml(url) {
+    const errors = [];
+    for (const buildProxyUrl of HTML_PROXIES) {
+      try {
+        const res = await fetchWithTimeout(buildProxyUrl(url), 15000);
+        if (!res.ok) { errors.push("HTTP " + res.status); continue; }
+        const html = await res.text();
+        if (html && html.length > 200) return html;
+        errors.push("prázdná odpověď");
+      } catch (err) {
+        errors.push(err.name === "AbortError" ? "vypršel čas" : err.message);
+      }
+    }
+    throw new Error(errors.join(" / ") || "žádná proxy nefungovala");
+  }
+
+  async function fetchReadableText(url) {
+    const res = await fetchWithTimeout(READABLE_TEXT_PROXY(url), 20000);
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    return await res.text();
+  }
+
   async function importFromWeb() {
     const raw = importUrlInput.value.trim();
     if (!raw) { importUrlInput.focus(); return; }
     let parsed;
     try {
-      parsed = new URL(raw);
-    } catch {
-      showToast("Neplatná webová adresa");
-      return;
-    }
-    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-      showToast("Podporované jsou jen http/https odkazy");
+      parsed = normalizeUrl(raw);
+    } catch (err) {
+      showToast("Neplatná webová adresa (" + err.message + ")");
       return;
     }
 
     importUrlBtn.disabled = true;
     importStatus.textContent = "Načítám…";
     try {
-      const res = await fetch(CORS_PROXY + encodeURIComponent(parsed.href));
-      if (!res.ok) throw new Error("stránka odpověděla chybou " + res.status);
-      const html = await res.text();
-      const extracted = extractContentFromHtml(html);
+      let extracted = null;
+      let htmlErr = null;
+      try {
+        const html = await fetchRawHtml(parsed.href);
+        extracted = extractContentFromHtml(html);
+      } catch (err) {
+        htmlErr = err;
+      }
+
+      // Pokud se z HTML nepodařilo najít recept ani text, zkus ještě čitelný
+      // text stránky přes čtečkovou proxy (funguje i na weby, co blokují ty první).
+      const htmlGaveNothing = !extracted || (!extracted.isRecipe && !extracted.text) ||
+        (extracted.isRecipe && !extracted.ingredients.length && !extracted.instructions.length);
+      if (htmlGaveNothing) {
+        try {
+          const text = await fetchReadableText(parsed.href);
+          const fromText = extractFromReadableText(text);
+          if (fromText && (fromText.text || (fromText.ingredients && fromText.ingredients.length))) {
+            extracted = fromText;
+          }
+        } catch (err) {
+          if (!extracted) throw htmlErr || err;
+        }
+      }
+
+      if (!extracted) throw htmlErr || new Error("nepodařilo se získat obsah stránky");
+
       insertImportedContent(extracted, parsed.href);
       importStatus.textContent = "Načteno ✓";
       setTimeout(() => { importStatus.textContent = ""; }, 3000);
     } catch (err) {
       importStatus.textContent = "";
-      showToast("Nepodařilo se načíst stránku (" + err.message + ")");
+      showToast("Nepodařilo se načíst stránku: " + err.message);
     } finally {
       importUrlBtn.disabled = false;
     }
+  }
+
+  function splitListLines(section) {
+    return section.split("\n")
+      .map(l => l.replace(/^[-*•\d.)\s]+/, "").trim())
+      .filter(Boolean);
+  }
+
+  function extractFromReadableText(raw) {
+    let title = "";
+    const titleMatch = raw.match(/^Title:\s*(.+)$/m);
+    if (titleMatch) title = titleMatch[1].trim();
+
+    let body = raw;
+    const markerIdx = raw.indexOf("Markdown Content:");
+    if (markerIdx !== -1) body = raw.slice(markerIdx + "Markdown Content:".length);
+
+    const ingredientsMatch = body.match(/(?:ingredience|suroviny|ingredients)[:\s]*\n([\s\S]*?)(?:\n#{1,3}\s|\n(?:postup|příprava|instructions|directions)|$)/i);
+    const instructionsMatch = body.match(/(?:postup|příprava|instructions|directions)[:\s]*\n([\s\S]*?)(?:\n#{1,3}\s[A-ZÁ-Ž]|$)/i);
+
+    if (ingredientsMatch || instructionsMatch) {
+      const ingredients = ingredientsMatch ? splitListLines(ingredientsMatch[1]) : [];
+      const instructions = instructionsMatch ? splitListLines(instructionsMatch[1]) : [];
+      if (ingredients.length || instructions.length) {
+        return { title, ingredients, instructions, isRecipe: true };
+      }
+    }
+
+    const paragraphs = body.split(/\n{2,}/)
+      .map(p => p.replace(/\s+/g, " ").trim())
+      .filter(p => p.length > 20 && !p.startsWith("[") && !p.startsWith("!"));
+    return { title, text: paragraphs.slice(0, 60).join("\n\n"), isRecipe: false };
   }
 
   function textOfLdField(val) {
