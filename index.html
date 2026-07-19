@@ -304,6 +304,43 @@
   }
   .toast-undo-btn:hover { background: rgba(255,255,255,0.18); }
 
+  /* ---------- Newsletter (Hláška) ---------- */
+  #newsletterStage {
+    position: fixed; left: -99999px; top: 0; width: 1080px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  .nl-root { background: #fffaf0; }
+  .nl-header {
+    background: linear-gradient(180deg, #ffd6a5 0%, #ff9a9e 100%);
+    padding: 70px 60px 45px; text-align: center; position: relative; overflow: hidden;
+  }
+  .nl-header h1 {
+    font-size: 62px; font-weight: 800; color: #46161e; margin: 0 0 14px;
+    letter-spacing: 1px;
+  }
+  .nl-header .nl-sub { font-size: 30px; color: #5a2d2d; margin: 0 0 10px; }
+  .nl-header .nl-src { font-size: 24px; color: #783f3f; }
+  .nl-cards { padding: 34px 64px 0; }
+  .nl-card {
+    background: #fff; border-radius: 28px; padding: 40px 40px 30px;
+    margin-bottom: 34px; box-shadow: 6px 8px 0 #e1cdc3; position: relative;
+    border-left: 14px solid var(--nl-color, #999);
+  }
+  .nl-card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+  .nl-badge {
+    display: inline-block; background: var(--nl-color, #999); color: #fff;
+    font-weight: 700; font-size: 26px; padding: 10px 18px; border-radius: 999px;
+  }
+  .nl-date { font-size: 24px; color: #786464; }
+  .nl-title { font-size: 34px; font-weight: 700; color: #3c2d32; margin: 0 0 18px; }
+  .nl-text { font-size: 30px; line-height: 1.45; color: #373237; white-space: pre-wrap; }
+  .nl-footer {
+    margin: 0 64px 50px; background: #ffebd2; border-radius: 28px;
+    padding: 32px; text-align: center;
+  }
+  .nl-footer .nl-f1 { font-size: 26px; font-weight: 700; color: #78412d; margin: 0 0 12px; }
+  .nl-footer .nl-f2 { font-size: 24px; color: #965f4b; margin: 0; }
+
   /* ---------- Print ---------- */
   #printArea { display: none; }
   @media print {
@@ -400,6 +437,7 @@
         <h2 id="notesColTitle">Všechny poznámky</h2>
         <div class="head-actions">
           <button class="icon-btn small" id="exportPdfBtn" title="Export do PDF" aria-label="Export do PDF">🖨</button>
+          <button class="icon-btn small" id="newsletterBtn" title="Newsletter Hláška" aria-label="Newsletter Hláška">🖼</button>
           <button class="icon-btn small" id="newNoteBtn" title="Nová poznámka" aria-label="Nová poznámka">＋</button>
         </div>
       </div>
@@ -472,7 +510,29 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="newsletterRangeModal">
+  <div class="modal-card">
+    <h3>Newsletter Hláška</h3>
+    <p class="modal-sub">Vyber časové rozmezí. Zahrnou se jen poznámky ze složky Hláška s vyplněným obsahem.</p>
+    <div class="field">
+      <label for="nlFromDate">Od</label>
+      <input type="date" id="nlFromDate">
+    </div>
+    <div class="field">
+      <label for="nlToDate">Do</label>
+      <input type="date" id="nlToDate">
+    </div>
+    <div class="row-btns">
+      <button class="btn btn-secondary" id="nlCancelBtn" type="button">Zrušit</button>
+      <button class="btn" id="nlConfirmBtn" type="button">Vygenerovat</button>
+    </div>
+  </div>
+</div>
+
+<div id="newsletterStage"></div>
+
 <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
   import {
@@ -557,6 +617,13 @@
   const pdfToDate = document.getElementById("pdfToDate");
   const pdfCancelBtn = document.getElementById("pdfCancelBtn");
   const pdfConfirmBtn = document.getElementById("pdfConfirmBtn");
+  const newsletterBtn = document.getElementById("newsletterBtn");
+  const newsletterRangeModal = document.getElementById("newsletterRangeModal");
+  const nlFromDate = document.getElementById("nlFromDate");
+  const nlToDate = document.getElementById("nlToDate");
+  const nlCancelBtn = document.getElementById("nlCancelBtn");
+  const nlConfirmBtn = document.getElementById("nlConfirmBtn");
+  const newsletterStage = document.getElementById("newsletterStage");
 
   const backToFolders = document.getElementById("backToFolders");
   const backToNotes = document.getElementById("backToNotes");
@@ -1464,6 +1531,151 @@
   window.addEventListener("afterprint", () => {
     document.body.classList.remove("printing");
   });
+
+  // ---------- Newsletter (Hláška) export ----------
+  const CZ_MONTHS_GEN = ["ledna","února","března","dubna","května","června",
+    "července","srpna","září","října","listopadu","prosince"];
+
+  function isHlaskaFolder(nazev) {
+    return /hl[aá]šk/i.test(nazev || "");
+  }
+
+  function tagColor(str) {
+    if (!str) return "#9a8f86";
+    let h = 0;
+    for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) % 360;
+    return `hsl(${h}, 60%, 46%)`;
+  }
+
+  function htmlToPlainText(html) {
+    if (!html) return "";
+    const d = document.createElement("div");
+    d.innerHTML = html
+      .replace(/<\/p>/gi, "\n")
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<\/li>/gi, "\n")
+      .replace(/<\/div>/gi, "\n");
+    const text = (d.textContent || "").replace(/\n{3,}/g, "\n\n").trim();
+    return text;
+  }
+
+  function formatNlDate(isoDate) {
+    const [y, m, d] = isoDate.split("-");
+    return `${parseInt(d,10)}. ${parseInt(m,10)}. ${y}`;
+  }
+
+  function formatNlRange(fromIso, toIso) {
+    if (!fromIso && !toIso) return "všechny hlášky";
+    if (!fromIso) return `do ${formatNlDate(toIso)}`;
+    if (!toIso) return `od ${formatNlDate(fromIso)}`;
+    const [fy, fm, fd] = fromIso.split("-").map(Number);
+    const [ty, tm, td] = toIso.split("-").map(Number);
+    if (fy === ty && fm === tm) {
+      return `${fd}.–${td}. ${CZ_MONTHS_GEN[fm-1]} ${fy}`;
+    }
+    return `${formatNlDate(fromIso)} – ${formatNlDate(toIso)}`;
+  }
+
+  newsletterBtn.addEventListener("click", () => {
+    nlFromDate.value = "";
+    nlToDate.value = "";
+    newsletterRangeModal.classList.add("visible");
+    setTimeout(() => nlFromDate.focus(), 50);
+  });
+
+  nlCancelBtn.addEventListener("click", () => newsletterRangeModal.classList.remove("visible"));
+  newsletterRangeModal.addEventListener("click", (e) => {
+    if (e.target === newsletterRangeModal) newsletterRangeModal.classList.remove("visible");
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && newsletterRangeModal.classList.contains("visible")) {
+      newsletterRangeModal.classList.remove("visible");
+    }
+  });
+
+  nlConfirmBtn.addEventListener("click", () => {
+    const from = nlFromDate.value;
+    const to = nlToDate.value;
+    if (from && to && from > to) { showToast("Datum „Od“ je později než „Do“"); return; }
+    newsletterRangeModal.classList.remove("visible");
+    runNewsletterExport(from, to);
+  });
+
+  async function runNewsletterExport(from, to) {
+    if (typeof html2canvas === "undefined") {
+      showToast("Nepodařilo se načíst knihovnu pro export obrázku");
+      return;
+    }
+    let list = visibleNotes().filter(n => isHlaskaFolder(n.druh) && htmlToPlainText(n.popis).length > 0);
+    if (from) list = list.filter(n => n.datum >= from);
+    if (to) list = list.filter(n => n.datum <= to);
+    list.sort((a, b) => (a.datum > b.datum ? 1 : -1)); // od nejstarší po nejnovější
+    if (list.length === 0) { showToast("V daném rozsahu nejsou žádné hlášky"); return; }
+
+    const cardsHtml = list.map(n => {
+      const tags = Array.isArray(n.stitky) ? n.stitky : [];
+      const who = (tags[0] || "").toUpperCase();
+      const color = tagColor(tags[0] || n.id);
+      const title = (n.nazev && n.nazev.trim()) ? n.nazev.trim() : "";
+      const text = htmlToPlainText(n.popis);
+      return `
+        <div class="nl-card" style="--nl-color:${color}">
+          <div class="nl-card-top">
+            ${who ? `<span class="nl-badge">${escapeHtml(who)}</span>` : "<span></span>"}
+            <span class="nl-date">${formatNlDate(n.datum)}</span>
+          </div>
+          ${title ? `<div class="nl-title">${escapeHtml(title)}</div>` : ""}
+          <div class="nl-text">${escapeHtml(text)}</div>
+        </div>`;
+    }).join("");
+
+    newsletterStage.innerHTML = `
+      <div class="nl-root">
+        <div class="nl-header">
+          <h1>😂 RODINNÉ HLÁŠKY</h1>
+          <div class="nl-sub">${escapeHtml(formatNlRange(from, to))} · nejlepší výroky</div>
+          <div class="nl-src">z aplikace Vtipníci</div>
+        </div>
+        <div class="nl-cards">${cardsHtml}</div>
+        <div class="nl-footer">
+          <p class="nl-f1">✎ Zaznamenáno v appce Vtipníci</p>
+          <p class="nl-f2">Ať i vás dnešní hlášky rozesmějí ♥</p>
+        </div>
+      </div>`;
+
+    showToast("Generuji obrázek…");
+    await new Promise(r => setTimeout(r, 60));
+
+    try {
+      const target = newsletterStage.firstElementChild;
+      const canvas = await html2canvas(target, { backgroundColor: "#fffaf0", scale: 2, useCORS: true });
+      canvas.toBlob(async (blob) => {
+        const fileName = `hlasky-newsletter-${from || "vse"}_${to || "vse"}.png`;
+        const file = new File([blob], fileName, { type: "image/png" });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          try {
+            await navigator.share({ files: [file], title: "Rodinné hlášky" });
+            newsletterStage.innerHTML = "";
+            return;
+          } catch (err) {
+            // uživatel sdílení zrušil nebo selhalo -> spadneme na stažení
+          }
+        }
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 4000);
+        newsletterStage.innerHTML = "";
+      }, "image/png");
+    } catch (err) {
+      newsletterStage.innerHTML = "";
+      showToast("Export obrázku selhal: " + err.message);
+    }
+  }
 
   // ---------- JSON backup export ----------
   jsonExportBtn.addEventListener("click", () => {
