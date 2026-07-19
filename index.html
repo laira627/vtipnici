@@ -146,8 +146,8 @@
   .termin-badge-overdue { background: #c0392b; }
   .termin-badge-today { background: #e0a733; }
   .folder-row.active .termin-badge { box-shadow: 0 0 0 1.5px rgba(255,255,255,0.7); }
-  .note-row.termin-tile-overdue { background: #fbe4e1; }
-  .note-row.termin-tile-today { background: #fdf0d5; }
+  .note-row.termin-tile-overdue { background: #f6cdc6; }
+  .note-row.termin-tile-today { background: #fbe3a3; }
   .folder-color-input { position: absolute; opacity: 0; width: 20px; height: 20px; left: 0; top: 0; cursor: pointer; }
   .folder-name-input {
     flex: 1; border: none; background: rgba(255,255,255,0.6); border-radius: 5px;
@@ -1044,6 +1044,14 @@
     return list;
   }
 
+  function getTerminUrgencyClass(n) {
+    if (!n.termin) return "";
+    const todayStr = new Date().toISOString().slice(0, 10);
+    if (n.termin < todayStr) return "termin-tile-overdue";
+    if (n.termin === todayStr) return "termin-tile-today";
+    return "";
+  }
+
   function renderNotes() {
     if (view.type === "dashboard") { renderDashboardView(); return; }
     if (view.type === "termin") { renderTerminView(); return; }
@@ -1068,7 +1076,8 @@
         ? `<div class="note-row-tags">${tags.map(t => `<span class="tag-pill">#${escapeHtml(t)}</span>`).join("")}</div>`
         : "";
       const terminHtml = n.termin ? `<div class="note-row-meta note-row-termin">🗓️ ${formatDate(n.termin)}</div>` : "";
-      return `<div class="note-row ${isActive ? "active" : ""}" style="border-left-color:${color}" data-id="${n.id}">
+      const urgencyClass = getTerminUrgencyClass(n);
+      return `<div class="note-row ${isActive ? "active" : ""} ${urgencyClass}" style="border-left-color:${color}" data-id="${n.id}">
         <button class="note-row-del" data-id="${n.id}" title="Smazat poznámku" aria-label="Smazat poznámku">🗑</button>
         <div class="note-row-top">
           <span class="note-row-badge" style="background:${color}22;color:${color}">${escapeHtml(n.druh || "")}</span>
@@ -1162,7 +1171,7 @@
     });
   }
 
-  function terminSectionHtml(label, notesInSection, todayStr) {
+  function terminSectionHtml(label, notesInSection) {
     if (notesInSection.length === 0) return "";
     let html = `<div class="dashboard-group">
       <div class="dashboard-group-label">
@@ -1178,9 +1187,7 @@
       const tagsHtml = tags.length
         ? `<div class="note-row-tags">${tags.map(t => `<span class="tag-pill">#${escapeHtml(t)}</span>`).join("")}</div>`
         : "";
-      let urgencyClass = "";
-      if (n.termin < todayStr) urgencyClass = "termin-tile-overdue";
-      else if (n.termin === todayStr) urgencyClass = "termin-tile-today";
+      const urgencyClass = getTerminUrgencyClass(n);
       html += `<div class="note-row dashboard-tile ${urgencyClass}" style="border-left-color:${color}" data-id="${n.id}">
         <button class="note-row-del" data-id="${n.id}" title="Smazat poznámku" aria-label="Smazat poznámku">🗑</button>
         <div class="note-row-top">
@@ -1215,9 +1222,9 @@
     const later = withTermin.filter(n => n.termin > tomorrowStr).sort(byTerminAsc);
 
     let html = "";
-    html += terminSectionHtml("Po termínu a dnes", overdueToday, todayStr);
-    html += terminSectionHtml("Zítra", tomorrow, todayStr);
-    html += terminSectionHtml("Později", later, todayStr);
+    html += terminSectionHtml("Po termínu a dnes", overdueToday);
+    html += terminSectionHtml("Zítra", tomorrow);
+    html += terminSectionHtml("Později", later);
     notesList.innerHTML = html;
 
     notesList.querySelectorAll(".dashboard-tile").forEach(tile => {
