@@ -48,7 +48,7 @@
 
   .field { margin-bottom: 14px; }
   .field label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: var(--ink-soft); }
-  input[type=email], input[type=password], input[type=date], select, textarea {
+  input[type=email], input[type=password], input[type=date], input[type=text], input[type=url], select, textarea {
     width: 100%;
     padding: 13px 14px;
     border-radius: 11px;
@@ -176,8 +176,6 @@
   const NOTES_COL = "poznamky";
   const FOLDERS_COL = "slozky";
   const FALLBACK_DRUHY = ["Hláška", "Kino", "Kniha", "Kultura", "Myšlenka", "Lékaři", "Tipy"];
-  const DEFAULT_DRUH = "Hláška";
-
   const loginScreen = document.getElementById("loginScreen");
   const entryScreen = document.getElementById("entryScreen");
   const loginForm = document.getElementById("loginForm");
@@ -247,8 +245,8 @@
       names = [...names].sort((a, b) => a.localeCompare(b, "cs"));
       const prevValue = druhEl.value;
       druhEl.innerHTML = names.map(n => `<option value="${n}">${n}</option>`).join("");
-      if (firstLoad && names.includes(DEFAULT_DRUH)) {
-        druhEl.value = DEFAULT_DRUH;
+      if (firstLoad && names.length) {
+        druhEl.value = names[names.length - 1];
       } else if (names.includes(prevValue)) {
         druhEl.value = prevValue;
       }
