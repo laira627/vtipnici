@@ -154,12 +154,7 @@
     flex: 1; min-width: 0; border: none; background: rgba(255,255,255,0.6); border-radius: 5px;
     font-size: 14px; font-weight: 600; padding: 3px 6px; color: var(--ink); outline: 1.5px solid var(--accent);
   }
-  .folder-rename-wrap { display: flex; align-items: center; gap: 4px; flex: 1; min-width: 0; }
-  .folder-emoji-btn {
-    background: rgba(255,255,255,0.5); border: none; border-radius: 5px; cursor: pointer;
-    width: 22px; height: 22px; display: flex; align-items: center; justify-content: center;
-    font-size: 13px; flex-shrink: 0;
-  }
+  .folder-tools.force-visible { display: flex !important; }
 
   .add-folder-panel { padding: 10px 16px 14px; border-top: 1px solid var(--line); display: none; }
   .add-folder-panel.visible { display: block; }
@@ -444,7 +439,7 @@
       <div class="add-folder-panel" id="addFolderPanel">
         <div class="row">
           <input type="text" id="newFolderName" placeholder="Název složky">
-          <button class="icon-btn small" id="newFolderEmojiBtn" type="button" title="Vložit emoji" aria-label="Vložit emoji">😊</button>
+          <button class="icon-btn small emoji-trigger-btn" id="newFolderEmojiBtn" type="button" title="Vložit emoji" aria-label="Vložit emoji">😊</button>
           <input type="color" id="newFolderColor" value="#3d6fa8">
         </div>
         <div class="row-btns">
@@ -490,7 +485,7 @@
           <input type="date" id="editorTermin" title="Termín (nepovinné)" aria-label="Termín (nepovinné)">
           <div class="spacer"></div>
           <div class="emoji-picker-wrap">
-            <button class="icon-btn small" id="emojiPickerBtn" type="button" title="Vložit emoji" aria-label="Vložit emoji">😊</button>
+            <button class="icon-btn small emoji-trigger-btn" id="emojiPickerBtn" type="button" title="Vložit emoji" aria-label="Vložit emoji">😊</button>
             <div class="emoji-picker-panel" id="emojiPickerPanel"></div>
           </div>
           <button class="icon-btn small" id="editorFavBtn" title="Oblíbené" aria-label="Oblíbené">★</button>
@@ -1030,22 +1025,14 @@
     const span = foldersList.querySelector(`[data-name-for="${id}"]`);
     const f = folders.find(x => x.id === id);
     if (!span || !f) return;
+    const row = span.closest(".folder-row");
+    const tools = row ? row.querySelector(".folder-tools") : null;
+
     const input = document.createElement("input");
     input.type = "text";
     input.className = "folder-name-input";
     input.value = f.nazev;
-
-    const wrap = document.createElement("span");
-    wrap.className = "folder-rename-wrap";
-    const emojiBtn = document.createElement("button");
-    emojiBtn.type = "button";
-    emojiBtn.className = "folder-emoji-btn";
-    emojiBtn.title = "Vložit emoji";
-    emojiBtn.setAttribute("aria-label", "Vložit emoji");
-    emojiBtn.textContent = "😊";
-    wrap.appendChild(input);
-    wrap.appendChild(emojiBtn);
-    span.replaceWith(wrap);
+    span.replaceWith(input);
 
     // Kurzor se umístí na konec názvu (ne "select all"), takže jde normálně
     // dopsat nebo opravit jedno písmenko bez nutnosti přepisovat celý název.
@@ -1055,12 +1042,32 @@
     const trackRenameInput = registerEmojiTarget(input);
     trackRenameInput();
 
-    guardFocus(emojiBtn);
-    emojiBtn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      trackRenameInput();
-      toggleEmojiPicker(emojiBtn);
-    });
+    // Během přejmenování nahraď tlačítka Přejmenovat/Smazat (teď zbytečná)
+    // tlačítkem pro emoji, ať se nepřekrývá se vstupním polem - zůstane
+    // viditelná i barva složky.
+    let emojiBtn = null;
+    let renameBtn = null;
+    let deleteBtn = null;
+    if (tools) {
+      renameBtn = tools.querySelector("[data-rename]");
+      deleteBtn = tools.querySelector("[data-delete]");
+      if (renameBtn) renameBtn.style.display = "none";
+      if (deleteBtn) deleteBtn.style.display = "none";
+      emojiBtn = document.createElement("button");
+      emojiBtn.type = "button";
+      emojiBtn.className = "folder-tool-btn emoji-trigger-btn";
+      emojiBtn.title = "Vložit emoji";
+      emojiBtn.setAttribute("aria-label", "Vložit emoji");
+      emojiBtn.textContent = "😊";
+      tools.appendChild(emojiBtn);
+      tools.classList.add("force-visible");
+      guardFocus(emojiBtn);
+      emojiBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        trackRenameInput();
+        toggleEmojiPicker(emojiBtn);
+      });
+    }
 
     const finish = async () => {
       const newName = input.value.trim();
@@ -1074,7 +1081,7 @@
       // Neukončuj úpravu, pokud focus jen přeskočil na tlačítko emoji
       // (to samo o sobě focus nekrade díky preventDefault na mousedown,
       // tahle podmínka je jen dodatečná pojistka).
-      if (e.relatedTarget === emojiBtn) return;
+      if (emojiBtn && e.relatedTarget === emojiBtn) return;
       finish();
     });
     input.addEventListener("keydown", (e) => {
@@ -1676,7 +1683,7 @@
   document.addEventListener("click", (e) => {
     if (emojiPickerPanel.classList.contains("visible") &&
         !emojiPickerPanel.contains(e.target) &&
-        !e.target.closest("#emojiPickerBtn, #newFolderEmojiBtn, .folder-emoji-btn")) {
+        !e.target.closest(".emoji-trigger-btn")) {
       emojiPickerPanel.classList.remove("visible");
       emojiPickerCurrentTrigger = null;
     }
