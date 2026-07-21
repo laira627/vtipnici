@@ -116,6 +116,7 @@
     font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
     color: var(--ink-soft); font-weight: 700; padding: 12px 8px 6px;
   }
+  .folder-divider { border-top: 1px solid var(--line); margin: 8px 8px 10px; }
   .folder-row {
     display: flex; align-items: center; gap: 9px; padding: 9px 10px;
     border-radius: 9px; cursor: pointer; font-size: 14px; font-weight: 600;
@@ -150,8 +151,14 @@
   .note-row.termin-tile-today { background: #fbe3a3; }
   .folder-color-input { position: absolute; opacity: 0; width: 20px; height: 20px; left: 0; top: 0; cursor: pointer; }
   .folder-name-input {
-    flex: 1; border: none; background: rgba(255,255,255,0.6); border-radius: 5px;
+    flex: 1; min-width: 0; border: none; background: rgba(255,255,255,0.6); border-radius: 5px;
     font-size: 14px; font-weight: 600; padding: 3px 6px; color: var(--ink); outline: 1.5px solid var(--accent);
+  }
+  .folder-rename-wrap { display: flex; align-items: center; gap: 4px; flex: 1; min-width: 0; }
+  .folder-emoji-btn {
+    background: rgba(255,255,255,0.5); border: none; border-radius: 5px; cursor: pointer;
+    width: 22px; height: 22px; display: flex; align-items: center; justify-content: center;
+    font-size: 13px; flex-shrink: 0;
   }
 
   .add-folder-panel { padding: 10px 16px 14px; border-top: 1px solid var(--line); display: none; }
@@ -274,6 +281,25 @@
   .editor-import-row input[type=url]:focus { border-color: var(--accent); background: #fff; }
   .editor-import-row .icon-btn { flex-shrink: 0; }
   #importStatus { font-size: 12px; color: var(--ink-soft); flex-shrink: 0; }
+
+  .emoji-picker-wrap { position: relative; }
+  .emoji-picker-panel {
+    display: none; position: fixed; z-index: 250;
+    background: var(--paper); border: 1px solid var(--line); border-radius: 12px;
+    box-shadow: var(--shadow); padding: 10px; width: 290px; max-height: 260px; overflow-y: auto;
+  }
+  .emoji-picker-panel.visible { display: block; }
+  .emoji-picker-section-label {
+    font-size: 10.5px; font-weight: 700; color: var(--ink-soft); text-transform: uppercase;
+    letter-spacing: .04em; margin: 8px 2px 4px;
+  }
+  .emoji-picker-section-label:first-child { margin-top: 0; }
+  .emoji-picker-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; }
+  .emoji-picker-grid button {
+    background: transparent; border: none; cursor: pointer; font-size: 19px; padding: 5px 0;
+    border-radius: 7px; line-height: 1;
+  }
+  .emoji-picker-grid button:hover { background: var(--accent-soft); }
 
   .modal-overlay {
     display: none; position: fixed; inset: 0; background: rgba(43,38,32,0.35);
@@ -418,6 +444,7 @@
       <div class="add-folder-panel" id="addFolderPanel">
         <div class="row">
           <input type="text" id="newFolderName" placeholder="Název složky">
+          <button class="icon-btn small" id="newFolderEmojiBtn" type="button" title="Vložit emoji" aria-label="Vložit emoji">😊</button>
           <input type="color" id="newFolderColor" value="#3d6fa8">
         </div>
         <div class="row-btns">
@@ -462,6 +489,10 @@
           <input type="date" id="editorDate" title="Datum poznámky" aria-label="Datum poznámky">
           <input type="date" id="editorTermin" title="Termín (nepovinné)" aria-label="Termín (nepovinné)">
           <div class="spacer"></div>
+          <div class="emoji-picker-wrap">
+            <button class="icon-btn small" id="emojiPickerBtn" type="button" title="Vložit emoji" aria-label="Vložit emoji">😊</button>
+            <div class="emoji-picker-panel" id="emojiPickerPanel"></div>
+          </div>
           <button class="icon-btn small" id="editorFavBtn" title="Oblíbené" aria-label="Oblíbené">★</button>
           <button class="icon-btn small" id="editorDeleteBtn" title="Smazat poznámku" aria-label="Smazat poznámku">🗑</button>
         </div>
@@ -602,6 +633,9 @@
   const editorFolder = document.getElementById("editorFolder");
   const editorDate = document.getElementById("editorDate");
   const editorTermin = document.getElementById("editorTermin");
+  const emojiPickerBtn = document.getElementById("emojiPickerBtn");
+  const emojiPickerPanel = document.getElementById("emojiPickerPanel");
+  const newFolderEmojiBtn = document.getElementById("newFolderEmojiBtn");
   const editorTitle = document.getElementById("editorTitle");
   const editorFavBtn = document.getElementById("editorFavBtn");
   const editorDeleteBtn = document.getElementById("editorDeleteBtn");
@@ -641,6 +675,11 @@
   let suppressAutosave = false;
   let pendingDeletes = new Map(); // id -> { timeoutId }
   let undoToastTimer = null;
+  let lastFocusIsQuill = false; // false = vkládá se do naposledy použitého text inputu, true = do Quillu
+  let lastFocusEl = null; // konkrétní text input (název poznámky, název složky nové/přejmenované...)
+  let lastFocusCursor = null;
+  let quillLastRange = null;
+  let emojiPickerCurrentTrigger = null;
 
   function showToast(msg) {
     clearTimeout(undoToastTimer);
@@ -714,7 +753,7 @@
       modules: {
         toolbar: {
           container: toolbarOptions,
-          handlers: { image: handleImageInsert }
+          handlers: { image: handleImageInsert, link: handleLinkInsert }
         }
       }
     });
@@ -744,6 +783,75 @@
         toolbarEl.querySelectorAll(sel).forEach(el => el.setAttribute("title", title));
       });
     }
+
+    quill.on("selection-change", (range) => {
+      if (range) {
+        lastFocusIsQuill = true;
+        quillLastRange = range;
+      }
+    });
+
+    // Klik na odkaz v poznámce ho rovnou otevře v nové záložce (místo Quillova
+    // výchozího "Edit/Remove" bublinového menu, které pro odkaz "co nefunguje"
+    // nemělo žádnou možnost odkaz skutečně otevřít).
+    quill.root.addEventListener("click", (e) => {
+      const a = e.target.closest("a");
+      if (!a || !quill.root.contains(a)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const href = a.getAttribute("href");
+      if (href) window.open(href, "_blank", "noopener,noreferrer");
+    }, true);
+  }
+
+  function normalizeUrlValue(raw) {
+    const trimmed = (raw || "").trim();
+    if (!trimmed) return "";
+    if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(trimmed) || trimmed.startsWith("#") || trimmed.startsWith("/")) {
+      return trimmed;
+    }
+    return "https://" + trimmed;
+  }
+
+  function handleLinkInsert(value) {
+    if (!value) {
+      quill.format("link", false, "user");
+      return;
+    }
+    const range = quill.getSelection(true);
+    if (!range || range.length === 0) {
+      showToast("Nejdřív vyber text, který se má stát odkazem");
+      return;
+    }
+    const existing = quill.getFormat(range).link;
+    const raw = window.prompt("Vlož URL adresu odkazu:", existing || "https://");
+    if (raw === null) return;
+    const url = normalizeUrlValue(raw);
+    if (!url) {
+      quill.format("link", false, "user");
+      return;
+    }
+    quill.format("link", url, "user");
+  }
+
+  // Opraví odkazy, které v poznámce chybně nemají protokol (např. vložené
+  // před touto opravou), a rovnou to uloží.
+  function fixBrokenLinksInCurrentNote() {
+    const delta = quill.getContents();
+    let index = 0;
+    let changed = false;
+    delta.ops.forEach(op => {
+      const len = typeof op.insert === "string" ? op.insert.length : 1;
+      if (op.attributes && typeof op.attributes.link === "string") {
+        const fixed = normalizeUrlValue(op.attributes.link);
+        if (fixed && fixed !== op.attributes.link) {
+          quill.formatText(index, len, "link", fixed, "silent");
+          changed = true;
+        }
+      }
+      index += len;
+    });
+    return changed;
   }
 
   function handleImageInsert() {
@@ -852,12 +960,10 @@
     const terminTodayCount = notesForCounts.filter(n => n.termin === todayStr).length;
     let html = "";
     html += `<div class="folder-row ${view.type === "dashboard" ? "active" : ""}" data-view="dashboard">
-      <span class="folder-dot" style="background:#e0a733"></span>
       <span class="folder-name">🏠 Dashboard</span>
       <span class="folder-count">${favCount}</span>
     </div>`;
     html += `<div class="folder-row ${view.type === "termin" ? "active" : ""}" data-view="termin">
-      <span class="folder-dot" style="background:#4a90d9"></span>
       <span class="folder-name">🗓️ Termín</span>
       <span class="termin-badges">
         ${terminOverdueCount > 0 ? `<span class="termin-badge termin-badge-overdue" title="Po termínu">${terminOverdueCount}</span>` : ""}
@@ -865,11 +971,10 @@
       </span>
     </div>`;
     html += `<div class="folder-row ${view.type === "all" ? "active" : ""}" data-view="all">
-      <span class="folder-dot" style="background:#8a8a8a"></span>
       <span class="folder-name">Všechny poznámky</span>
       <span class="folder-count">${notesForCounts.length}</span>
     </div>`;
-    html += `<div class="folder-section-label">Složky</div>`;
+    html += `<div class="folder-divider"></div>`;
     folders.forEach(f => {
       const count = notesForCounts.filter(n => n.druh === f.nazev).length;
       const isActive = view.type === "folder" && view.id === f.id;
@@ -929,9 +1034,34 @@
     input.type = "text";
     input.className = "folder-name-input";
     input.value = f.nazev;
-    span.replaceWith(input);
+
+    const wrap = document.createElement("span");
+    wrap.className = "folder-rename-wrap";
+    const emojiBtn = document.createElement("button");
+    emojiBtn.type = "button";
+    emojiBtn.className = "folder-emoji-btn";
+    emojiBtn.title = "Vložit emoji";
+    emojiBtn.setAttribute("aria-label", "Vložit emoji");
+    emojiBtn.textContent = "😊";
+    wrap.appendChild(input);
+    wrap.appendChild(emojiBtn);
+    span.replaceWith(wrap);
+
+    // Kurzor se umístí na konec názvu (ne "select all"), takže jde normálně
+    // dopsat nebo opravit jedno písmenko bez nutnosti přepisovat celý název.
     input.focus();
-    input.select();
+    const endPos = input.value.length;
+    input.setSelectionRange(endPos, endPos);
+    const trackRenameInput = registerEmojiTarget(input);
+    trackRenameInput();
+
+    guardFocus(emojiBtn);
+    emojiBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      trackRenameInput();
+      toggleEmojiPicker(emojiBtn);
+    });
+
     const finish = async () => {
       const newName = input.value.trim();
       if (newName && newName !== f.nazev) {
@@ -940,7 +1070,13 @@
         renderFolders();
       }
     };
-    input.addEventListener("blur", finish);
+    input.addEventListener("blur", (e) => {
+      // Neukončuj úpravu, pokud focus jen přeskočil na tlačítko emoji
+      // (to samo o sobě focus nekrade díky preventDefault na mousedown,
+      // tahle podmínka je jen dodatečná pojistka).
+      if (e.relatedTarget === emojiBtn) return;
+      finish();
+    });
     input.addEventListener("keydown", (e) => {
       if (e.key === "Enter") input.blur();
       if (e.key === "Escape") { input.value = f.nazev; input.blur(); }
@@ -1391,6 +1527,7 @@
       html = "<p>" + escapeHtml(html).replace(/\n/g, "<br>") + "</p>";
     }
     quill.root.innerHTML = html;
+    if (fixBrokenLinksInCurrentNote()) scheduleSave();
     saveStatus.textContent = "Uloženo";
     editedStatus.textContent = n.upraveno && n.upraveno.toDate ? ("Upraveno " + n.upraveno.toDate().toLocaleString("cs-CZ")) : "";
     suppressAutosave = false;
@@ -1446,6 +1583,134 @@
   editorDate.addEventListener("change", () => scheduleSave());
   editorTermin.addEventListener("change", () => scheduleSave());
   editorTitle.addEventListener("input", () => scheduleSave());
+
+  // Zaregistruje libovolný text input (název poznámky, název složky...) jako
+  // možný cíl pro vkládání emoji a průběžně mu sleduje pozici kurzoru.
+  function registerEmojiTarget(el) {
+    const update = () => {
+      lastFocusIsQuill = false;
+      lastFocusEl = el;
+      lastFocusCursor = { start: el.selectionStart, end: el.selectionEnd };
+    };
+    el.addEventListener("focus", update);
+    el.addEventListener("click", update);
+    el.addEventListener("keyup", update);
+    el.addEventListener("select", update);
+    return update;
+  }
+  registerEmojiTarget(editorTitle);
+  const trackNewFolderName = registerEmojiTarget(newFolderName);
+
+  // ---------- Výběr emoji ----------
+  const EMOJI_SECTIONS = [
+    { label: "Smajlíci", items: ["😀","😃","😄","😁","😆","😅","🤣","😂","🙂","🙃","😉","😊","😇","🥰","😍","🤩","😘","😋","😛","😜","🤪","🤔","🤨","😐","🙄","😴","😌","🥱","😮","😯","😪","🤗","🥳","😎"] },
+    { label: "Gesta a lidé", items: ["👍","👎","👌","✌️","🤞","🤟","🤘","👊","✊","👋","🤙","💪","🙏","👏","🙌","🤷","🤦","🤒","🤕","🤢"] },
+    { label: "Srdce a emoce", items: ["❤️","🧡","💛","💚","💙","💜","🖤","🤍","🤎","💔","❣️","💕","💞","💓","💖","💘"] },
+    { label: "Zvířata a příroda", items: ["🐶","🐱","🐭","🐹","🐰","🦊","🐻","🐼","🐨","🐯","🦁","🐮","🐷","🐸","🐵","🐔","🐧","🦆","🐴","🦄","🐝","🦋","🐢","🐍","🐳","🐬","🐟","🌸","🌼","🌻","🌞","🌈","☀️","⛅","🌧️","❄️","🔥","💧","🌊"] },
+    { label: "Jídlo a pití", items: ["🍎","🍊","🍋","🍌","🍉","🍇","🍓","🍒","🍑","🥝","🍅","🥑","🌽","🍞","🧀","🍗","🍕","🍔","🍟","🌭","🌮","🍜","🍣","🍰","🎂","🍪","🍩","🍫","🍿","🍺","🍷","☕","🍵"] },
+    { label: "Aktivity a cestování", items: ["⚽","🏀","🎾","🎮","🎲","🎯","🎨","🎭","🎬","🎤","🎧","🎸","🚗","🚲","✈️","🚀","🚢","⛺","🏖️","🏔️","🗺️","📷"] },
+    { label: "Předměty a symboly", items: ["📌","📎","📝","✏️","📖","📚","💡","🔑","🔒","🔔","💬","💭","❗","❓","✅","❌","⭐","🌟","✨","🎉","🎁","🏆","⏰","📅","📆","💰","🩺","💊"] }
+  ];
+
+  function buildEmojiPicker() {
+    let html = "";
+    EMOJI_SECTIONS.forEach(section => {
+      html += `<div class="emoji-picker-section-label">${escapeHtml(section.label)}</div><div class="emoji-picker-grid">`;
+      section.items.forEach(e => {
+        html += `<button type="button" data-emoji="${e}" title="${e}">${e}</button>`;
+      });
+      html += `</div>`;
+    });
+    emojiPickerPanel.innerHTML = html;
+  }
+  buildEmojiPicker();
+
+  // Otevře/zavře panel u konkrétního tlačítka (může jich být víc - v editoru
+  // poznámky, u nové složky, u přejmenování složky) a umístí ho hned pod něj.
+  function toggleEmojiPicker(triggerEl) {
+    const isOpenForThis = emojiPickerPanel.classList.contains("visible") && emojiPickerCurrentTrigger === triggerEl;
+    if (isOpenForThis) {
+      emojiPickerPanel.classList.remove("visible");
+      emojiPickerCurrentTrigger = null;
+      return;
+    }
+    const rect = triggerEl.getBoundingClientRect();
+    const panelWidth = 290;
+    let left = rect.right - panelWidth;
+    if (left < 8) left = 8;
+    if (left + panelWidth > window.innerWidth - 8) left = window.innerWidth - panelWidth - 8;
+    let top = rect.bottom + 6;
+    if (top + 260 > window.innerHeight - 8) top = Math.max(8, rect.top - 266);
+    emojiPickerPanel.style.left = left + "px";
+    emojiPickerPanel.style.top = top + "px";
+    emojiPickerPanel.classList.add("visible");
+    emojiPickerCurrentTrigger = triggerEl;
+  }
+
+  // mousedown s preventDefault na spouštěcích tlačítkách i na samotných emoji
+  // zabrání prohlížeči přebrat focus z pole, kam se právě píše (jinak by se
+  // třeba přejmenování složky předčasně uložilo/ukončilo).
+  function guardFocus(el) {
+    el.addEventListener("mousedown", (e) => e.preventDefault());
+  }
+  guardFocus(emojiPickerBtn);
+  guardFocus(newFolderEmojiBtn);
+  emojiPickerPanel.addEventListener("mousedown", (e) => {
+    if (e.target.closest("button[data-emoji]")) e.preventDefault();
+  });
+
+  emojiPickerBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    toggleEmojiPicker(emojiPickerBtn);
+  });
+  newFolderEmojiBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    trackNewFolderName();
+    toggleEmojiPicker(newFolderEmojiBtn);
+  });
+  emojiPickerPanel.addEventListener("click", (e) => {
+    const btn = e.target.closest("button[data-emoji]");
+    if (!btn) return;
+    insertEmoji(btn.dataset.emoji);
+  });
+  document.addEventListener("click", (e) => {
+    if (emojiPickerPanel.classList.contains("visible") &&
+        !emojiPickerPanel.contains(e.target) &&
+        !e.target.closest("#emojiPickerBtn, #newFolderEmojiBtn, .folder-emoji-btn")) {
+      emojiPickerPanel.classList.remove("visible");
+      emojiPickerCurrentTrigger = null;
+    }
+  });
+
+  function insertEmoji(emoji) {
+    if (lastFocusIsQuill && quill) {
+      const range = quillLastRange || quill.getSelection(true) || { index: Math.max(0, quill.getLength() - 1), length: 0 };
+      quill.insertText(range.index, emoji, "user");
+      const newIndex = range.index + emoji.length;
+      quill.setSelection(newIndex, 0, "user");
+      quillLastRange = { index: newIndex, length: 0 };
+      return;
+    }
+    const el = lastFocusEl || editorTitle;
+    if (!el || !el.isConnected) return;
+    const pos = lastFocusCursor && typeof lastFocusCursor.start === "number"
+      ? lastFocusCursor
+      : { start: el.value.length, end: el.value.length };
+    const val = el.value;
+    el.value = val.slice(0, pos.start) + emoji + val.slice(pos.end);
+    const newPos = pos.start + emoji.length;
+    lastFocusCursor = { start: newPos, end: newPos };
+    el.focus();
+    el.setSelectionRange(newPos, newPos);
+    if (el === editorTitle) scheduleSave();
+  }
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && emojiPickerPanel.classList.contains("visible")) {
+      emojiPickerPanel.classList.remove("visible");
+      emojiPickerCurrentTrigger = null;
+    }
+  });
 
   editorFavBtn.addEventListener("click", () => {
     if (!selectedNoteId) return;
