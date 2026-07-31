@@ -125,19 +125,19 @@
     </div>
     <div class="field">
       <label for="nazev">Název</label>
-      <input type="text" id="nazev" placeholder="Název poznámky (nepovinné)">
+      <input type="text" id="nazev" required placeholder="Název poznámky" autofocus>
     </div>
     <div class="field">
-      <label for="popis">Popis</label>
-      <textarea id="popis" required placeholder="Napiš, co se stalo…" autofocus></textarea>
+      <label for="termin">Termín (nepovinné)</label>
+      <input type="date" id="termin">
     </div>
     <div class="field">
       <label for="stitky">Štítky</label>
       <input type="text" id="stitky" placeholder="oddělené čárkou, např. výlet, vtip">
     </div>
     <div class="field">
-      <label for="termin">Termín (nepovinné)</label>
-      <input type="date" id="termin">
+      <label for="popis">Popis (nepovinné)</label>
+      <textarea id="popis" placeholder="Napiš, co se stalo…"></textarea>
     </div>
     <button type="submit" class="btn">Uložit záznam</button>
   </form>
@@ -211,7 +211,7 @@
       entryScreen.style.display = "block";
       resetDate();
       subscribeFolders(user.uid);
-      setTimeout(() => popisEl.focus(), 200);
+      setTimeout(() => nazevEl.focus(), 200);
     } else {
       currentUid = null;
       loginScreen.style.display = "block";
@@ -264,7 +264,7 @@
       .split(",")
       .map(t => t.trim().replace(/^#/, ""))
       .filter(Boolean);
-    if (!datum || !druh || !popis) return;
+    if (!datum || !druh || !nazev) return;
 
     const termin = terminEl.value;
 
@@ -281,7 +281,7 @@
       stitkyEl.value = "";
       terminEl.value = "";
       resetDate();
-      popisEl.focus();
+      nazevEl.focus();
       showToast("Uloženo ✓");
     } catch (err) {
       showToast("Chyba: " + err.message);
