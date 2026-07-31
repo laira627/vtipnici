@@ -897,6 +897,12 @@
       initQuill();
       subscribeFolders(user.uid);
       subscribeNotes(user.uid);
+      // Na mobilu appka po otevření rovnou ukáže Dashboard Termín místo menu
+      // se složkami (na desktopu, kde jsou vidět všechny sloupce najednou,
+      // se výchozí pohled nemění).
+      if (window.innerWidth <= 900) {
+        selectView({ type: "termin" });
+      }
     } else {
       currentUid = null;
       loginScreen.style.display = "flex";
