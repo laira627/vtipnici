@@ -48,6 +48,12 @@
 
   .field { margin-bottom: 14px; }
   .field label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: var(--ink-soft); }
+  .field-required {
+    background: var(--accent-soft); border: 1.5px solid var(--accent);
+    border-radius: 12px; padding: 10px 12px 12px;
+  }
+  .field-required label { color: var(--accent-dark); }
+  .field-required label::after { content: " *"; color: var(--accent); }
   input[type=email], input[type=password], input[type=date], input[type=text], input[type=url], select, textarea {
     width: 100%;
     padding: 13px 14px;
@@ -123,7 +129,7 @@
         <select id="druh" required></select>
       </div>
     </div>
-    <div class="field">
+    <div class="field field-required">
       <label for="nazev">Název</label>
       <input type="text" id="nazev" required placeholder="Název poznámky" autofocus>
     </div>

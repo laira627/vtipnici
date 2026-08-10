@@ -230,7 +230,10 @@
   .editor-topbar input[type=date] { padding: 7px 9px; font-size: 13px; max-width: 145px; }
   .editor-topbar .spacer { flex: 1; }
 
-  .editor-title-row { padding: 16px 20px 0; }
+  .editor-title-row {
+    margin: 14px 20px 0; padding: 10px 16px 4px;
+    background: var(--accent-soft); border: 1.5px solid var(--accent); border-radius: 12px;
+  }
   #editorTitle {
     width: 100%; border: none; outline: none; font-size: 24px; font-weight: 700;
     color: var(--ink); background: transparent; padding: 0 0 12px;
@@ -1193,6 +1196,20 @@
     return list;
   }
 
+  function addDaysToIsoDate(isoDate, days) {
+    const d = new Date(isoDate + "T00:00:00Z");
+    d.setUTCDate(d.getUTCDate() + days);
+    return d.toISOString().slice(0, 10);
+  }
+
+  function mondayOfIsoWeek(isoDate) {
+    const d = new Date(isoDate + "T00:00:00Z");
+    const day = d.getUTCDay(); // 0 = neděle .. 6 = sobota
+    const diff = day === 0 ? -6 : (1 - day);
+    d.setUTCDate(d.getUTCDate() + diff);
+    return d.toISOString().slice(0, 10);
+  }
+
   function getTerminUrgencyClass(n) {
     if (!n.termin) return "";
     const todayStr = new Date().toISOString().slice(0, 10);
@@ -1209,6 +1226,13 @@
     else notesColTitle.textContent = view.nazev;
 
     const list = currentViewNotes();
+    list.sort((a, b) => {
+      const ka = a.termin || a.datum || "";
+      const kb = b.termin || b.datum || "";
+      if (ka < kb) return -1;
+      if (ka > kb) return 1;
+      return 0;
+    });
     if (list.length === 0) {
       notesList.innerHTML = `<div class="empty-state">Žádné poznámky.</div>`;
       return;
@@ -1362,17 +1386,25 @@
     }
 
     const todayStr = new Date().toISOString().slice(0, 10);
-    const tomorrowStr = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+    const tomorrowStr = addDaysToIsoDate(todayStr, 1);
+    const thisWeekMonday = mondayOfIsoWeek(todayStr);
+    const thisWeekSunday = addDaysToIsoDate(thisWeekMonday, 6);
+    const nextWeekMonday = addDaysToIsoDate(thisWeekMonday, 7);
+    const nextWeekSunday = addDaysToIsoDate(thisWeekMonday, 13);
 
     const byTerminAsc = (a, b) => (a.termin < b.termin ? -1 : a.termin > b.termin ? 1 : 0);
 
     const overdueToday = withTermin.filter(n => n.termin <= todayStr).sort(byTerminAsc);
     const tomorrow = withTermin.filter(n => n.termin === tomorrowStr).sort(byTerminAsc);
-    const later = withTermin.filter(n => n.termin > tomorrowStr).sort(byTerminAsc);
+    const thisWeek = withTermin.filter(n => n.termin > tomorrowStr && n.termin <= thisWeekSunday).sort(byTerminAsc);
+    const nextWeek = withTermin.filter(n => n.termin !== tomorrowStr && n.termin >= nextWeekMonday && n.termin <= nextWeekSunday).sort(byTerminAsc);
+    const later = withTermin.filter(n => n.termin > nextWeekSunday).sort(byTerminAsc);
 
     let html = "";
     html += terminSectionHtml("Po termínu a dnes", overdueToday);
     html += terminSectionHtml("Zítra", tomorrow);
+    html += terminSectionHtml("Tento týden", thisWeek);
+    html += terminSectionHtml("Příští týden", nextWeek);
     html += terminSectionHtml("Později", later);
     notesList.innerHTML = html;
 
@@ -1478,6 +1510,7 @@
   newNoteBtn.addEventListener("click", async () => {
     let targetFolder;
     if (view.type === "folder") targetFolder = view.nazev;
+    else if (view.type === "termin") targetFolder = folders.length ? folders[folders.length - 1].nazev : null;
     else targetFolder = folders[0] ? folders[0].nazev : null;
     if (!targetFolder) { showToast("Nejprve vytvoř složku"); return; }
 
