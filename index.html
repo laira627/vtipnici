@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Vtipníci</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ctext%20y%3D%22.9em%22%20font-size%3D%2290%22%3E%F0%9F%93%8C%3C/text%3E%3C/svg%3E">
 <link href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" rel="stylesheet">
 <style>
   :root {
@@ -388,6 +389,7 @@
   }
   .dashboard-row { display: flex; flex-wrap: wrap; gap: 8px; }
   .dashboard-tile { flex: 1 1 180px; max-width: 280px; margin-bottom: 0; }
+  .dashboard-tile.termin-dash-tile { flex: 0 0 280px; width: 280px; }
 
   /* ---------- Mobile ---------- */
   .back-btn { display: none; }
@@ -400,6 +402,7 @@
     .columns[data-view="editor"] .col-editor { display: flex; }
     .back-btn { display: inline-flex; }
     .dashboard-tile { flex: 1 1 100%; max-width: 100%; }
+    .dashboard-tile.termin-dash-tile { flex: 1 1 100%; width: auto; }
   }
 </style>
 </head>
@@ -963,16 +966,16 @@
     const terminOverdueCount = notesForCounts.filter(n => n.termin && n.termin < todayStr).length;
     const terminTodayCount = notesForCounts.filter(n => n.termin === todayStr).length;
     let html = "";
-    html += `<div class="folder-row ${view.type === "dashboard" ? "active" : ""}" data-view="dashboard">
-      <span class="folder-name">🏠 Dashboard</span>
-      <span class="folder-count">${favCount}</span>
-    </div>`;
     html += `<div class="folder-row ${view.type === "termin" ? "active" : ""}" data-view="termin">
-      <span class="folder-name">🗓️ Termín</span>
+      <span class="folder-name">📌 Termín</span>
       <span class="termin-badges">
         ${terminOverdueCount > 0 ? `<span class="termin-badge termin-badge-overdue" title="Po termínu">${terminOverdueCount}</span>` : ""}
         ${terminTodayCount > 0 ? `<span class="termin-badge termin-badge-today" title="Dnes">${terminTodayCount}</span>` : ""}
       </span>
+    </div>`;
+    html += `<div class="folder-row ${view.type === "dashboard" ? "active" : ""}" data-view="dashboard">
+      <span class="folder-name">🏠 Dashboard</span>
+      <span class="folder-count">${favCount}</span>
     </div>`;
     html += `<div class="folder-row ${view.type === "all" ? "active" : ""}" data-view="all">
       <span class="folder-name">Všechny poznámky</span>
@@ -1226,11 +1229,19 @@
     else notesColTitle.textContent = view.nazev;
 
     const list = currentViewNotes();
+    // Poznámky s termínem napřed (prošlé/aktuální/budoucí vzestupně), pak
+    // teprve poznámky bez termínu - ty podle data zadání, od nejnovější.
     list.sort((a, b) => {
-      const ka = a.termin || a.datum || "";
-      const kb = b.termin || b.datum || "";
-      if (ka < kb) return -1;
-      if (ka > kb) return 1;
+      const aHas = !!a.termin;
+      const bHas = !!b.termin;
+      if (aHas && bHas) {
+        if (a.termin < b.termin) return -1;
+        if (a.termin > b.termin) return 1;
+        return 0;
+      }
+      if (aHas !== bHas) return aHas ? -1 : 1;
+      if (a.datum > b.datum) return -1;
+      if (a.datum < b.datum) return 1;
       return 0;
     });
     if (list.length === 0) {
@@ -1361,7 +1372,7 @@
         ? `<div class="note-row-tags">${tags.map(t => `<span class="tag-pill">#${escapeHtml(t)}</span>`).join("")}</div>`
         : "";
       const urgencyClass = getTerminUrgencyClass(n);
-      html += `<div class="note-row dashboard-tile ${urgencyClass}" style="border-left-color:${color}" data-id="${n.id}">
+      html += `<div class="note-row dashboard-tile termin-dash-tile ${urgencyClass}" style="border-left-color:${color}" data-id="${n.id}">
         <button class="note-row-del" data-id="${n.id}" title="Smazat poznámku" aria-label="Smazat poznámku">🗑</button>
         <div class="note-row-top">
           <span class="note-row-badge" style="background:${color}22;color:${color}">${escapeHtml(n.druh || "")}</span>
@@ -1398,7 +1409,8 @@
     const tomorrow = withTermin.filter(n => n.termin === tomorrowStr).sort(byTerminAsc);
     const thisWeek = withTermin.filter(n => n.termin > tomorrowStr && n.termin <= thisWeekSunday).sort(byTerminAsc);
     const nextWeek = withTermin.filter(n => n.termin !== tomorrowStr && n.termin >= nextWeekMonday && n.termin <= nextWeekSunday).sort(byTerminAsc);
-    const later = withTermin.filter(n => n.termin > nextWeekSunday).sort(byTerminAsc);
+    const maxLaterDate = addDaysToIsoDate(todayStr, 60);
+    const later = withTermin.filter(n => n.termin > nextWeekSunday && n.termin <= maxLaterDate).sort(byTerminAsc);
 
     let html = "";
     html += terminSectionHtml("Po termínu a dnes", overdueToday);
