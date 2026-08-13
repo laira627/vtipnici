@@ -495,6 +495,7 @@
             <div class="emoji-picker-panel" id="emojiPickerPanel"></div>
           </div>
           <button class="icon-btn small" id="editorFavBtn" title="Oblíbené" aria-label="Oblíbené">★</button>
+          <button class="icon-btn small" id="editorShareBtn" type="button" title="Sdílet přes WhatsApp" aria-label="Sdílet přes WhatsApp">📤</button>
           <button class="icon-btn small" id="editorDeleteBtn" title="Smazat poznámku" aria-label="Smazat poznámku">🗑</button>
         </div>
         <div class="editor-title-row">
@@ -504,12 +505,12 @@
           <div class="tag-chips" id="tagChips"></div>
           <input type="text" id="tagInput" placeholder="+ štítek (Enter)">
         </div>
+        <div id="quillContainer"></div>
         <div class="editor-import-row" id="editorImportRow">
           <input type="url" id="importUrlInput" placeholder="Vlož odkaz na recept / stránku…">
           <button class="icon-btn small" id="importUrlBtn" type="button" title="Načíst text ze stránky" aria-label="Načíst text ze stránky">🌐 Načíst z webu</button>
           <span id="importStatus"></span>
         </div>
-        <div id="quillContainer"></div>
         <div class="editor-statusbar">
           <span id="saveStatus">Uloženo</span>
           <span id="editedStatus"></span>
@@ -639,6 +640,7 @@
   const newFolderEmojiBtn = document.getElementById("newFolderEmojiBtn");
   const editorTitle = document.getElementById("editorTitle");
   const editorFavBtn = document.getElementById("editorFavBtn");
+  const editorShareBtn = document.getElementById("editorShareBtn");
   const editorDeleteBtn = document.getElementById("editorDeleteBtn");
   const tagChips = document.getElementById("tagChips");
   const tagInput = document.getElementById("tagInput");
@@ -990,7 +992,7 @@
         <span class="folder-name" data-name-for="${f.id}">${escapeHtml(f.nazev)}</span>
         <span class="folder-count">${count}</span>
         <div class="folder-tools">
-          <span style="position:relative;">
+          <span class="folder-color-wrap" style="position:relative;">
             <button class="folder-tool-btn" title="Barva složky" aria-label="Barva složky">🎨</button>
             <input type="color" class="folder-color-input" data-id="${f.id}" value="${f.barva}">
           </span>
@@ -1060,11 +1062,14 @@
     let emojiBtn = null;
     let renameBtn = null;
     let deleteBtn = null;
+    let colorWrap = null;
     if (tools) {
       renameBtn = tools.querySelector("[data-rename]");
       deleteBtn = tools.querySelector("[data-delete]");
+      colorWrap = tools.querySelector(".folder-color-wrap");
       if (renameBtn) renameBtn.style.display = "none";
       if (deleteBtn) deleteBtn.style.display = "none";
+      if (colorWrap) colorWrap.style.display = "none";
       emojiBtn = document.createElement("button");
       emojiBtn.type = "button";
       emojiBtn.className = "folder-tool-btn emoji-trigger-btn";
@@ -1775,10 +1780,40 @@
     toggleFavorite(selectedNoteId);
   });
 
+  editorShareBtn.addEventListener("click", () => {
+    shareCurrentNote();
+  });
+
   editorDeleteBtn.addEventListener("click", () => {
     if (!selectedNoteId) return;
     deleteNoteRow(selectedNoteId);
   });
+
+  // ---------- Sdílení poznámky ----------
+  async function shareCurrentNote() {
+    if (!selectedNoteId) return;
+    const n = allNotes.find(x => x.id === selectedNoteId);
+    if (!n) return;
+    const title = (n.nazev && n.nazev.trim()) ? n.nazev.trim() : "Poznámka";
+    const bodyText = stripHtml(n.popis || "");
+    const shareText = bodyText ? `${title}
+
+${bodyText}` : title;
+
+    // Na mobilu (typicky Android/Chrome) nabídne systémové sdílení, kde je
+    // WhatsApp přímo na výběr spolu s ostatními appkami. Když Web Share API
+    // není k dispozici (desktop prohlížeče), otevře se rovnou WhatsApp Web.
+    if (navigator.share) {
+      try {
+        await navigator.share({ title, text: shareText });
+        return;
+      } catch (err) {
+        if (err && err.name === "AbortError") return;
+      }
+    }
+    const url = "https://wa.me/?text=" + encodeURIComponent(shareText);
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
 
   function scheduleSave() {
     saveStatus.textContent = "Ukládání…";
