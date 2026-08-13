@@ -204,6 +204,16 @@
   .note-row:hover .note-row-del:hover { background: #fce8e6; color: var(--danger); }
   .empty-state { text-align: center; color: var(--ink-soft); padding: 40px 20px; font-size: 13.5px; }
 
+  /* ---------- Koš (trash) ---------- */
+  .trash-tile { cursor: default; }
+  .trash-tile-actions { display: flex; gap: 6px; margin-top: 8px; }
+  .btn-mini {
+    font-size: 11.5px; font-weight: 600; padding: 5px 9px; border-radius: 7px;
+    border: 1px solid var(--line); background: var(--paper); color: var(--ink-soft); cursor: pointer;
+  }
+  .btn-mini:hover { background: var(--accent-soft); color: var(--accent-dark); border-color: var(--accent-soft); }
+  .trash-purge-btn:hover { background: #fce8e6; color: var(--danger); border-color: #fce8e6; }
+
   /* ---------- Tag pills ---------- */
   .note-row-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
   .tag-pill {
@@ -318,6 +328,23 @@
     display: flex; align-items: center; gap: 10px;
   }
   .toast.visible { opacity: 1; transform: translateX(-50%) translateY(-6px); pointer-events: auto; }
+
+  /* ---------- Ranní souhrn termínů ---------- */
+  .termin-summary-banner {
+    display: none; position: fixed; top: 0; left: 0; right: 0; z-index: 300;
+    align-items: center; gap: 10px; padding: 10px 16px;
+    background: var(--accent); color: #fff; box-shadow: var(--shadow);
+  }
+  .termin-summary-banner.visible { display: flex; }
+  .termin-summary-banner-icon { font-size: 16px; flex-shrink: 0; }
+  .termin-summary-banner-text { flex: 1; font-size: 13.5px; font-weight: 600; }
+  .termin-summary-send-btn { background: #fff; color: var(--accent-dark); border: none; flex-shrink: 0; }
+  .termin-summary-send-btn:hover { background: var(--accent-soft); }
+  .termin-summary-banner-close {
+    background: transparent; border: none; color: #fff; font-size: 16px;
+    cursor: pointer; padding: 4px 6px; flex-shrink: 0; opacity: 0.85;
+  }
+  .termin-summary-banner-close:hover { opacity: 1; }
   .toast-undo-btn {
     background: transparent; border: 1.5px solid rgba(255,255,255,0.5); color: #fff;
     border-radius: 7px; padding: 4px 11px; font-size: 12.5px; font-weight: 700; cursor: pointer;
@@ -386,6 +413,7 @@
   .dashboard-row { display: flex; flex-wrap: wrap; gap: 8px; }
   .dashboard-tile { flex: 1 1 180px; max-width: 280px; margin-bottom: 0; }
   .dashboard-tile.termin-dash-tile { flex: 0 0 280px; width: 280px; }
+  .dashboard-tile.memory-tile { flex: 0 0 280px; width: 280px; background: #fdf3e8; border-color: #e8c896; }
 
   /* ---------- Mobile ---------- */
   .back-btn { display: none; }
@@ -399,6 +427,7 @@
     .back-btn { display: inline-flex; }
     .dashboard-tile { flex: 1 1 100%; max-width: 100%; }
     .dashboard-tile.termin-dash-tile { flex: 1 1 100%; width: auto; }
+    .dashboard-tile.memory-tile { flex: 1 1 100%; width: auto; }
   }
 </style>
 </head>
@@ -463,6 +492,7 @@
           <button class="icon-btn small" id="exportPdfBtn" title="Export do PDF" aria-label="Export do PDF">🖨</button>
           <button class="icon-btn small" id="newsletterBtn" title="Newsletter Hláška" aria-label="Newsletter Hláška">🖼</button>
           <button class="icon-btn small" id="newNoteBtn" title="Nová poznámka" aria-label="Nová poznámka">＋</button>
+          <button class="icon-btn small" id="emptyTrashBtn" type="button" title="Vysypat koš" aria-label="Vysypat koš" style="display:none;">🗑✕</button>
         </div>
       </div>
       <div class="search-wrap">
@@ -610,6 +640,10 @@
   const logoutBtn = document.getElementById("logoutBtn");
   const jsonExportBtn = document.getElementById("jsonExportBtn");
   const toast = document.getElementById("toast");
+  const terminSummaryBanner = document.getElementById("terminSummaryBanner");
+  const terminSummaryBannerText = document.getElementById("terminSummaryBannerText");
+  const terminSummaryBannerSendBtn = document.getElementById("terminSummaryBannerSendBtn");
+  const terminSummaryBannerCloseBtn = document.getElementById("terminSummaryBannerCloseBtn");
   const columnsEl = document.getElementById("columns");
 
   const foldersList = document.getElementById("foldersList");
@@ -653,6 +687,7 @@
   const pdfCancelBtn = document.getElementById("pdfCancelBtn");
   const pdfConfirmBtn = document.getElementById("pdfConfirmBtn");
   const newsletterBtn = document.getElementById("newsletterBtn");
+  const emptyTrashBtn = document.getElementById("emptyTrashBtn");
   const newsletterRangeModal = document.getElementById("newsletterRangeModal");
   const nlFromDate = document.getElementById("nlFromDate");
   const nlToDate = document.getElementById("nlToDate");
@@ -712,7 +747,11 @@
   }
 
   function visibleNotes() {
-    return allNotes.filter(n => !pendingDeletes.has(n.id));
+    return allNotes.filter(n => !pendingDeletes.has(n.id) && !n.smazano);
+  }
+
+  function trashNotes() {
+    return allNotes.filter(n => n.smazano && !pendingDeletes.has(n.id));
   }
 
   function escapeHtml(str) {
@@ -1045,6 +1084,13 @@
         </div>
       </div>`;
     });
+
+    const trashCount = allNotes.filter(n => n.smazano && !pendingDeletes.has(n.id)).length;
+    html += `<div class="folder-divider"></div>`;
+    html += `<div class="folder-row ${view.type === "trash" ? "active" : ""}" data-view="trash">
+      <span class="folder-name">🗑 Koš</span>
+      ${trashCount > 0 ? `<span class="folder-count">${trashCount}</span>` : ""}
+    </div>`;
     foldersList.innerHTML = html;
 
     foldersList.querySelectorAll(".folder-row").forEach(row => {
@@ -1054,6 +1100,7 @@
         if (type === "dashboard") selectView({ type: "dashboard" });
         else if (type === "termin") selectView({ type: "termin" });
         else if (type === "all") selectView({ type: "all" });
+        else if (type === "trash") selectView({ type: "trash" });
         else {
           const f = folders.find(x => x.id === row.dataset.id);
           selectView({ type: "folder", id: f.id, nazev: f.nazev, barva: f.barva });
@@ -1205,7 +1252,11 @@
     searchInput.value = "";
     updateSearchClearBtn();
     columnsEl.classList.toggle("dashboard-mode", v.type === "dashboard" || v.type === "termin");
-    if (v.type === "dashboard" || v.type === "termin") closeEditor();
+    if (v.type === "dashboard" || v.type === "termin" || v.type === "trash") closeEditor();
+    newNoteBtn.style.display = v.type === "trash" ? "none" : "";
+    exportPdfBtn.style.display = v.type === "trash" ? "none" : "";
+    newsletterBtn.style.display = v.type === "trash" ? "none" : "";
+    emptyTrashBtn.style.display = v.type === "trash" ? "" : "none";
     renderFolders();
     renderNotes();
     if (window.innerWidth <= 900) columnsEl.dataset.view = "notes";
@@ -1222,10 +1273,52 @@
         const still = allNotes.find(n => n.id === selectedNoteId);
         if (!still) closeEditor();
       }
+      autoPurgeOldTrash();
+      checkTerminSummaryBanner();
     }, (err) => {
       notesList.innerHTML = `<div class="empty-state">Chyba při načítání: ${err.message}</div>`;
     });
   }
+
+  // ---------- Ranní souhrn termínů ----------
+  // Skutečně automatické odeslání v 6:00 bez otevřené appky není u čistě
+  // klientské appky (bez serveru) technicky možné - WhatsApp navíc appkám
+  // neumožní posílat zprávy bez potvrzení kliknutím. Řešení: appka si při
+  // prvním otevření po 6:00 (jednou denně, hlídáno přes localStorage) sama
+  // všimne dnešních termínů a nabídne je poslat na WhatsApp jedním klepnutím.
+  let currentSummaryNotes = [];
+
+  function buildTerminSummaryText(notes) {
+    const sorted = notes.slice().sort((a, b) => (a.druh || "").localeCompare(b.druh || "", "cs"));
+    const lines = sorted.map(n => `• ${noteTitle(n)} (${n.druh || "?"})`);
+    return `📌 Termíny na dnes (${formatDate(localTodayStr())}):\n\n${lines.join("\n")}`;
+  }
+
+  function checkTerminSummaryBanner() {
+    const now = new Date();
+    if (now.getHours() < 6) return;
+    const todayStr = localTodayStr();
+    if (localStorage.getItem("terminSummaryShownDate") === todayStr) return;
+    const todays = visibleNotes().filter(n => n.termin === todayStr);
+    if (todays.length === 0) return;
+    localStorage.setItem("terminSummaryShownDate", todayStr);
+    currentSummaryNotes = todays;
+    const count = todays.length;
+    const word = count === 1 ? "termín" : count < 5 ? "termíny" : "termínů";
+    terminSummaryBannerText.textContent = `Dnes máš ${count} ${word}. Poslat souhrn na WhatsApp?`;
+    terminSummaryBanner.classList.add("visible");
+  }
+
+  terminSummaryBannerSendBtn.addEventListener("click", () => {
+    const text = buildTerminSummaryText(currentSummaryNotes);
+    const url = "https://wa.me/?text=" + encodeURIComponent(text);
+    window.open(url, "_blank", "noopener,noreferrer");
+    terminSummaryBanner.classList.remove("visible");
+  });
+
+  terminSummaryBannerCloseBtn.addEventListener("click", () => {
+    terminSummaryBanner.classList.remove("visible");
+  });
 
   function currentViewNotes() {
     let list;
@@ -1324,6 +1417,7 @@
   function renderNotes() {
     if (view.type === "dashboard") { renderDashboardView(); return; }
     if (view.type === "termin") { renderTerminView(); return; }
+    if (view.type === "trash") { renderTrashView(); return; }
 
     if (view.type === "all") notesColTitle.textContent = "Všechny poznámky";
     else notesColTitle.textContent = view.nazev;
@@ -1369,10 +1463,79 @@
     });
   }
 
+  function renderTrashView() {
+    notesColTitle.textContent = "🗑 Koš";
+    const items = trashNotes().slice().sort((a, b) => {
+      const at = (a.smazanoKdy && a.smazanoKdy.toMillis) ? a.smazanoKdy.toMillis() : 0;
+      const bt = (b.smazanoKdy && b.smazanoKdy.toMillis) ? b.smazanoKdy.toMillis() : 0;
+      return bt - at;
+    });
+    if (items.length === 0) {
+      notesList.innerHTML = `<div class="empty-state">Koš je prázdný.</div>`;
+      return;
+    }
+    notesList.innerHTML = items.map(n => {
+      const folder = folderByName(n.druh);
+      const color = folder ? folder.barva : "#999";
+      const snippet = stripHtml(n.popis || "");
+      const title = noteTitle(n);
+      return `<div class="note-row trash-tile" style="border-left-color:${color}" data-id="${n.id}">
+        <div class="note-row-top">
+          <span class="note-row-badge" style="background:${color}22;color:${color}">${escapeHtml(n.druh || "")}</span>
+        </div>
+        <div class="note-row-title">${escapeHtml(title)}</div>
+        <div class="note-row-meta">${formatDate(n.datum)}</div>
+        <div class="note-row-snippet">${escapeHtml(snippet.slice(0, 70) || "Prázdná poznámka")}</div>
+        <div class="trash-tile-actions">
+          <button class="btn-mini trash-restore-btn" data-id="${n.id}" type="button">↩ Obnovit</button>
+          <button class="btn-mini trash-purge-btn" data-id="${n.id}" type="button">✕ Smazat natrvalo</button>
+        </div>
+      </div>`;
+    }).join("");
+
+    notesList.querySelectorAll(".trash-restore-btn").forEach(btn => {
+      btn.addEventListener("click", (e) => { e.stopPropagation(); restoreNoteFromTrash(btn.dataset.id); });
+    });
+    notesList.querySelectorAll(".trash-purge-btn").forEach(btn => {
+      btn.addEventListener("click", (e) => { e.stopPropagation(); permanentlyDeleteNote(btn.dataset.id); });
+    });
+  }
+
+  // Denně jiná vzpomínka ze složky Hlášky - deterministicky podle dnešního
+  // data, ať appka na stejném zařízení i po znovunačtení ukazuje ten samý
+  // den pořád stejnou vzpomínku. Řazeno od nejstarší po nejnovější a pak
+  // znovu od začátku (kolotoč).
+  function pickDailyMemory() {
+    const hlaskyNotes = visibleNotes()
+      .filter(n => isHlaskaFolder(n.druh))
+      .slice()
+      .sort((a, b) => (a.datum < b.datum ? -1 : a.datum > b.datum ? 1 : 0));
+    if (hlaskyNotes.length === 0) return null;
+    const todayStr = localTodayStr();
+    const [y, m, d] = todayStr.split("-").map(Number);
+    const dayIndex = Math.floor(Date.UTC(y, m - 1, d) / 86400000);
+    const idx = ((dayIndex % hlaskyNotes.length) + hlaskyNotes.length) % hlaskyNotes.length;
+    return hlaskyNotes[idx];
+  }
+
+  function memorySectionHtml() {
+    const memory = pickDailyMemory();
+    if (!memory) return "";
+    return `<div class="dashboard-group memory-group">
+      <div class="dashboard-group-label">
+        <span class="folder-dot" style="background:#c9772e"></span>💭 Vzpomínka
+      </div>
+      <div class="dashboard-row">
+        ${noteTileHtml(memory, { extraClasses: "dashboard-tile memory-tile", showDatum: true, showTermin: false })}
+      </div>
+    </div>`;
+  }
+
   function renderDashboardView() {
     notesColTitle.textContent = "🏠 Dashboard";
     const favs = visibleNotes().filter(n => n.oblibene);
-    if (favs.length === 0) {
+    const memoryHtml = memorySectionHtml();
+    if (favs.length === 0 && !memoryHtml) {
       notesList.innerHTML = `<div class="empty-state">Zatím žádné oblíbené poznámky.</div>`;
       return;
     }
@@ -1385,7 +1548,10 @@
     });
     const groupNames = [...groups.keys()].sort((a, b) => a.localeCompare(b, "cs"));
 
-    let html = "";
+    let html = memoryHtml;
+    if (favs.length === 0) {
+      html += `<div class="empty-state">Zatím žádné oblíbené poznámky.</div>`;
+    }
     groupNames.forEach(name => {
       const notesInGroup = groups.get(name).slice().sort((a, b) => {
         if (a.datum === b.datum) return 0;
@@ -1530,15 +1696,21 @@
     }
   }
 
+  // Smazání poznámky ji přesune do koše (pole smazano/smazanoKdy), odkud
+  // se dá kdykoliv do 30 dní obnovit. Prvních 5 sekund je akce ještě čistě
+  // lokální (viz pendingDeletes), takže "Zpět" v toastu funguje okamžitě
+  // bez zápisu do Firestore.
+  const TRASH_RETENTION_DAYS = 30;
+
   async function deleteNoteRow(id) {
-    if (!confirm("Opravdu smazat tuto poznámku?")) return;
+    if (!confirm("Přesunout tuto poznámku do koše?")) return;
     if (pendingDeletes.has(id)) return;
     if (selectedNoteId === id) closeEditor();
     const timeoutId = setTimeout(() => finalizeDeleteNote(id), 5000);
     pendingDeletes.set(id, { timeoutId });
     renderFolders();
     renderNotes();
-    showUndoToast("Poznámka smazána", () => undoDeleteNote(id));
+    showUndoToast("Poznámka přesunuta do koše", () => undoDeleteNote(id));
   }
 
   async function finalizeDeleteNote(id) {
@@ -1546,7 +1718,7 @@
     if (!entry) return;
     pendingDeletes.delete(id);
     try {
-      await deleteDoc(doc(db, NOTES_COL, id));
+      await updateDoc(doc(db, NOTES_COL, id), { smazano: true, smazanoKdy: serverTimestamp() });
     } catch (err) {
       showToast("Chyba při mazání: " + err.message);
       renderFolders();
@@ -1563,6 +1735,56 @@
     renderNotes();
     showToast("Smazání zrušeno");
   }
+
+  async function restoreNoteFromTrash(id) {
+    try {
+      await updateDoc(doc(db, NOTES_COL, id), { smazano: false, smazanoKdy: null });
+      showToast("Poznámka obnovena z koše");
+    } catch (err) {
+      showToast("Chyba při obnovování: " + err.message);
+    }
+  }
+
+  async function permanentlyDeleteNote(id) {
+    if (!confirm("Natrvalo smazat tuto poznámku? Tuto akci nelze vrátit zpět.")) return;
+    try {
+      await deleteDoc(doc(db, NOTES_COL, id));
+      showToast("Poznámka natrvalo smazána");
+    } catch (err) {
+      showToast("Chyba při mazání: " + err.message);
+    }
+  }
+
+  async function emptyTrash() {
+    const items = trashNotes();
+    if (items.length === 0) { showToast("Koš je prázdný"); return; }
+    if (!confirm(`Natrvalo smazat všech ${items.length} poznámek v koši? Tuto akci nelze vrátit zpět.`)) return;
+    try {
+      await Promise.all(items.map(n => deleteDoc(doc(db, NOTES_COL, n.id))));
+      showToast("Koš vysypán");
+    } catch (err) {
+      showToast("Chyba při vysypávání koše: " + err.message);
+    }
+  }
+
+  // Poznámky smazané před více než 30 dny se potichu smažou natrvalo -
+  // spouští se po každém načtení poznámek, žádný server/cron k tomu není
+  // potřeba.
+  function autoPurgeOldTrash() {
+    const cutoff = Date.now() - TRASH_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+    const toPurge = allNotes.filter(n => {
+      if (!n.smazano || !n.smazanoKdy || !n.smazanoKdy.toMillis) return false;
+      return n.smazanoKdy.toMillis() < cutoff;
+    });
+    if (toPurge.length === 0) return;
+    Promise.all(toPurge.map(n => deleteDoc(doc(db, NOTES_COL, n.id)))).catch(err => {
+      console.warn("Auto-purge koše selhal:", err.message);
+    });
+  }
+
+  emptyTrashBtn.addEventListener("click", () => {
+    emptyTrash();
+  });
 
   // ---------- New note ----------
   newNoteBtn.addEventListener("click", async () => {

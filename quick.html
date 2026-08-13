@@ -49,6 +49,13 @@
 
   .field { margin-bottom: 14px; }
   .field label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: var(--ink-soft); }
+  .field-label-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+  .field-label-row label { margin-bottom: 0; }
+  .mic-btn {
+    background: var(--accent-soft); border: 1.5px solid var(--accent); color: var(--accent-dark);
+    border-radius: 8px; padding: 4px 9px; font-size: 14px; cursor: pointer; line-height: 1.4;
+  }
+  .mic-btn.recording { background: #f6cdc6; border-color: #b3261e; color: #b3261e; }
   .field-required {
     background: var(--accent-soft); border: 1.5px solid var(--accent);
     border-radius: 12px; padding: 10px 12px 12px;
@@ -143,7 +150,10 @@
       <input type="text" id="stitky" placeholder="oddělené čárkou, např. výlet, vtip">
     </div>
     <div class="field">
-      <label for="popis">Popis (nepovinné)</label>
+      <div class="field-label-row">
+        <label for="popis">Popis (nepovinné)</label>
+        <button type="button" id="micBtn" class="mic-btn" title="Diktovat hlasem" aria-label="Diktovat hlasem">🎙️</button>
+      </div>
       <textarea id="popis" placeholder="Napiš, co se stalo…"></textarea>
     </div>
     <button type="submit" class="btn">Uložit záznam</button>
@@ -194,6 +204,7 @@
   const popisEl = document.getElementById("popis");
   const stitkyEl = document.getElementById("stitky");
   const terminEl = document.getElementById("termin");
+  const micBtn = document.getElementById("micBtn");
   const toast = document.getElementById("toast");
 
   let currentUid = null;
@@ -212,6 +223,84 @@
     const d = new Date();
     const tzOffsetMs = d.getTimezoneOffset() * 60000;
     return new Date(d.getTime() - tzOffsetMs).toISOString().slice(0, 10);
+  }
+
+  // ---------- Auto-vyplnění Název z Popis ----------
+  // Dokud je pole Název prázdné, odvodí se z první věty (do tečky/vykřičníku/
+  // otazníku/odřádkování) nebo z prvních 50 znaků Popisu. Jakmile si uživatel
+  // Název sám vyplní, automatické doplňování se pro danou poznámku přestane
+  // uplatňovat (dokud pole zase nesmaže).
+  function deriveTitleFromText(text) {
+    const trimmed = text.trim();
+    if (!trimmed) return "";
+    const stopIdx = trimmed.search(/[.!?\n]/);
+    let candidate = stopIdx === -1 ? trimmed : trimmed.slice(0, stopIdx);
+    candidate = candidate.trim();
+    if (candidate.length > 50) candidate = candidate.slice(0, 50).trim();
+    return candidate;
+  }
+
+  popisEl.addEventListener("input", () => {
+    if (!nazevEl.value.trim()) {
+      nazevEl.value = deriveTitleFromText(popisEl.value);
+    }
+  });
+
+  // ---------- Diktování hlasem do Popisu ----------
+  const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let recognition = null;
+  let isRecording = false;
+
+  if (SpeechRecognitionCtor && micBtn) {
+    recognition = new SpeechRecognitionCtor();
+    recognition.lang = "cs-CZ";
+    recognition.continuous = true;
+    recognition.interimResults = false;
+
+    recognition.addEventListener("result", (e) => {
+      let transcript = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) transcript += e.results[i][0].transcript;
+      }
+      transcript = transcript.trim();
+      if (transcript) {
+        const sep = popisEl.value.trim() ? " " : "";
+        popisEl.value = popisEl.value.trim() + sep + transcript;
+        popisEl.dispatchEvent(new Event("input"));
+      }
+    });
+
+    recognition.addEventListener("end", () => {
+      isRecording = false;
+      micBtn.classList.remove("recording");
+    });
+
+    recognition.addEventListener("error", (e) => {
+      isRecording = false;
+      micBtn.classList.remove("recording");
+      if (e.error !== "no-speech" && e.error !== "aborted") {
+        showToast("Diktování selhalo (" + e.error + ")");
+      }
+    });
+
+    micBtn.addEventListener("click", () => {
+      if (isRecording) {
+        recognition.stop();
+        return;
+      }
+      isRecording = true;
+      micBtn.classList.add("recording");
+      try {
+        recognition.start();
+      } catch (err) {
+        isRecording = false;
+        micBtn.classList.remove("recording");
+      }
+    });
+  } else if (micBtn) {
+    // Web Speech API tu není podporovaná (typicky desktopový Firefox) -
+    // tlačítko radši schovat, než aby jen nefungovalo.
+    micBtn.style.display = "none";
   }
 
   function resetDate() {
