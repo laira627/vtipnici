@@ -492,6 +492,7 @@
           </div>
           <button class="icon-btn small" id="editorFavBtn" title="Oblíbené" aria-label="Oblíbené">★</button>
           <button class="icon-btn small" id="editorShareBtn" type="button" title="Sdílet přes WhatsApp" aria-label="Sdílet přes WhatsApp">📤</button>
+          <button class="icon-btn small" id="editorEmailBtn" type="button" title="Sdílet e-mailem" aria-label="Sdílet e-mailem">✉️</button>
           <button class="icon-btn small" id="editorDeleteBtn" title="Smazat poznámku" aria-label="Smazat poznámku">🗑</button>
         </div>
         <div class="editor-title-row">
@@ -637,6 +638,7 @@
   const editorTitle = document.getElementById("editorTitle");
   const editorFavBtn = document.getElementById("editorFavBtn");
   const editorShareBtn = document.getElementById("editorShareBtn");
+  const editorEmailBtn = document.getElementById("editorEmailBtn");
   const editorDeleteBtn = document.getElementById("editorDeleteBtn");
   const tagChips = document.getElementById("tagChips");
   const tagInput = document.getElementById("tagInput");
@@ -723,6 +725,47 @@
     const d = document.createElement("div");
     d.innerHTML = html;
     return (d.textContent || "").trim();
+  }
+
+  // Převede HTML obsah poznámky na čitelný prostý text pro sdílení
+  // (WhatsApp, e-mail) - na rozdíl od stripHtml() zachovává odřádkování
+  // mezi odstavci/řádky/položkami seznamu. Pokud je markdown: true, tučné,
+  // kurzívu a přeškrtnutí převede na WhatsApp formátování (*tučné*,
+  // _kurzíva_, ~přeškrtnuté~), které si WhatsApp sám naformátuje.
+  function htmlToShareText(html, opts = {}) {
+    const { markdown = false } = opts;
+    if (!html) return "";
+    const container = document.createElement("div");
+    container.innerHTML = html;
+    const BLOCK_TAGS = new Set(["P", "DIV", "LI", "H1", "H2", "H3", "H4", "H5", "H6", "BLOCKQUOTE", "PRE"]);
+
+    function walk(node) {
+      let out = "";
+      node.childNodes.forEach(child => {
+        if (child.nodeType === Node.TEXT_NODE) {
+          out += child.textContent;
+          return;
+        }
+        if (child.nodeType !== Node.ELEMENT_NODE) return;
+        const tag = child.tagName;
+        if (tag === "BR") { out += "\n"; return; }
+        let inner = walk(child);
+        if (markdown && inner.trim()) {
+          if (tag === "STRONG" || tag === "B") inner = `*${inner}*`;
+          else if (tag === "EM" || tag === "I") inner = `_${inner}_`;
+          else if (tag === "S" || tag === "STRIKE" || tag === "DEL") inner = `~${inner}~`;
+        }
+        if (tag === "LI") inner = `• ${inner}`;
+        out += inner;
+        if (BLOCK_TAGS.has(tag)) out += "\n";
+      });
+      return out;
+    }
+
+    return walk(container)
+      .replace(/[ \t]+\n/g, "\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
   }
 
   function formatDate(isoDate) {
@@ -1782,21 +1825,27 @@
     shareCurrentNote();
   });
 
+  editorEmailBtn.addEventListener("click", () => {
+    shareCurrentNoteByEmail();
+  });
+
   editorDeleteBtn.addEventListener("click", () => {
     if (!selectedNoteId) return;
     deleteNoteRow(selectedNoteId);
   });
 
   // ---------- Sdílení poznámky ----------
+  function noteTitle(n) {
+    return (n.nazev && n.nazev.trim()) ? n.nazev.trim() : "Poznámka";
+  }
+
   async function shareCurrentNote() {
     if (!selectedNoteId) return;
     const n = allNotes.find(x => x.id === selectedNoteId);
     if (!n) return;
-    const title = (n.nazev && n.nazev.trim()) ? n.nazev.trim() : "Poznámka";
-    const bodyText = stripHtml(n.popis || "");
-    const shareText = bodyText ? `${title}
-
-${bodyText}` : title;
+    const title = noteTitle(n);
+    const bodyText = htmlToShareText(n.popis || "", { markdown: true });
+    const shareText = bodyText ? `${title}\n\n${bodyText}` : title;
 
     // Na mobilu (typicky Android/Chrome) nabídne systémové sdílení, kde je
     // WhatsApp přímo na výběr spolu s ostatními appkami. Když Web Share API
@@ -1811,6 +1860,19 @@ ${bodyText}` : title;
     }
     const url = "https://wa.me/?text=" + encodeURIComponent(shareText);
     window.open(url, "_blank", "noopener,noreferrer");
+  }
+
+  function shareCurrentNoteByEmail() {
+    if (!selectedNoteId) return;
+    const n = allNotes.find(x => x.id === selectedNoteId);
+    if (!n) return;
+    const title = noteTitle(n);
+    // Bez WhatsApp markdown symbolů - v obyčejném e-mailu by jen zbytečně
+    // rušily. Odřádkování (\n -> %0A) ale e-mailoví klienti v mailto:
+    // odkazu respektují.
+    const bodyText = htmlToShareText(n.popis || "", { markdown: false });
+    const url = `mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(bodyText)}`;
+    window.open(url, "_self");
   }
 
   function scheduleSave() {
