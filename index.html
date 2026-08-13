@@ -113,10 +113,6 @@
 
   /* ---------- Folders column ---------- */
   .folders-list { flex: 1; overflow-y: auto; padding: 10px 8px; }
-  .folder-section-label {
-    font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
-    color: var(--ink-soft); font-weight: 700; padding: 12px 8px 6px;
-  }
   .folder-divider { border-top: 1px solid var(--line); margin: 8px 8px 10px; }
   .folder-row {
     display: flex; align-items: center; gap: 9px; padding: 9px 10px;
@@ -840,6 +836,11 @@
   // Opraví odkazy, které v poznámce chybně nemají protokol (např. vložené
   // před touto opravou), a rovnou to uloží.
   function fixBrokenLinksInCurrentNote() {
+    // quill.root.innerHTML se přepisuje přímo (ne přes Quillovo API) a Quill
+    // si svůj interní model synchronizuje z DOM přes MutationObserver, který
+    // běží asynchronně - bez tohohle update() by getContents() níže mohl
+    // ještě číst obsah předchozí poznámky.
+    quill.update("silent");
     const delta = quill.getContents();
     let index = 0;
     let changed = false;
@@ -964,7 +965,7 @@
   function renderFolders() {
     const notesForCounts = visibleNotes();
     const favCount = notesForCounts.filter(n => n.oblibene).length;
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = localTodayStr();
     const terminOverdueCount = notesForCounts.filter(n => n.termin && n.termin < todayStr).length;
     const terminTodayCount = notesForCounts.filter(n => n.termin === todayStr).length;
     let html = "";
@@ -1204,6 +1205,15 @@
     return list;
   }
 
+  // new Date().toISOString() je v UTC, ne v místním čase - v ČR by appka
+  // kolem půlnoci "myslela", že je ještě včera. Tohle vrátí dnešní datum
+  // podle místního času uživatele.
+  function localTodayStr() {
+    const d = new Date();
+    const tzOffsetMs = d.getTimezoneOffset() * 60000;
+    return new Date(d.getTime() - tzOffsetMs).toISOString().slice(0, 10);
+  }
+
   function addDaysToIsoDate(isoDate, days) {
     const d = new Date(isoDate + "T00:00:00Z");
     d.setUTCDate(d.getUTCDate() + days);
@@ -1220,10 +1230,52 @@
 
   function getTerminUrgencyClass(n) {
     if (!n.termin) return "";
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = localTodayStr();
     if (n.termin < todayStr) return "termin-tile-overdue";
     if (n.termin === todayStr) return "termin-tile-today";
     return "";
+  }
+
+  // Sdílená šablona dlaždice poznámky - používá renderNotes(), renderDashboardView()
+  // a terminSectionHtml(), aby se HTML nezdvojovalo na třech místech.
+  function noteTileHtml(n, opts = {}) {
+    const {
+      extraClasses = "",
+      isActive = false,
+      starForceActive = false,
+      showDatum = true,
+      showTermin = false,
+      urgencyClass = "",
+    } = opts;
+
+    const folder = folderByName(n.druh);
+    const color = folder ? folder.barva : "#999";
+    const snippet = stripHtml(n.popis || "");
+    const title = (n.nazev && n.nazev.trim()) ? n.nazev.trim() : (snippet.slice(0, 40) || "Bez názvu");
+    const tags = Array.isArray(n.stitky) ? n.stitky : [];
+    const tagsHtml = tags.length
+      ? `<div class="note-row-tags">${tags.map(t => `<span class="tag-pill">#${escapeHtml(t)}</span>`).join("")}</div>`
+      : "";
+    const starActive = starForceActive || n.oblibene;
+    const datumHtml = showDatum ? `<div class="note-row-meta">${formatDate(n.datum)}</div>` : "";
+    const terminHtml = (showTermin && n.termin)
+      ? `<div class="note-row-meta note-row-termin">📌 ${formatDate(n.termin)}</div>`
+      : "";
+    const rowClasses = ["note-row", extraClasses, isActive ? "active" : "", urgencyClass]
+      .filter(Boolean).join(" ");
+
+    return `<div class="${rowClasses}" style="border-left-color:${color}" data-id="${n.id}">
+      <button class="note-row-del" data-id="${n.id}" title="Smazat poznámku" aria-label="Smazat poznámku">🗑</button>
+      <div class="note-row-top">
+        <span class="note-row-badge" style="background:${color}22;color:${color}">${escapeHtml(n.druh || "")}</span>
+        <button class="note-row-star ${starActive ? "active" : ""}" data-id="${n.id}" title="Oblíbené" aria-label="Oblíbené">★</button>
+      </div>
+      <div class="note-row-title">${escapeHtml(title)}</div>
+      ${datumHtml}
+      ${terminHtml}
+      <div class="note-row-snippet">${escapeHtml(snippet.slice(0, 70) || "Prázdná poznámka")}</div>
+      ${tagsHtml}
+    </div>`;
   }
 
   function renderNotes() {
@@ -1255,29 +1307,9 @@
     }
 
     notesList.innerHTML = list.map(n => {
-      const folder = folderByName(n.druh);
-      const color = folder ? folder.barva : "#999";
-      const snippet = stripHtml(n.popis || "");
-      const title = (n.nazev && n.nazev.trim()) ? n.nazev.trim() : (snippet.slice(0, 40) || "Bez názvu");
       const isActive = n.id === selectedNoteId;
-      const tags = Array.isArray(n.stitky) ? n.stitky : [];
-      const tagsHtml = tags.length
-        ? `<div class="note-row-tags">${tags.map(t => `<span class="tag-pill">#${escapeHtml(t)}</span>`).join("")}</div>`
-        : "";
-      const terminHtml = n.termin ? `<div class="note-row-meta note-row-termin">🗓️ ${formatDate(n.termin)}</div>` : "";
       const urgencyClass = getTerminUrgencyClass(n);
-      return `<div class="note-row ${isActive ? "active" : ""} ${urgencyClass}" style="border-left-color:${color}" data-id="${n.id}">
-        <button class="note-row-del" data-id="${n.id}" title="Smazat poznámku" aria-label="Smazat poznámku">🗑</button>
-        <div class="note-row-top">
-          <span class="note-row-badge" style="background:${color}22;color:${color}">${escapeHtml(n.druh || "")}</span>
-          <button class="note-row-star ${n.oblibene ? "active" : ""}" data-id="${n.id}" title="Oblíbené" aria-label="Oblíbené">★</button>
-        </div>
-        <div class="note-row-title">${escapeHtml(title)}</div>
-        <div class="note-row-meta">${formatDate(n.datum)}</div>
-        ${terminHtml}
-        <div class="note-row-snippet">${escapeHtml(snippet.slice(0, 70) || "Prázdná poznámka")}</div>
-        ${tagsHtml}
-      </div>`;
+      return noteTileHtml(n, { isActive, showDatum: true, showTermin: true, urgencyClass });
     }).join("");
 
     notesList.querySelectorAll(".note-row").forEach(row => {
@@ -1324,23 +1356,7 @@
         </div>
         <div class="dashboard-row">`;
       notesInGroup.forEach(n => {
-        const snippet = stripHtml(n.popis || "");
-        const title = (n.nazev && n.nazev.trim()) ? n.nazev.trim() : (snippet.slice(0, 40) || "Bez názvu");
-        const tags = Array.isArray(n.stitky) ? n.stitky : [];
-        const tagsHtml = tags.length
-          ? `<div class="note-row-tags">${tags.map(t => `<span class="tag-pill">#${escapeHtml(t)}</span>`).join("")}</div>`
-          : "";
-        html += `<div class="note-row dashboard-tile" style="border-left-color:${color}" data-id="${n.id}">
-          <button class="note-row-del" data-id="${n.id}" title="Smazat poznámku" aria-label="Smazat poznámku">🗑</button>
-          <div class="note-row-top">
-            <span class="note-row-badge" style="background:${color}22;color:${color}">${escapeHtml(n.druh || "")}</span>
-            <button class="note-row-star active" data-id="${n.id}" title="Oblíbené" aria-label="Oblíbené">★</button>
-          </div>
-          <div class="note-row-title">${escapeHtml(title)}</div>
-          <div class="note-row-meta">${formatDate(n.datum)}</div>
-          <div class="note-row-snippet">${escapeHtml(snippet.slice(0, 70) || "Prázdná poznámka")}</div>
-          ${tagsHtml}
-        </div>`;
+        html += noteTileHtml(n, { extraClasses: "dashboard-tile", starForceActive: true, showDatum: true, showTermin: false });
       });
       html += `</div></div>`;
     });
@@ -1368,40 +1384,22 @@
       </div>
       <div class="dashboard-row">`;
     notesInSection.forEach(n => {
-      const folder = folderByName(n.druh);
-      const color = folder ? folder.barva : "#999";
-      const snippet = stripHtml(n.popis || "");
-      const title = (n.nazev && n.nazev.trim()) ? n.nazev.trim() : (snippet.slice(0, 40) || "Bez názvu");
-      const tags = Array.isArray(n.stitky) ? n.stitky : [];
-      const tagsHtml = tags.length
-        ? `<div class="note-row-tags">${tags.map(t => `<span class="tag-pill">#${escapeHtml(t)}</span>`).join("")}</div>`
-        : "";
       const urgencyClass = getTerminUrgencyClass(n);
-      html += `<div class="note-row dashboard-tile termin-dash-tile ${urgencyClass}" style="border-left-color:${color}" data-id="${n.id}">
-        <button class="note-row-del" data-id="${n.id}" title="Smazat poznámku" aria-label="Smazat poznámku">🗑</button>
-        <div class="note-row-top">
-          <span class="note-row-badge" style="background:${color}22;color:${color}">${escapeHtml(n.druh || "")}</span>
-          <button class="note-row-star ${n.oblibene ? "active" : ""}" data-id="${n.id}" title="Oblíbené" aria-label="Oblíbené">★</button>
-        </div>
-        <div class="note-row-title">${escapeHtml(title)}</div>
-        <div class="note-row-meta">🗓️ ${formatDate(n.termin)}</div>
-        <div class="note-row-snippet">${escapeHtml(snippet.slice(0, 70) || "Prázdná poznámka")}</div>
-        ${tagsHtml}
-      </div>`;
+      html += noteTileHtml(n, { extraClasses: "dashboard-tile termin-dash-tile", showDatum: false, showTermin: true, urgencyClass });
     });
     html += `</div></div>`;
     return html;
   }
 
   function renderTerminView() {
-    notesColTitle.textContent = "🗓️ Termín";
+    notesColTitle.textContent = "📌 Termín";
     const withTermin = visibleNotes().filter(n => n.termin);
     if (withTermin.length === 0) {
       notesList.innerHTML = `<div class="empty-state">Žádné poznámky s termínem.</div>`;
       return;
     }
 
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = localTodayStr();
     const tomorrowStr = addDaysToIsoDate(todayStr, 1);
     const thisWeekMonday = mondayOfIsoWeek(todayStr);
     const thisWeekSunday = addDaysToIsoDate(thisWeekMonday, 6);
@@ -1532,7 +1530,7 @@
     if (!targetFolder) { showToast("Nejprve vytvoř složku"); return; }
 
     const newNoteData = {
-      datum: new Date().toISOString().slice(0, 10),
+      datum: localTodayStr(),
       druh: targetFolder,
       nazev: "",
       popis: "",
@@ -2052,7 +2050,7 @@ ${bodyText}` : title;
     const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    const today = new Date().toISOString().slice(0, 10);
+    const today = localTodayStr();
     a.href = url;
     a.download = `vtipnici-export-${today}.json`;
     a.click();
@@ -2082,7 +2080,7 @@ ${bodyText}` : title;
     return fetch(url, { signal: controller.signal }).finally(() => clearTimeout(t));
   }
 
-  function normalizeUrl(raw) {
+  function parseImportUrl(raw) {
     let candidate = raw;
     if (!/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(candidate)) {
       candidate = "https://" + candidate;
@@ -2121,7 +2119,7 @@ ${bodyText}` : title;
     if (!raw) { importUrlInput.focus(); return; }
     let parsed;
     try {
-      parsed = normalizeUrl(raw);
+      parsed = parseImportUrl(raw);
     } catch (err) {
       showToast("Neplatná webová adresa (" + err.message + ")");
       return;
