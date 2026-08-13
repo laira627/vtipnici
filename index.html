@@ -338,8 +338,6 @@
   .termin-summary-banner.visible { display: flex; }
   .termin-summary-banner-icon { font-size: 16px; flex-shrink: 0; }
   .termin-summary-banner-text { flex: 1; font-size: 13.5px; font-weight: 600; }
-  .termin-summary-send-btn { background: #fff; color: var(--accent-dark); border: none; flex-shrink: 0; }
-  .termin-summary-send-btn:hover { background: var(--accent-soft); }
   .termin-summary-banner-close {
     background: transparent; border: none; color: #fff; font-size: 16px;
     cursor: pointer; padding: 4px 6px; flex-shrink: 0; opacity: 0.85;
@@ -552,7 +550,6 @@
 <div class="termin-summary-banner" id="terminSummaryBanner">
   <span class="termin-summary-banner-icon">📌</span>
   <span class="termin-summary-banner-text" id="terminSummaryBannerText"></span>
-  <button class="btn-mini termin-summary-send-btn" id="terminSummaryBannerSendBtn" type="button">📤 Poslat na WhatsApp</button>
   <button class="termin-summary-banner-close" id="terminSummaryBannerCloseBtn" type="button" aria-label="Zavřít">✕</button>
 </div>
 
@@ -649,7 +646,6 @@
   const toast = document.getElementById("toast");
   const terminSummaryBanner = document.getElementById("terminSummaryBanner");
   const terminSummaryBannerText = document.getElementById("terminSummaryBannerText");
-  const terminSummaryBannerSendBtn = document.getElementById("terminSummaryBannerSendBtn");
   const terminSummaryBannerCloseBtn = document.getElementById("terminSummaryBannerCloseBtn");
   const columnsEl = document.getElementById("columns");
 
@@ -1288,19 +1284,9 @@
   }
 
   // ---------- Ranní souhrn termínů ----------
-  // Skutečně automatické odeslání v 6:00 bez otevřené appky není u čistě
-  // klientské appky (bez serveru) technicky možné - WhatsApp navíc appkám
-  // neumožní posílat zprávy bez potvrzení kliknutím. Řešení: appka si při
-  // prvním otevření po 6:00 (jednou denně, hlídáno přes localStorage) sama
-  // všimne dnešních termínů a nabídne je poslat na WhatsApp jedním klepnutím.
-  let currentSummaryNotes = [];
-
-  function buildTerminSummaryText(notes) {
-    const sorted = notes.slice().sort((a, b) => (a.druh || "").localeCompare(b.druh || "", "cs"));
-    const lines = sorted.map(n => `• ${noteTitle(n)} (${n.druh || "?"})`);
-    return `📌 Termíny na dnes (${formatDate(localTodayStr())}):\n\n${lines.join("\n")}`;
-  }
-
+  // Čistě informační banner - appka si při prvním otevření po 6:00 (jednou
+  // denně, hlídáno přes localStorage) sama všimne dnešních termínů a
+  // vypíše je nahoře. Žádná akce na odeslání, jen zavření.
   function checkTerminSummaryBanner() {
     const now = new Date();
     if (now.getHours() < 6) return;
@@ -1309,19 +1295,12 @@
     const todays = visibleNotes().filter(n => n.termin === todayStr);
     if (todays.length === 0) return;
     localStorage.setItem("terminSummaryShownDate", todayStr);
-    currentSummaryNotes = todays;
     const count = todays.length;
     const word = count === 1 ? "termín" : count < 5 ? "termíny" : "termínů";
-    terminSummaryBannerText.textContent = `Dnes máš ${count} ${word}. Poslat souhrn na WhatsApp?`;
+    const titles = todays.map(n => noteTitle(n)).join(", ");
+    terminSummaryBannerText.textContent = `Dnes máš ${count} ${word}: ${titles}`;
     terminSummaryBanner.classList.add("visible");
   }
-
-  terminSummaryBannerSendBtn.addEventListener("click", () => {
-    const text = buildTerminSummaryText(currentSummaryNotes);
-    const url = "https://wa.me/?text=" + encodeURIComponent(text);
-    window.open(url, "_blank", "noopener,noreferrer");
-    terminSummaryBanner.classList.remove("visible");
-  });
 
   terminSummaryBannerCloseBtn.addEventListener("click", () => {
     terminSummaryBanner.classList.remove("visible");
