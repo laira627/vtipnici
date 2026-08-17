@@ -223,9 +223,11 @@
   .calendar-day-abbr { text-align: center; font-size: 11px; font-weight: 700; color: var(--ink-soft); text-transform: uppercase; }
   .calendar-day {
     background: var(--paper); border: 1px solid var(--line); border-radius: 8px;
-    padding: 5px; min-height: 84px; max-height: 150px; overflow-y: auto;
+    padding: 5px; min-height: 84px; max-height: 150px; overflow-y: auto; cursor: pointer;
   }
-  .calendar-day-pad { background: transparent; border-color: transparent; }
+  .calendar-day:hover { border-color: var(--accent); }
+  .calendar-day-pad { background: transparent; border-color: transparent; cursor: default; }
+  .calendar-day-pad:hover { border-color: transparent; }
   .calendar-day-today { border-color: var(--accent); background: var(--accent-soft); }
   .calendar-day-num { font-size: 11.5px; font-weight: 700; color: var(--ink-soft); margin-bottom: 4px; }
   .calendar-day-today .calendar-day-num { color: var(--accent-dark); }
@@ -263,12 +265,21 @@
   .editor-title-row {
     margin: 14px 20px 0; padding: 10px 16px 4px;
     background: var(--accent-soft); border: 1.5px solid var(--accent); border-radius: 12px;
+    display: flex; align-items: flex-end; gap: 8px;
   }
   #editorTitle {
-    width: 100%; border: none; outline: none; font-size: 24px; font-weight: 700;
+    flex: 1; min-width: 0; border: none; outline: none; font-size: 24px; font-weight: 700;
     color: var(--ink); background: transparent; padding: 0 0 12px;
   }
   #editorTitle::placeholder { color: #c8bfae; }
+  .rating-badge {
+    display: inline-flex; align-items: center; justify-content: center; border-radius: 50%;
+    font-size: 11px; font-weight: 700; flex-shrink: 0; vertical-align: middle;
+  }
+  .editor-rating-badge { width: 26px; height: 26px; font-size: 13px; margin-bottom: 12px; }
+  .note-row-title .rating-badge, .calendar-note-chip .rating-badge {
+    width: 16px; height: 16px; font-size: 9.5px; margin-right: 4px;
+  }
 
   .editor-tags-row {
     padding: 0 20px 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
@@ -352,20 +363,16 @@
   }
   .toast.visible { opacity: 1; transform: translateX(-50%) translateY(-6px); pointer-events: auto; }
 
-  /* ---------- Ranní souhrn termínů ---------- */
-  .termin-summary-banner {
-    display: none; position: fixed; top: 0; left: 0; right: 0; z-index: 300;
-    align-items: center; gap: 10px; padding: 10px 16px;
-    background: var(--accent); color: #fff; box-shadow: var(--shadow);
+  /* ---------- Ranní dialogy (termíny, vzpomínka) ---------- */
+  .modal-card.termin-summary-card { background: #fdf3d9; border: 2px solid #e8c14a; max-width: 400px; }
+  .modal-card.memory-summary-card { background: #fdf3e8; border: 2px solid #e8c896; max-width: 480px; }
+  .memory-modal-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+  .memory-modal-date { font-size: 12px; color: var(--ink-soft); }
+  .memory-modal-content {
+    max-height: 45vh; overflow-y: auto; font-size: 14px; line-height: 1.5;
+    padding: 12px; background: var(--paper); border-radius: 10px; border: 1px solid var(--line);
   }
-  .termin-summary-banner.visible { display: flex; }
-  .termin-summary-banner-icon { font-size: 16px; flex-shrink: 0; }
-  .termin-summary-banner-text { flex: 1; font-size: 13.5px; font-weight: 600; }
-  .termin-summary-banner-close {
-    background: transparent; border: none; color: #fff; font-size: 16px;
-    cursor: pointer; padding: 4px 6px; flex-shrink: 0; opacity: 0.85;
-  }
-  .termin-summary-banner-close:hover { opacity: 1; }
+  .memory-modal-content img { max-width: 100%; }
   .toast-undo-btn {
     background: transparent; border: 1.5px solid rgba(255,255,255,0.5); color: #fff;
     border-radius: 7px; padding: 4px 11px; font-size: 12.5px; font-weight: 700; cursor: pointer;
@@ -434,7 +441,7 @@
   .dashboard-row { display: flex; flex-wrap: wrap; gap: 8px; }
   .dashboard-tile { flex: 1 1 180px; max-width: 280px; margin-bottom: 0; }
   .dashboard-tile.termin-dash-tile { flex: 0 0 280px; width: 280px; }
-  .dashboard-tile.memory-tile { flex: 0 0 280px; width: 280px; background: #fdf3e8; border-color: #e8c896; }
+  .dashboard-tile.memory-tile { flex: 1 1 100%; width: auto; max-width: none; background: #fdf3e8; border-color: #e8c896; }
 
   /* ---------- Mobile ---------- */
   .back-btn { display: none; }
@@ -547,12 +554,21 @@
             <button class="icon-btn small emoji-trigger-btn" id="emojiPickerBtn" type="button" title="Vložit emoji" aria-label="Vložit emoji">😊</button>
             <div class="emoji-picker-panel" id="emojiPickerPanel"></div>
           </div>
+          <select id="editorHodnoceni" title="Hodnocení" aria-label="Hodnocení">
+            <option value="">Bez hodnocení</option>
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+          </select>
           <button class="icon-btn small" id="editorFavBtn" title="Oblíbené" aria-label="Oblíbené">★</button>
           <button class="icon-btn small" id="editorShareBtn" type="button" title="Sdílet přes WhatsApp" aria-label="Sdílet přes WhatsApp">📤</button>
           <button class="icon-btn small" id="editorEmailBtn" type="button" title="Sdílet e-mailem" aria-label="Sdílet e-mailem">✉️</button>
           <button class="icon-btn small" id="editorDeleteBtn" title="Smazat poznámku" aria-label="Smazat poznámku">🗑</button>
         </div>
         <div class="editor-title-row">
+          <span class="rating-badge editor-rating-badge" id="editorRatingBadge" style="display:none;"></span>
           <input type="text" id="editorTitle" placeholder="Název poznámky">
         </div>
         <div class="editor-tags-row" id="editorTagsRow">
@@ -576,10 +592,26 @@
 </div>
 
 <div id="printArea"></div>
-<div class="termin-summary-banner" id="terminSummaryBanner">
-  <span class="termin-summary-banner-icon">📌</span>
-  <span class="termin-summary-banner-text" id="terminSummaryBannerText"></span>
-  <button class="termin-summary-banner-close" id="terminSummaryBannerCloseBtn" type="button" aria-label="Zavřít">✕</button>
+<div class="modal-overlay" id="terminSummaryModal">
+  <div class="modal-card termin-summary-card">
+    <h3>📌 Termíny na dnes</h3>
+    <p class="modal-sub" id="terminSummaryModalText"></p>
+    <div class="row-btns">
+      <button class="btn" id="terminSummaryModalCloseBtn" type="button">Zavřít</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="memoryModal">
+  <div class="modal-card memory-summary-card">
+    <h3>💭 Vzpomínka</h3>
+    <div class="memory-modal-meta" id="memoryModalMeta"></div>
+    <div class="memory-modal-content" id="memoryModalContent"></div>
+    <div class="row-btns">
+      <button class="btn btn-secondary" id="memoryModalOpenBtn" type="button">Otevřít poznámku</button>
+      <button class="btn" id="memoryModalCloseBtn" type="button">Zavřít</button>
+    </div>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -673,9 +705,14 @@
   const logoutBtn = document.getElementById("logoutBtn");
   const jsonExportBtn = document.getElementById("jsonExportBtn");
   const toast = document.getElementById("toast");
-  const terminSummaryBanner = document.getElementById("terminSummaryBanner");
-  const terminSummaryBannerText = document.getElementById("terminSummaryBannerText");
-  const terminSummaryBannerCloseBtn = document.getElementById("terminSummaryBannerCloseBtn");
+  const terminSummaryModal = document.getElementById("terminSummaryModal");
+  const terminSummaryModalText = document.getElementById("terminSummaryModalText");
+  const terminSummaryModalCloseBtn = document.getElementById("terminSummaryModalCloseBtn");
+  const memoryModal = document.getElementById("memoryModal");
+  const memoryModalMeta = document.getElementById("memoryModalMeta");
+  const memoryModalContent = document.getElementById("memoryModalContent");
+  const memoryModalOpenBtn = document.getElementById("memoryModalOpenBtn");
+  const memoryModalCloseBtn = document.getElementById("memoryModalCloseBtn");
   const columnsEl = document.getElementById("columns");
 
   const foldersList = document.getElementById("foldersList");
@@ -702,6 +739,8 @@
   const emojiPickerPanel = document.getElementById("emojiPickerPanel");
   const newFolderEmojiBtn = document.getElementById("newFolderEmojiBtn");
   const editorTitle = document.getElementById("editorTitle");
+  const editorHodnoceni = document.getElementById("editorHodnoceni");
+  const editorRatingBadge = document.getElementById("editorRatingBadge");
   const editorFavBtn = document.getElementById("editorFavBtn");
   const editorShareBtn = document.getElementById("editorShareBtn");
   const editorEmailBtn = document.getElementById("editorEmailBtn");
@@ -789,6 +828,23 @@
   function escapeHtml(str) {
     if (!str) return "";
     return str.replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+  }
+
+  // ---------- Hodnocení poznámky ----------
+  // Jedna barva (appka už používá modrou jako svou hlavní), pět odstínů -
+  // 1 je nejtmavší (nejlepší, jako ve škole), 5 nejsvětlejší.
+  const RATING_COLORS = {
+    "1": { bg: "#16324f", text: "#ffffff" },
+    "2": { bg: "#2c527f", text: "#ffffff" },
+    "3": { bg: "#3d6fa8", text: "#ffffff" },
+    "4": { bg: "#8fb3d9", text: "#16324f" },
+    "5": { bg: "#cfe0f2", text: "#16324f" }
+  };
+
+  function ratingBadgeHtml(hodnoceni) {
+    const c = RATING_COLORS[hodnoceni];
+    if (!c) return "";
+    return `<span class="rating-badge" style="background:${c.bg};color:${c.text};" title="Hodnocení ${hodnoceni}">${hodnoceni}</span>`;
   }
 
   function stripHtml(html) {
@@ -1120,6 +1176,25 @@
       </div>`;
     });
 
+    const ratingSections = [];
+    for (let r = 1; r <= 5; r++) {
+      const rStr = String(r);
+      const count = notesForCounts.filter(n => n.hodnoceni === rStr).length;
+      if (count === 0) continue;
+      ratingSections.push({ value: rStr, count });
+    }
+    if (ratingSections.length > 0) {
+      html += `<div class="folder-divider"></div>`;
+      ratingSections.forEach(({ value, count }) => {
+        const isActive = view.type === "rating" && view.value === value;
+        html += `<div class="folder-row ${isActive ? "active" : ""}" data-view="rating" data-value="${value}">
+          ${ratingBadgeHtml(value)}
+          <span class="folder-name">Hodnocení ${value}</span>
+          <span class="folder-count">${count}</span>
+        </div>`;
+      });
+    }
+
     const trashCount = allNotes.filter(n => n.smazano && !pendingDeletes.has(n.id)).length;
     html += `<div class="folder-divider"></div>`;
     html += `<div class="folder-row ${view.type === "trash" ? "active" : ""}" data-view="trash">
@@ -1137,6 +1212,7 @@
         else if (type === "termin") selectView({ type: "termin" });
         else if (type === "all") selectView({ type: "all" });
         else if (type === "trash") selectView({ type: "trash" });
+        else if (type === "rating") selectView({ type: "rating", value: row.dataset.value });
         else {
           const f = folders.find(x => x.id === row.dataset.id);
           selectView({ type: "folder", id: f.id, nazev: f.nazev, barva: f.barva });
@@ -1310,33 +1386,69 @@
         if (!still) closeEditor();
       }
       autoPurgeOldTrash();
-      checkTerminSummaryBanner();
+      runDailyDialogs();
     }, (err) => {
       notesList.innerHTML = `<div class="empty-state">Chyba při načítání: ${err.message}</div>`;
     });
   }
 
-  // ---------- Ranní souhrn termínů ----------
-  // Čistě informační banner - appka si při prvním otevření po 6:00 (jednou
-  // denně, hlídáno přes localStorage) sama všimne dnešních termínů a
-  // vypíše je nahoře. Žádná akce na odeslání, jen zavření.
-  function checkTerminSummaryBanner() {
+  // ---------- Ranní dialogy (termíny, vzpomínka) ----------
+  // Čistě informační dialogy - appka si při prvním otevření daný den (jednou
+  // denně, hlídáno přes localStorage) sama všimne dnešních termínů a denní
+  // vzpomínky. Dialog s termíny se navíc zobrazuje jen po 6:00 (ranní
+  // souhrn), dialog se vzpomínkou žádné časové omezení nemá. Pokud by měly
+  // platit oba zároveň, zobrazí se nejdřív termíny a po jejich zavření
+  // vzpomínka, ať appka nezobrazuje dva dialogy najednou přes sebe.
+  let currentMemoryNoteId = null;
+
+  function tryShowTerminSummaryModal() {
     const now = new Date();
-    if (now.getHours() < 6) return;
+    if (now.getHours() < 6) return false;
     const todayStr = localTodayStr();
-    if (localStorage.getItem("terminSummaryShownDate") === todayStr) return;
+    if (localStorage.getItem("terminSummaryShownDate") === todayStr) return false;
     const todays = visibleNotes().filter(n => n.termin === todayStr);
-    if (todays.length === 0) return;
+    if (todays.length === 0) return false;
     localStorage.setItem("terminSummaryShownDate", todayStr);
     const count = todays.length;
     const word = count === 1 ? "termín" : count < 5 ? "termíny" : "termínů";
     const titles = todays.map(n => noteTitle(n)).join(", ");
-    terminSummaryBannerText.textContent = `Dnes máš ${count} ${word}: ${titles}`;
-    terminSummaryBanner.classList.add("visible");
+    terminSummaryModalText.textContent = `Dnes máš ${count} ${word}: ${titles}`;
+    terminSummaryModal.classList.add("visible");
+    return true;
   }
 
-  terminSummaryBannerCloseBtn.addEventListener("click", () => {
-    terminSummaryBanner.classList.remove("visible");
+  function tryShowMemoryModal() {
+    const todayStr = localTodayStr();
+    if (localStorage.getItem("memoryShownDate") === todayStr) return false;
+    const memory = pickDailyMemory();
+    if (!memory) return false;
+    localStorage.setItem("memoryShownDate", todayStr);
+    currentMemoryNoteId = memory.id;
+    const folder = folderByName(memory.druh);
+    const color = folder ? folder.barva : "#999";
+    memoryModalMeta.innerHTML = `<span class="note-row-badge" style="background:${color}22;color:${color}">${escapeHtml(memory.druh || "")}</span> <strong>${escapeHtml(noteTitle(memory))}</strong> <span class="memory-modal-date">${formatDate(memory.datum)}</span>`;
+    memoryModalContent.innerHTML = memory.popis || "<em>Prázdná poznámka</em>";
+    memoryModal.classList.add("visible");
+    return true;
+  }
+
+  function runDailyDialogs() {
+    const shownTermin = tryShowTerminSummaryModal();
+    if (!shownTermin) tryShowMemoryModal();
+  }
+
+  terminSummaryModalCloseBtn.addEventListener("click", () => {
+    terminSummaryModal.classList.remove("visible");
+    tryShowMemoryModal();
+  });
+
+  memoryModalCloseBtn.addEventListener("click", () => {
+    memoryModal.classList.remove("visible");
+  });
+
+  memoryModalOpenBtn.addEventListener("click", () => {
+    memoryModal.classList.remove("visible");
+    if (currentMemoryNoteId) goToNoteInFolder(currentMemoryNoteId);
   });
 
   function currentViewNotes() {
@@ -1344,6 +1456,7 @@
     const base = visibleNotes();
     if (view.type === "dashboard") list = base.filter(n => n.oblibene);
     else if (view.type === "termin") list = base.filter(n => n.termin);
+    else if (view.type === "rating") list = base.filter(n => n.hodnoceni === view.value);
     else if (view.type === "all") list = base;
     else list = base.filter(n => n.druh === view.nazev);
 
@@ -1425,7 +1538,7 @@
         <span class="note-row-badge" style="background:${color}22;color:${color}">${escapeHtml(n.druh || "")}</span>
         <button class="note-row-star ${starActive ? "active" : ""}" data-id="${n.id}" title="Oblíbené" aria-label="Oblíbené">★</button>
       </div>
-      <div class="note-row-title">${escapeHtml(title)}</div>
+      <div class="note-row-title">${ratingBadgeHtml(n.hodnoceni)}${escapeHtml(title)}</div>
       ${datumHtml}
       ${terminHtml}
       <div class="note-row-snippet">${escapeHtml(snippet.slice(0, 70) || "Prázdná poznámka")}</div>
@@ -1440,6 +1553,7 @@
     if (view.type === "calendar") { renderCalendarView(); return; }
 
     if (view.type === "all") notesColTitle.textContent = "Všechny poznámky";
+    else if (view.type === "rating") notesColTitle.textContent = `Hodnocení ${view.value}`;
     else notesColTitle.textContent = view.nazev;
 
     const list = currentViewNotes();
@@ -1542,7 +1656,7 @@
       const isToday = dateStr === todayStr;
       const notesToday = (notesByDate.get(dateStr) || []).slice()
         .sort((a, b) => (a.druh || "").localeCompare(b.druh || "", "cs"));
-      html += `<div class="calendar-day ${isToday ? "calendar-day-today" : ""}">
+      html += `<div class="calendar-day ${isToday ? "calendar-day-today" : ""}" data-date="${dateStr}">
         <div class="calendar-day-num">${d}</div>
         <div class="calendar-day-notes">`;
       notesToday.forEach(n => {
@@ -1552,7 +1666,7 @@
         const truncated = title.length > 14 ? title.slice(0, 14) + "…" : title;
         html += `<div class="calendar-note-chip" data-id="${n.id}" title="${escapeHtml(title)}">
           <span class="calendar-note-cat" style="color:${color}">${escapeHtml(n.druh || "")}</span>
-          <span class="calendar-note-title">${escapeHtml(truncated)}</span>
+          ${ratingBadgeHtml(n.hodnoceni)}<span class="calendar-note-title">${escapeHtml(truncated)}</span>
         </div>`;
       });
       html += `</div></div>`;
@@ -1574,8 +1688,57 @@
       renderCalendarView();
     });
     notesList.querySelectorAll(".calendar-note-chip").forEach(chip => {
-      chip.addEventListener("click", () => goToNoteInFolder(chip.dataset.id));
+      chip.addEventListener("click", (e) => {
+        e.stopPropagation();
+        goToNoteInFolder(chip.dataset.id);
+      });
     });
+    notesList.querySelectorAll(".calendar-day[data-date]").forEach(dayEl => {
+      dayEl.addEventListener("click", () => {
+        createNoteForCalendarDay(dayEl.dataset.date);
+      });
+    });
+  }
+
+  // Klik na prázdné místo v den v Kalendáři rovnou založí novou poznámku
+  // s termínem podle kliknutého data a kategorií ToDo (poslední složka v
+  // seznamu) - klik na existující poznámku (chip) tohle svým
+  // stopPropagation() přeskočí a otevře jen tu poznámku.
+  async function createNoteForCalendarDay(dateStr) {
+    const targetFolder = folders.length ? folders[folders.length - 1].nazev : null;
+    if (!targetFolder) { showToast("Nejprve vytvoř složku"); return; }
+
+    const newNoteData = {
+      datum: localTodayStr(),
+      druh: targetFolder,
+      nazev: "",
+      popis: "",
+      termin: dateStr,
+      hodnoceni: "",
+      oblibene: false,
+      stitky: [],
+      uid: currentUid,
+      vytvoreno: serverTimestamp(),
+      upraveno: serverTimestamp()
+    };
+
+    let ref;
+    try {
+      ref = await addDoc(collection(db, NOTES_COL), newNoteData);
+    } catch (err) {
+      showToast("Chyba při vytváření poznámky: " + err.message);
+      return;
+    }
+
+    if (!allNotes.some(n => n.id === ref.id)) {
+      allNotes = [{ id: ref.id, ...newNoteData }, ...allNotes];
+    }
+
+    const f = folderByName(targetFolder);
+    selectView({ type: "folder", id: f.id, nazev: f.nazev, barva: f.barva });
+    openNote(ref.id);
+    if (window.innerWidth <= 900) columnsEl.dataset.view = "editor";
+    setTimeout(() => editorTitle.focus(), 150);
   }
 
   function renderTrashView() {
@@ -1777,6 +1940,19 @@
 
   searchInput.addEventListener("input", () => {
     updateSearchClearBtn();
+    // Dashboard/Termín/Kalendář mají vlastní vykreslování, které hledaný
+    // výraz vůbec nekontroluje. Jakmile se do hledání něco napíše v jednom
+    // z těchto pohledů, appka radši přepne na Všechny poznámky, kde
+    // vyhledávání skutečně funguje, ať psaní do políčka není zbytečné.
+    if (searchInput.value.trim() && ["dashboard", "termin", "calendar"].includes(view.type)) {
+      view = { type: "all" };
+      columnsEl.classList.remove("dashboard-mode");
+      newNoteBtn.style.display = "";
+      exportPdfBtn.style.display = "";
+      newsletterBtn.style.display = "";
+      emptyTrashBtn.style.display = "none";
+      renderFolders();
+    }
     renderNotes();
   });
 
@@ -1915,6 +2091,7 @@
       nazev: "",
       popis: "",
       termin: "",
+      hodnoceni: "",
       oblibene: false,
       stitky: [],
       uid: currentUid,
@@ -1958,6 +2135,8 @@
     editorDate.value = n.datum || "";
     editorTermin.value = n.termin || "";
     editorTitle.value = n.nazev || "";
+    editorHodnoceni.value = n.hodnoceni || "";
+    updateEditorRatingBadge(n.hodnoceni);
     editorFavBtn.classList.toggle("active", !!n.oblibene);
     currentTags = Array.isArray(n.stitky) ? [...n.stitky] : [];
     renderTagChips();
@@ -2020,9 +2199,27 @@
     if (tagInput.value.trim()) addTagFromInput();
   });
 
+  function updateEditorRatingBadge(hodnoceni) {
+    const c = RATING_COLORS[hodnoceni];
+    if (!c) {
+      editorRatingBadge.style.display = "none";
+      editorRatingBadge.textContent = "";
+      return;
+    }
+    editorRatingBadge.textContent = hodnoceni;
+    editorRatingBadge.style.background = c.bg;
+    editorRatingBadge.style.color = c.text;
+    editorRatingBadge.title = "Hodnocení " + hodnoceni;
+    editorRatingBadge.style.display = "inline-flex";
+  }
+
   editorFolder.addEventListener("change", () => scheduleSave());
   editorDate.addEventListener("change", () => scheduleSave());
   editorTermin.addEventListener("change", () => scheduleSave());
+  editorHodnoceni.addEventListener("change", () => {
+    updateEditorRatingBadge(editorHodnoceni.value);
+    scheduleSave();
+  });
   editorTitle.addEventListener("input", () => scheduleSave());
 
   // Zaregistruje libovolný text input (název poznámky, název složky...) jako
@@ -2225,6 +2422,7 @@
         druh: editorFolder.value,
         datum: editorDate.value,
         termin: editorTermin.value,
+        hodnoceni: editorHodnoceni.value,
         nazev: editorTitle.value,
         popis: quill.root.innerHTML,
         stitky: currentTags,
