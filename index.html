@@ -215,7 +215,15 @@
   .trash-purge-btn:hover { background: #fce8e6; color: var(--danger); border-color: #fce8e6; }
 
   /* ---------- Kalendář ---------- */
+  .calendar-mode-switch { display: flex; gap: 6px; margin: 4px 4px 10px; }
+  .calendar-mode-btn {
+    flex: 1; padding: 6px 10px; font-size: 12.5px; font-weight: 600; border-radius: 8px;
+    border: 1.5px solid var(--line); background: var(--paper); color: var(--ink-soft); cursor: pointer;
+  }
+  .calendar-mode-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
   .calendar-nav { display: flex; align-items: center; gap: 8px; margin: 4px 4px 14px; }
+  .calendar-grid-week .calendar-day { min-height: 220px; max-height: 400px; }
+  .calendar-day-single .calendar-day { min-height: 320px; max-height: 560px; cursor: pointer; }
   .calendar-nav-label { font-size: 15px; font-weight: 700; flex: 1; text-align: center; }
   .calendar-nav-btn { flex-shrink: 0; }
   .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
@@ -462,6 +470,9 @@
     .calendar-day-abbr { font-size: 9.5px; }
     .calendar-note-chip { font-size: 9px; padding: 1px 3px; }
     .calendar-nav-label { font-size: 13.5px; }
+    .calendar-mode-btn { font-size: 11.5px; padding: 5px 6px; }
+    .calendar-grid-week .calendar-day { min-height: 110px; max-height: 220px; }
+    .calendar-day-single .calendar-day { min-height: 200px; max-height: 400px; }
   }
 </style>
 </head>
@@ -854,6 +865,18 @@
     return (d.textContent || "").trim();
   }
 
+  // Stejná logika jako na stránce Quick - dokud je Název prázdný, odvodí se
+  // z první věty (do tečky/vykřičníku/otazníku/odřádkování), max 50 znaků.
+  function deriveTitleFromText(text) {
+    const trimmed = text.trim();
+    if (!trimmed) return "";
+    const stopIdx = trimmed.search(/[.!?\n]/);
+    let candidate = stopIdx === -1 ? trimmed : trimmed.slice(0, stopIdx);
+    candidate = candidate.trim();
+    if (candidate.length > 50) candidate = candidate.slice(0, 50).trim();
+    return candidate;
+  }
+
   // Převede HTML obsah poznámky na čitelný prostý text pro sdílení
   // (WhatsApp, e-mail) - na rozdíl od stripHtml() zachovává odřádkování
   // mezi odstavci/řádky/položkami seznamu. Pokud je markdown: true, tučné,
@@ -927,7 +950,13 @@
       }
     });
     quill.on("text-change", (delta, oldDelta, source) => {
-      if (source === "user" && !suppressAutosave) scheduleSave();
+      if (source === "user" && !suppressAutosave) {
+        if (!editorTitle.value.trim()) {
+          const derived = deriveTitleFromText(quill.getText());
+          if (derived) editorTitle.value = derived;
+        }
+        scheduleSave();
+      }
     });
 
     const toolbarEl = document.querySelector(".ql-toolbar");
@@ -1514,6 +1543,7 @@
       showDatum = true,
       showTermin = false,
       urgencyClass = "",
+      tooltipText = "",
     } = opts;
 
     const folder = folderByName(n.druh);
@@ -1531,8 +1561,9 @@
       : "";
     const rowClasses = ["note-row", extraClasses, isActive ? "active" : "", urgencyClass]
       .filter(Boolean).join(" ");
+    const titleAttr = tooltipText ? ` title="${escapeHtml(tooltipText)}"` : "";
 
-    return `<div class="${rowClasses}" style="border-left-color:${color}" data-id="${n.id}">
+    return `<div class="${rowClasses}" style="border-left-color:${color}" data-id="${n.id}"${titleAttr}>
       <button class="note-row-del" data-id="${n.id}" title="Smazat poznámku" aria-label="Smazat poznámku">🗑</button>
       <div class="note-row-top">
         <span class="note-row-badge" style="background:${color}22;color:${color}">${escapeHtml(n.druh || "")}</span>
@@ -1601,24 +1632,88 @@
   const CZ_MONTH_NAMES = ["Leden", "Únor", "Březen", "Duben", "Květen", "Červen",
     "Červenec", "Srpen", "Září", "Říjen", "Listopad", "Prosinec"];
   const CZ_DAY_ABBR = ["Po", "Út", "St", "Čt", "Pá", "So", "Ne"];
-  let calendarViewDate = null; // { year, month } - month je 0-11
+  let calendarRefDate = null; // ISO "YYYY-MM-DD" - referenční den pro aktuální režim
+  let calendarViewMode = localStorage.getItem("calendarViewMode") || "month"; // "day" | "week" | "month"
 
-  function shiftCalendarMonth(cur, delta) {
-    let { year, month } = cur;
-    month += delta;
-    if (month < 0) { month = 11; year -= 1; }
-    if (month > 11) { month = 0; year += 1; }
-    return { year, month };
+  function calendarNoteChipHtml(n, maxLen) {
+    const folder = folderByName(n.druh);
+    const color = folder ? folder.barva : "#999";
+    const title = noteTitle(n);
+    const truncated = title.length > maxLen ? title.slice(0, maxLen) + "…" : title;
+    return `<div class="calendar-note-chip" data-id="${n.id}" title="${escapeHtml(title)}">
+      <span class="calendar-note-cat" style="color:${color}">${escapeHtml(n.druh || "")}</span>
+      ${ratingBadgeHtml(n.hodnoceni)}<span class="calendar-note-title">${escapeHtml(truncated)}</span>
+    </div>`;
+  }
+
+  function calendarDayCellHtml(dateStr, dayLabel, notesByDate, compact) {
+    const todayStr = localTodayStr();
+    const isToday = dateStr === todayStr;
+    const notesToday = (notesByDate.get(dateStr) || []).slice()
+      .sort((a, b) => (a.druh || "").localeCompare(b.druh || "", "cs"));
+    const maxLen = compact ? 14 : 60;
+    const chips = notesToday.map(n => calendarNoteChipHtml(n, maxLen)).join("");
+    return `<div class="calendar-day ${isToday ? "calendar-day-today" : ""}" data-date="${dateStr}">
+      <div class="calendar-day-num">${dayLabel}</div>
+      <div class="calendar-day-notes">${chips}</div>
+    </div>`;
+  }
+
+  function buildCalendarMonthHtml(year, month, notesByDate) {
+    const firstOfMonth = new Date(Date.UTC(year, month, 1));
+    const firstWeekday = (firstOfMonth.getUTCDay() + 6) % 7; // 0 = pondělí
+    const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+    const cells = [];
+    for (let i = 0; i < firstWeekday; i++) cells.push(null);
+    for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+    while (cells.length % 7 !== 0) cells.push(null);
+
+    let html = `<div class="calendar-grid calendar-grid-head">`;
+    CZ_DAY_ABBR.forEach(d => { html += `<div class="calendar-day-abbr">${d}</div>`; });
+    html += `</div><div class="calendar-grid">`;
+    cells.forEach(d => {
+      if (d === null) { html += `<div class="calendar-day calendar-day-pad"></div>`; return; }
+      const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+      html += calendarDayCellHtml(dateStr, String(d), notesByDate, true);
+    });
+    html += `</div>`;
+    return html;
+  }
+
+  function buildCalendarWeekHtml(monday, notesByDate) {
+    let html = `<div class="calendar-grid calendar-grid-head">`;
+    CZ_DAY_ABBR.forEach(d => { html += `<div class="calendar-day-abbr">${d}</div>`; });
+    html += `</div><div class="calendar-grid calendar-grid-week">`;
+    for (let i = 0; i < 7; i++) {
+      const dateStr = addDaysToIsoDate(monday, i);
+      const dayNum = Number(dateStr.slice(8, 10));
+      html += calendarDayCellHtml(dateStr, String(dayNum), notesByDate, false);
+    }
+    html += `</div>`;
+    return html;
+  }
+
+  function buildCalendarDayHtml(dateStr, notesByDate) {
+    return `<div class="calendar-day-single">${calendarDayCellHtml(dateStr, formatDate(dateStr), notesByDate, false)}</div>`;
+  }
+
+  function shiftCalendarRef(delta) {
+    if (calendarViewMode === "day") {
+      calendarRefDate = addDaysToIsoDate(calendarRefDate, delta);
+    } else if (calendarViewMode === "week") {
+      calendarRefDate = addDaysToIsoDate(calendarRefDate, delta * 7);
+    } else {
+      const [y, m] = calendarRefDate.split("-").map(Number);
+      let year = y, month = (m - 1) + delta;
+      if (month < 0) { month = 11; year -= 1; }
+      if (month > 11) { month = 0; year += 1; }
+      calendarRefDate = `${year}-${String(month + 1).padStart(2, "0")}-01`;
+    }
   }
 
   function renderCalendarView() {
     notesColTitle.textContent = "📅 Kalendář";
-    if (!calendarViewDate) {
-      const [y, m] = localTodayStr().split("-").map(Number);
-      calendarViewDate = { year: y, month: m - 1 };
-    }
-    const { year, month } = calendarViewDate;
-    const todayStr = localTodayStr();
+    if (!calendarRefDate) calendarRefDate = localTodayStr();
 
     const notesByDate = new Map();
     visibleNotes().filter(n => n.termin).forEach(n => {
@@ -1626,65 +1721,54 @@
       notesByDate.get(n.termin).push(n);
     });
 
-    const firstOfMonth = new Date(Date.UTC(year, month, 1));
-    const firstWeekday = (firstOfMonth.getUTCDay() + 6) % 7; // 0 = pondělí
-    const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+    let navLabel = "";
+    let bodyHtml = "";
+    if (calendarViewMode === "week") {
+      const monday = mondayOfIsoWeek(calendarRefDate);
+      const sunday = addDaysToIsoDate(monday, 6);
+      navLabel = `${formatDate(monday)} – ${formatDate(sunday)}`;
+      bodyHtml = buildCalendarWeekHtml(monday, notesByDate);
+    } else if (calendarViewMode === "day") {
+      navLabel = formatDate(calendarRefDate);
+      bodyHtml = buildCalendarDayHtml(calendarRefDate, notesByDate);
+    } else {
+      const [y, m] = calendarRefDate.split("-").map(Number);
+      navLabel = `${CZ_MONTH_NAMES[m - 1]} ${y}`;
+      bodyHtml = buildCalendarMonthHtml(y, m - 1, notesByDate);
+    }
 
-    const cells = [];
-    for (let i = 0; i < firstWeekday; i++) cells.push(null);
-    for (let d = 1; d <= daysInMonth; d++) cells.push(d);
-    while (cells.length % 7 !== 0) cells.push(null);
-
-    let html = `<div class="calendar-nav">
+    let html = `<div class="calendar-mode-switch">
+      <button class="calendar-mode-btn ${calendarViewMode === "day" ? "active" : ""}" data-mode="day" type="button">Den</button>
+      <button class="calendar-mode-btn ${calendarViewMode === "week" ? "active" : ""}" data-mode="week" type="button">Týden</button>
+      <button class="calendar-mode-btn ${calendarViewMode === "month" ? "active" : ""}" data-mode="month" type="button">Měsíc</button>
+    </div>`;
+    html += `<div class="calendar-nav">
       <button class="btn-mini calendar-nav-btn" id="calendarPrevBtn" type="button">‹</button>
-      <div class="calendar-nav-label">${CZ_MONTH_NAMES[month]} ${year}</div>
+      <div class="calendar-nav-label">${navLabel}</div>
       <button class="btn-mini calendar-nav-btn" id="calendarTodayBtn" type="button">Dnes</button>
       <button class="btn-mini calendar-nav-btn" id="calendarNextBtn" type="button">›</button>
     </div>`;
-
-    html += `<div class="calendar-grid calendar-grid-head">`;
-    CZ_DAY_ABBR.forEach(d => { html += `<div class="calendar-day-abbr">${d}</div>`; });
-    html += `</div>`;
-
-    html += `<div class="calendar-grid">`;
-    cells.forEach(d => {
-      if (d === null) {
-        html += `<div class="calendar-day calendar-day-pad"></div>`;
-        return;
-      }
-      const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-      const isToday = dateStr === todayStr;
-      const notesToday = (notesByDate.get(dateStr) || []).slice()
-        .sort((a, b) => (a.druh || "").localeCompare(b.druh || "", "cs"));
-      html += `<div class="calendar-day ${isToday ? "calendar-day-today" : ""}" data-date="${dateStr}">
-        <div class="calendar-day-num">${d}</div>
-        <div class="calendar-day-notes">`;
-      notesToday.forEach(n => {
-        const folder = folderByName(n.druh);
-        const color = folder ? folder.barva : "#999";
-        const title = noteTitle(n);
-        const truncated = title.length > 14 ? title.slice(0, 14) + "…" : title;
-        html += `<div class="calendar-note-chip" data-id="${n.id}" title="${escapeHtml(title)}">
-          <span class="calendar-note-cat" style="color:${color}">${escapeHtml(n.druh || "")}</span>
-          ${ratingBadgeHtml(n.hodnoceni)}<span class="calendar-note-title">${escapeHtml(truncated)}</span>
-        </div>`;
-      });
-      html += `</div></div>`;
-    });
-    html += `</div>`;
+    html += bodyHtml;
 
     notesList.innerHTML = html;
 
+    notesList.querySelectorAll(".calendar-mode-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        calendarViewMode = btn.dataset.mode;
+        localStorage.setItem("calendarViewMode", calendarViewMode);
+        renderCalendarView();
+      });
+    });
     document.getElementById("calendarPrevBtn").addEventListener("click", () => {
-      calendarViewDate = shiftCalendarMonth(calendarViewDate, -1);
+      shiftCalendarRef(-1);
       renderCalendarView();
     });
     document.getElementById("calendarNextBtn").addEventListener("click", () => {
-      calendarViewDate = shiftCalendarMonth(calendarViewDate, 1);
+      shiftCalendarRef(1);
       renderCalendarView();
     });
     document.getElementById("calendarTodayBtn").addEventListener("click", () => {
-      calendarViewDate = null;
+      calendarRefDate = localTodayStr();
       renderCalendarView();
     });
     notesList.querySelectorAll(".calendar-note-chip").forEach(chip => {
@@ -1804,7 +1888,12 @@
         <span class="folder-dot" style="background:#c9772e"></span>💭 Vzpomínka
       </div>
       <div class="dashboard-row">
-        ${noteTileHtml(memory, { extraClasses: "dashboard-tile memory-tile", showDatum: true, showTermin: false })}
+        ${noteTileHtml(memory, {
+          extraClasses: "dashboard-tile memory-tile",
+          showDatum: true,
+          showTermin: false,
+          tooltipText: htmlToShareText(memory.popis || "", { markdown: false })
+        })}
       </div>
     </div>`;
   }
@@ -1952,6 +2041,11 @@
       newsletterBtn.style.display = "";
       emptyTrashBtn.style.display = "none";
       renderFolders();
+      // Na mobilu je vidět jen jeden sloupec najednou - po přepnutí na
+      // Všechny poznámky se musí explicitně ukázat sloupec s poznámkami
+      // (jinak by uživatel mohl zůstat koukat na sloupec, který se
+      // mezitím schoval).
+      if (window.innerWidth <= 900) columnsEl.dataset.view = "notes";
     }
     renderNotes();
   });

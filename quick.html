@@ -100,6 +100,10 @@
   .toast.visible { opacity: 1; transform: translateX(-50%) translateY(-6px); }
 
   #entryScreen { display: none; }
+  @media (max-width: 700px) {
+    body.keyboard-active #entryScreen h1,
+    body.keyboard-active #entryScreen p.sub { display: none; }
+  }
 </style>
 </head>
 <body>
@@ -198,6 +202,16 @@
   const loginForm = document.getElementById("loginForm");
   const loginError = document.getElementById("loginError");
   const entryForm = document.getElementById("entryForm");
+
+  // Na mobilu po zaklepnuti do pole vyskoci klavesnice a ubere hodne mista.
+  // Dokud je nejake pole ve formulari aktivni, appka schova uvodni nadpis a
+  // podnadpis (jen ty), at se na obrazovku vejde vic poli najednou. Datum a
+  // Druh se nikdy neschovavaji - jen mohou (u pole Popis, ktere je niz ve
+  // formulari) docasne vyjet mimo obrazovku, ale jdou dostat zpet scrollem.
+  let keyboardHideTimer = null;
+  function setKeyboardActive(active) {
+    document.body.classList.toggle("keyboard-active", active);
+  }
   const datumEl = document.getElementById("datum");
   const druhEl = document.getElementById("druh");
   const nazevEl = document.getElementById("nazev");
@@ -358,6 +372,21 @@
       firstLoad = false;
     });
   }
+
+  entryForm.querySelectorAll("input, select, textarea").forEach(field => {
+    field.addEventListener("focus", () => {
+      clearTimeout(keyboardHideTimer);
+      setKeyboardActive(true);
+    });
+    field.addEventListener("blur", () => {
+      keyboardHideTimer = setTimeout(() => {
+        const active = document.activeElement;
+        if (!active || !entryForm.contains(active)) {
+          setKeyboardActive(false);
+        }
+      }, 50);
+    });
+  });
 
   entryForm.addEventListener("submit", async (e) => {
     e.preventDefault();
