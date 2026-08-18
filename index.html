@@ -222,8 +222,13 @@
   }
   .calendar-mode-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
   .calendar-nav { display: flex; align-items: center; gap: 8px; margin: 4px 4px 14px; }
-  .calendar-grid-week .calendar-day { min-height: 220px; max-height: 400px; }
+  .calendar-week-list { display: flex; flex-direction: column; gap: 8px; }
+  .calendar-week-list .calendar-day { min-height: auto; max-height: 320px; }
   .calendar-day-single .calendar-day { min-height: 320px; max-height: 560px; cursor: pointer; }
+  .calendar-week-list .calendar-day-num,
+  .calendar-day-single .calendar-day-num { font-size: 15px; }
+  .calendar-week-list .calendar-note-chip,
+  .calendar-day-single .calendar-note-chip { font-size: 13.5px; padding: 4px 8px; }
   .calendar-nav-label { font-size: 15px; font-weight: 700; flex: 1; text-align: center; }
   .calendar-nav-btn { flex-shrink: 0; }
   .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
@@ -471,8 +476,12 @@
     .calendar-note-chip { font-size: 9px; padding: 1px 3px; }
     .calendar-nav-label { font-size: 13.5px; }
     .calendar-mode-btn { font-size: 11.5px; padding: 5px 6px; }
-    .calendar-grid-week .calendar-day { min-height: 110px; max-height: 220px; }
+    .calendar-week-list .calendar-day { min-height: auto; max-height: 260px; }
     .calendar-day-single .calendar-day { min-height: 200px; max-height: 400px; }
+    .calendar-week-list .calendar-day-num,
+    .calendar-day-single .calendar-day-num { font-size: 13px; }
+    .calendar-week-list .calendar-note-chip,
+    .calendar-day-single .calendar-note-chip { font-size: 12px; padding: 3px 6px; }
   }
 </style>
 </head>
@@ -1632,6 +1641,7 @@
   const CZ_MONTH_NAMES = ["Leden", "Únor", "Březen", "Duben", "Květen", "Červen",
     "Červenec", "Srpen", "Září", "Říjen", "Listopad", "Prosinec"];
   const CZ_DAY_ABBR = ["Po", "Út", "St", "Čt", "Pá", "So", "Ne"];
+  const CZ_DAY_NAMES_FULL = ["Pondělí", "Úterý", "Středa", "Čtvrtek", "Pátek", "Sobota", "Neděle"];
   let calendarRefDate = null; // ISO "YYYY-MM-DD" - referenční den pro aktuální režim
   let calendarViewMode = localStorage.getItem("calendarViewMode") || "month"; // "day" | "week" | "month"
 
@@ -1681,13 +1691,15 @@
   }
 
   function buildCalendarWeekHtml(monday, notesByDate) {
-    let html = `<div class="calendar-grid calendar-grid-head">`;
-    CZ_DAY_ABBR.forEach(d => { html += `<div class="calendar-day-abbr">${d}</div>`; });
-    html += `</div><div class="calendar-grid calendar-grid-week">`;
+    // Dny pod sebou (ne vedle sebe) - u každého dne rovnou celý název dne a
+    // datum, ať dává smysl i bez samostatného záhlaví se zkratkami dnů.
+    let html = `<div class="calendar-week-list">`;
     for (let i = 0; i < 7; i++) {
       const dateStr = addDaysToIsoDate(monday, i);
       const dayNum = Number(dateStr.slice(8, 10));
-      html += calendarDayCellHtml(dateStr, String(dayNum), notesByDate, false);
+      const monthNum = Number(dateStr.slice(5, 7));
+      const label = `${CZ_DAY_NAMES_FULL[i]} ${dayNum}.${monthNum}.`;
+      html += calendarDayCellHtml(dateStr, label, notesByDate, false);
     }
     html += `</div>`;
     return html;
