@@ -107,6 +107,18 @@
   @media (max-width: 700px) {
     body.keyboard-active #entryScreen h1,
     body.keyboard-active #entryScreen p.sub { display: none; }
+    /* Skutecna pricina, proc se predtim neslo doscrollovat zpet na Datum a
+       Druh: body je flex kontejner s "align-items: center", ktery pri
+       otevrene klavesnici zmensi viditelnou vysku, a pokud pak obsah karty
+       presahuje tuto vysku, centrovani ho posune tak, ze horni cast (Datum,
+       Druh) skonci NAD viditelnou oblasti - mimo dosah scrollovani (scroll
+       nejde do zaporna). Reseni: dokud je nejake pole aktivni, kartu misto
+       stredu zarovnat k hornimu okraji, aby pripadny prebytek obsahu
+       prepadal dolu (kam se da normalne doscrollovat), ne nahoru.  */
+    body.keyboard-active {
+      align-items: flex-start;
+      justify-content: flex-start;
+    }
   }
 </style>
 </head>
