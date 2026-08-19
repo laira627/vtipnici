@@ -833,6 +833,13 @@
   let lastFocusCursor = null;
   let quillLastRange = null;
   let emojiPickerCurrentTrigger = null;
+  // Dokud se ve slozce prave edituje nazev/ikona, hlavni menu se NESMI
+  // prekreslit (renderFolders() prepisuje cely #foldersList.innerHTML) -
+  // jinak by Firestore snapshot prichazejici v prubehu editace (coz se
+  // bezne deje, typicky hned po prihlaseni prijde jeste jednou navic ze
+  // serveru) tise smazal rozepsany <input> i vybranou-ale-jeste-neulozenou
+  // ikonu drive, nez stihnou dojit na radu tlacitka pro vyber emoji.
+  let renamingFolderId = null;
   // Kdyz neni null, tlacitko pro vyber emoji NEVKLADA znak do textoveho pole,
   // ale zavola tuto funkci - pouziva se pro ikony kategorii (misto vkladani do
   // nazvu slozky primo v textu).
@@ -1039,9 +1046,28 @@
     // (mimo klavesnici). Nic se neschovava, jen se to tam posune scrollem -
     // zpatky nahoru na Datum/Nazev/Stitky se da kdykoliv normalne
     // doscrollovat.
+    function scrollPopisToTop() {
+      document.getElementById("quillContainer").scrollIntoView({ block: "start", behavior: "smooth" });
+    }
     quill.root.addEventListener("focus", () => {
-      if (window.innerWidth <= 900) {
-        document.getElementById("quillContainer").scrollIntoView({ block: "start", behavior: "smooth" });
+      if (window.innerWidth > 900) return;
+      // Volat scroll HNED po fokusu nestaci - klavesnice se v tu chvili
+      // teprve zacina otevirat a jeji pozdejsi animace by scroll stejne
+      // zase prekryla/posunula. Pockej radsi na skutecnou zmenu viditelne
+      // vysky (visualViewport resize = klavesnice uz je otevrena), a jen
+      // pro jistotu (kdyby event neprisel) i na pojistny timeout.
+      if (window.visualViewport) {
+        const onViewportResize = () => {
+          scrollPopisToTop();
+          window.visualViewport.removeEventListener("resize", onViewportResize);
+        };
+        window.visualViewport.addEventListener("resize", onViewportResize);
+        setTimeout(() => {
+          window.visualViewport.removeEventListener("resize", onViewportResize);
+          scrollPopisToTop();
+        }, 500);
+      } else {
+        setTimeout(scrollPopisToTop, 350);
       }
     });
 
@@ -1220,6 +1246,7 @@
   }
 
   function renderFolders() {
+    if (renamingFolderId) return;
     const notesForCounts = visibleNotes();
     const favCount = notesForCounts.filter(n => n.oblibene).length;
     const todayStr = localTodayStr();
@@ -1331,6 +1358,7 @@
     const span = foldersList.querySelector(`[data-name-for="${id}"]`);
     const f = folders.find(x => x.id === id);
     if (!span || !f) return;
+    renamingFolderId = id;
     const row = span.closest(".folder-row");
     const tools = row ? row.querySelector(".folder-tools") : null;
     const iconSpan = row ? row.querySelector(".folder-icon") : null;
@@ -1388,6 +1416,7 @@
     }
 
     const finish = async () => {
+      renamingFolderId = null;
       const newName = input.value.trim();
       if (!newName) { renderFolders(); return; }
       if (newName !== f.nazev || currentIcon !== (f.ikona || "")) {

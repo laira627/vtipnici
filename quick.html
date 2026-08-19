@@ -309,109 +309,126 @@
   // Prohlížeč (typicky Chrome/Android) sám ukončí naslouchání po pár
   // vteřinách ticha - žádný parametr na prodloužení tohoto intervalu Web
   // Speech API nenabízí. Řešení: dokud uživatel sám neklikne na "stop",
-  // appka po každém takovém tichem vyvolaném konci naslouchání potichu
+  // appka po každém takovém tichem vyvolaném konci naslouchání sama
   // nastartuje nové kolo, takže diktování reálně běží, dokud ho uživatel
   // sám nezastaví.
   let recordingRequested = false;
-  // Text v poli PŘED začátkem aktuální "session" naslouchání (tedy před
-  // posledním recognition.start()). Při každém vysledku se do displeje
-  // znovu poskládá baseText + celý aktuální přepis session odznova -
-  // NIKDY se do baseText jen "nepřičítá delta". Původní kód spoléhal na
-  // e.resultIndex jako na spolehlivý ukazatel, odkud číst nové kousky,
-  // ale na řadě zařízení (typicky Android Chrome) se resultIndex chová
-  // nespolehlivě/vrací se zpátky, takže se už jednou započtené finální
-  // věty načetly a připočetly znovu a znovu - odtud to zdvojování a
-  // "narůstající" opakování celých vět.
+  // Text v poli PŘED začátkem aktuální "session" naslouchání. Při každém
+  // vysledku se do displeje znovu poskládá baseText + celý aktuální
+  // přepis session odznova - nikdy se nepřičítá jen "delta" (to na
+  // řadě zařízení, typicky Android Chrome, vedlo ke zdvojování vět).
   let baseText = "";
+  let restartTimer = null;
 
   function capitalizeFirstIfEmpty(base, chunk) {
     if (base.trim()) return chunk;
     return chunk.charAt(0).toUpperCase() + chunk.slice(1);
   }
 
-  if (SpeechRecognitionCtor && micBtn) {
+  function handleSpeechResult(e) {
+    let sessionFinal = "";
+    let sessionInterim = "";
+    for (let i = 0; i < e.results.length; i++) {
+      const chunk = e.results[i][0].transcript;
+      if (e.results[i].isFinal) sessionFinal += chunk;
+      else sessionInterim += chunk;
+    }
+    sessionFinal = sessionFinal.trim();
+    sessionInterim = sessionInterim.trim();
+
+    let sessionText = sessionFinal;
+    if (sessionInterim) {
+      sessionText = (sessionText ? sessionText + " " : "") + sessionInterim;
+    }
+    sessionText = capitalizeFirstIfEmpty(baseText, sessionText);
+
+    const sep = baseText.trim() ? " " : "";
+    popisEl.value = baseText.trim() + sep + sessionText;
+    popisEl.dispatchEvent(new Event("input"));
+  }
+
+  // Odpojí posluchače od JIŽ SKONČENÉ instance rozpoznávání. Bez tohohle by
+  // mohl (na některých zařízeních, typicky Android Chrome) dorazit
+  // opožděný/zpožděný "result" nebo "end" event ze staré session PO TOM,
+  // co už bylo spuštěno nové kolo - a ten by pak popsal text ze staré
+  // session znovu navrch nového základu (odtud ono "slova se zdvojují a
+  // vkládají se úplně jiná" - reálně šlo o prolínání dvou překrývajících
+  // se nahrávacích session najednou).
+  function detachRecognition(r) {
+    if (!r) return;
+    r.removeEventListener("result", handleSpeechResult);
+    r.removeEventListener("end", handleSpeechEnd);
+    r.removeEventListener("error", handleSpeechError);
+  }
+
+  function handleSpeechEnd() {
+    baseText = popisEl.value;
+    const finished = recognition;
+    if (recordingRequested) {
+      // Male zpozdeni pred restartem - okamzity synchronni restart uvnitr
+      // "end" muze na nekterych zarizenich zpusobit, ze si nove kolo jeste
+      // "pamatuje" zvukovy buffer z predchoziho (odtud casti spatne
+      // rozpoznanych/cizich slov po restartu).
+      clearTimeout(restartTimer);
+      restartTimer = setTimeout(() => {
+        detachRecognition(finished);
+        if (!recordingRequested) return;
+        startNewRecognitionRound();
+      }, 300);
+      return;
+    }
+    detachRecognition(finished);
+    isRecording = false;
+    recordingRequested = false;
+    micBtn.classList.remove("recording");
+  }
+
+  function handleSpeechError(e) {
+    if (e.error === "no-speech" && recordingRequested) {
+      // Jen ticho - o ukončení/restart se postará "end" handler výš.
+      return;
+    }
+    isRecording = false;
+    recordingRequested = false;
+    micBtn.classList.remove("recording");
+    if (e.error !== "aborted") {
+      showToast("Diktování selhalo (" + e.error + ")");
+    }
+  }
+
+  // Pro kazde kolo (prvni start i kazdy tichem vyvolany restart) se vytvori
+  // UPLNE NOVA instance SpeechRecognition (misto opakovaneho .start() na te
+  // same) - zabrani to krizeni starych a novych vysledku popsanemu vyse.
+  function startNewRecognitionRound() {
     recognition = new SpeechRecognitionCtor();
     recognition.lang = "cs-CZ";
     recognition.continuous = true;
     recognition.interimResults = true;
-
-    recognition.addEventListener("result", (e) => {
-      // Vždy se čte CELÉ pole e.results od začátku (index 0), ne od
-      // e.resultIndex - jednou finalizovaný výsledek se už nemění, takže
-      // je to bezpečné, a hlavně to obchází zařízení, kde resultIndex
-      // není spolehlivý. Session text se tedy pokaždé PŘEPOČÍTÁ nanovo,
-      // nikdy se nepřičítá k tomu, co bylo zobrazeno předtím.
-      let sessionFinal = "";
-      let sessionInterim = "";
-      for (let i = 0; i < e.results.length; i++) {
-        const chunk = e.results[i][0].transcript;
-        if (e.results[i].isFinal) sessionFinal += chunk;
-        else sessionInterim += chunk;
-      }
-      sessionFinal = sessionFinal.trim();
-      sessionInterim = sessionInterim.trim();
-
-      let sessionText = sessionFinal;
-      if (sessionInterim) {
-        sessionText = (sessionText ? sessionText + " " : "") + sessionInterim;
-      }
-      sessionText = capitalizeFirstIfEmpty(baseText, sessionText);
-
-      const sep = baseText.trim() ? " " : "";
-      popisEl.value = baseText.trim() + sep + sessionText;
-      popisEl.dispatchEvent(new Event("input"));
-    });
-
-    recognition.addEventListener("end", () => {
-      // Uzavři aktuální session - vše, co v ní bylo napsáno (i nedokončený
-      // živý náhled), se stane novým základem pro další kolo. Po restartu
-      // začne e.results zase od indexu 0, proto se to musí takhle "sklopit".
-      baseText = popisEl.value;
-      if (recordingRequested) {
-        // Konec vyvolaný tichem, ne uživatelem - hned pokračuj dál.
-        try {
-          recognition.start();
-          return;
-        } catch (err) {
-          // Nešlo restartovat (např. appka na chvíli přešla na pozadí) -
-          // dál se to už nesnaž, ať tlačítko nezůstane věčně "nahrává".
-        }
-      }
+    recognition.addEventListener("result", handleSpeechResult);
+    recognition.addEventListener("end", handleSpeechEnd);
+    recognition.addEventListener("error", handleSpeechError);
+    try {
+      recognition.start();
+    } catch (err) {
       isRecording = false;
       recordingRequested = false;
       micBtn.classList.remove("recording");
-    });
+    }
+  }
 
-    recognition.addEventListener("error", (e) => {
-      if (e.error === "no-speech" && recordingRequested) {
-        // Jen ticho - o ukončení/restart se postará "end" handler výš.
-        return;
-      }
-      isRecording = false;
-      recordingRequested = false;
-      micBtn.classList.remove("recording");
-      if (e.error !== "aborted") {
-        showToast("Diktování selhalo (" + e.error + ")");
-      }
-    });
-
+  if (SpeechRecognitionCtor && micBtn) {
     micBtn.addEventListener("click", () => {
       if (isRecording) {
         recordingRequested = false;
-        recognition.stop();
+        clearTimeout(restartTimer);
+        if (recognition) recognition.stop();
         return;
       }
       isRecording = true;
       recordingRequested = true;
       baseText = popisEl.value;
       micBtn.classList.add("recording");
-      try {
-        recognition.start();
-      } catch (err) {
-        isRecording = false;
-        recordingRequested = false;
-        micBtn.classList.remove("recording");
-      }
+      startNewRecognitionRound();
     });
   } else if (micBtn) {
     // Web Speech API tu není podporovaná (typicky desktopový Firefox) -
