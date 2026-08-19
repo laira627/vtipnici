@@ -163,7 +163,7 @@
 <!-- QUICK ENTRY -->
 <div class="card" id="entryScreen">
   <h1>📓 Rychlý zápis</h1>
-  <div class="build-tag">verze: 19. 8. 2026, kolo 9 (oprava diktování)</div>
+  <div class="build-tag">verze: 19. 8. 2026, kolo 10 (oprava diktování)</div>
   <p class="sub">Zadej poznámku a ulož jedním klepnutím</p>
   <form id="entryForm">
     <div class="row2">
@@ -311,30 +311,40 @@
   });
 
   // ---------- Diktování hlasem do Popisu ----------
-  // SKUTEČNÁ příčina zdvojování slov (nalezeno 19. 8. 2026 diagnostikou):
-  // na tomhle telefonu není `e.resultIndex` v kontinuálním režimu s
-  // `interimResults: true` spolehlivý - opakovaně se vracel na 0, takže se
-  // při KAŽDÉM novém finálním slově znovu procházely i všechny už dřív
-  // zapsané výsledky a jejich text se do pole připsal ZNOVU navrch (odtud
-  // typický obrazec "Včera Včera neděle Včera neděle byla ..." - kumulující
-  // se prefix). `e.resultIndex` se proto dál NEPOUŽÍVÁ.
+  // SKUTEČNÁ příčina zdvojování (potvrzeno 19. 8. 2026 na reálném zařízení,
+  // shodně v Chromu i Opeře): na tomhle telefonu v kontinuálním režimu s
+  // `interimResults: true` rozpoznávač neposílá u každého "result" jen NOVÝ
+  // kousek textu - místo toho opakovaně posílá CELOU dosud rozpoznanou větu
+  // znovu od začátku jako další "finální" výsledek (často navíc s mírně
+  // jinými velkými písmeny). Spoléhat na `e.resultIndex` nebo na to, že
+  // každý nový "finální" index = nový kousek textu, proto NEFUNGUJE - obojí
+  // vedlo k tomu, že se stejná rostoucí věta znovu a znovu připisovala do
+  // pole (typický obrazec "Včera Včera neděle Včera neděle byla ...").
   //
-  // Místo toho appka sama sleduje, které konkrétní indexy v e.results už
-  // jednou zapsala (finalizedIndices) a každý zapíše nejvýš jednou, ať
-  // "result" even přijde kolikrát chce a ať e.resultIndex tvrdí cokoliv.
-  // Živý (interim) náhled za mluvení se zobrazuje jen v odděleném řádku
-  // pod textarea (#micInterim), nikdy se neukládá do pole Popis.
-  //
-  // Žádný automatický restart po odmlce - "end" jen uklidí tlačítko, pro
-  // pokračování je potřeba klepnout na mikrofon znovu (to bylo prokazatelně
-  // nespolehlivé v dřívějších verzích).
+  // Řešení: appka nikdy jen neslepuje/nepřičítá výsledky. Místo toho si u
+  // KAŽDÉHO nového "finálního" výsledku (rozpracovaný text, ještě nezapsaný
+  // do pole Popis) porovná, jestli je pokračováním toho, co už zná (nový
+  // text ZAČÍNÁ tím starým) - pak ho jen nahradí delší verzí. Pokud nový
+  // text s tím starým vůbec nesouvisí, znamená to, že předchozí úsek už je
+  // hotový -> ten se teprve teď zapíše do pole a začne se sledovat nový.
+  // Tohle funguje spolehlivě, ať appka posílá skutečné přírůstky (jako
+  // dřív 13. 8.), nebo pořád dokola celou narůstající větu (jako teď).
   const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
   let recognition = null;
   let isRecording = false;
-  let finalizedIndices = null;
+  let draftText = ""; // rozpracovaný (ještě nezapsaný) úsek aktuální nahrávky
 
   function setInterimPreview(text) {
     if (micInterim) micInterim.textContent = text || "";
+  }
+
+  function commitDraft() {
+    if (draftText) {
+      const sep = popisEl.value.trim() ? " " : "";
+      popisEl.value = popisEl.value.trim() + sep + draftText;
+      popisEl.dispatchEvent(new Event("input"));
+    }
+    draftText = "";
   }
 
   if (SpeechRecognitionCtor && micBtn) {
@@ -344,30 +354,43 @@
     recognition.interimResults = true;
 
     recognition.addEventListener("result", (e) => {
-      let newFinal = "";
-      let interimChunk = "";
-      for (let i = 0; i < e.results.length; i++) {
-        const result = e.results[i];
-        if (result.isFinal) {
-          if (!finalizedIndices.has(i)) {
-            finalizedIndices.add(i);
-            const chunk = result[0].transcript.trim();
-            if (chunk) newFinal += (newFinal ? " " : "") + chunk;
-          }
+      const last = e.results[e.results.length - 1];
+      if (!last) return;
+      const text = (last[0].transcript || "").trim();
+      if (!text) return;
+
+      if (!last.isFinal) {
+        // jen průběžný odhad - ukázat živě, nic nezapisovat
+        setInterimPreview(draftText ? draftText + " " + text : text);
+        return;
+      }
+
+      if (!draftText) {
+        draftText = text;
+      } else {
+        const normNew = text.toLowerCase();
+        const normDraft = draftText.toLowerCase();
+        if (normNew.startsWith(normDraft)) {
+          // stejný úsek dál rostl - nahradit delší verzí
+          draftText = text;
+        } else if (normDraft.startsWith(normNew)) {
+          // nová verze je jen kratší/stejná - ignorovat
         } else {
-          interimChunk += result[0].transcript;
+          // nesouvisí s rozpracovaným textem - ten je hotový, zapsat a začít nový
+          commitDraft();
+          draftText = text;
         }
       }
-      interimChunk = interimChunk.trim();
-      if (newFinal) {
-        const sep = popisEl.value.trim() ? " " : "";
-        popisEl.value = popisEl.value.trim() + sep + newFinal;
-        popisEl.dispatchEvent(new Event("input"));
-      }
-      setInterimPreview(interimChunk);
+      setInterimPreview(draftText);
+    });
+
+    recognition.addEventListener("speechend", () => {
+      // konec jedné promluvy/odmlka - co appka zatím poskládala, zapsat
+      commitDraft();
     });
 
     recognition.addEventListener("end", () => {
+      commitDraft();
       isRecording = false;
       micBtn.classList.remove("recording");
       setInterimPreview("");
@@ -388,7 +411,7 @@
         return;
       }
       isRecording = true;
-      finalizedIndices = new Set();
+      draftText = "";
       micBtn.classList.add("recording");
       setInterimPreview("");
       try {
