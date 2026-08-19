@@ -131,6 +131,11 @@
   .folder-row.active { background: var(--accent); color: #fff; }
   .folder-row.active .folder-count { color: rgba(255,255,255,0.8); }
   .folder-dot { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; border: 1px solid rgba(0,0,0,0.08); }
+  .folder-icon { width: 18px; flex-shrink: 0; font-size: 14px; line-height: 1; text-align: center; }
+  .new-folder-icon-preview {
+    width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;
+    font-size: 17px; border: 1.5px solid var(--line); border-radius: 9px; flex-shrink: 0; background: var(--paper);
+  }
   .folder-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .folder-count { font-size: 12px; color: var(--ink-soft); font-weight: 600; }
   .folder-tools {
@@ -542,6 +547,7 @@
       <div class="folders-list" id="foldersList"></div>
       <div class="add-folder-panel" id="addFolderPanel">
         <div class="row">
+          <span class="new-folder-icon-preview" id="newFolderIconPreview"></span>
           <input type="text" id="newFolderName" placeholder="Název složky">
           <button class="icon-btn small emoji-trigger-btn" id="newFolderEmojiBtn" type="button" title="Vložit emoji" aria-label="Vložit emoji">😊</button>
           <input type="color" id="newFolderColor" value="#3d6fa8">
@@ -759,6 +765,7 @@
   const addFolderPanel = document.getElementById("addFolderPanel");
   const newFolderName = document.getElementById("newFolderName");
   const newFolderColor = document.getElementById("newFolderColor");
+  const newFolderIconPreview = document.getElementById("newFolderIconPreview");
   const saveFolderBtn = document.getElementById("saveFolderBtn");
   const cancelFolderBtn = document.getElementById("cancelFolderBtn");
 
@@ -826,6 +833,10 @@
   let lastFocusCursor = null;
   let quillLastRange = null;
   let emojiPickerCurrentTrigger = null;
+  // Kdyz neni null, tlacitko pro vyber emoji NEVKLADA znak do textoveho pole,
+  // ale zavola tuto funkci - pouziva se pro ikony kategorii (misto vkladani do
+  // nazvu slozky primo v textu).
+  let emojiIconTarget = null;
 
   function showToast(msg) {
     clearTimeout(undoToastTimer);
@@ -954,6 +965,12 @@
 
   function folderByName(nazev) {
     return folders.find(f => f.nazev === nazev);
+  }
+
+  // Ikona kategorie (pokud je nastavena) jako prefix pred nazvem - pouziva se
+  // vsude, kde se zobrazuje nazev kategorie poznamky (badge, kalendar, dashboard...).
+  function folderIconPrefix(folder) {
+    return (folder && folder.ikona) ? escapeHtml(folder.ikona) + " " : "";
   }
 
   // ---------- Quill init ----------
@@ -1231,9 +1248,12 @@
     folders.forEach(f => {
       const count = notesForCounts.filter(n => n.druh === f.nazev).length;
       const isActive = view.type === "folder" && view.id === f.id;
+      // Aktivni radek ma bilý text (deda se z .folder-row.active), takze barvu
+      // pisme jen kdyz radek NENI aktivni - inline styl by jinak bilou prebil.
+      const nameStyle = isActive ? "" : ` style="color:${f.barva}"`;
       html += `<div class="folder-row ${isActive ? "active" : ""}" data-view="folder" data-id="${f.id}">
-        <span class="folder-dot" style="background:${f.barva}"></span>
-        <span class="folder-name" data-name-for="${f.id}">${escapeHtml(f.nazev)}</span>
+        <span class="folder-icon">${f.ikona ? escapeHtml(f.ikona) : ""}</span>
+        <span class="folder-name" data-name-for="${f.id}"${nameStyle}>${escapeHtml(f.nazev)}</span>
         <span class="folder-count">${count}</span>
         <div class="folder-tools">
           <span class="folder-color-wrap" style="position:relative;">
@@ -1258,7 +1278,6 @@
       ratingSections.forEach(({ value, count }) => {
         const isActive = view.type === "rating" && view.value === value;
         html += `<div class="folder-row ${isActive ? "active" : ""}" data-view="rating" data-value="${value}">
-          ${ratingBadgeHtml(value)}
           <span class="folder-name">Hodnocení ${value}</span>
           <span class="folder-count">${count}</span>
         </div>`;
@@ -1314,6 +1333,10 @@
     if (!span || !f) return;
     const row = span.closest(".folder-row");
     const tools = row ? row.querySelector(".folder-tools") : null;
+    const iconSpan = row ? row.querySelector(".folder-icon") : null;
+    // Aktualni (jeste neulozena) ikona teto slozky - tlacitko emoji ji jen
+    // preklopi tady a v nahledu vedle, neuklada se pri kazdem kliknuti.
+    let currentIcon = f.ikona || "";
 
     const input = document.createElement("input");
     input.type = "text";
@@ -1326,8 +1349,6 @@
     input.focus();
     const endPos = input.value.length;
     input.setSelectionRange(endPos, endPos);
-    const trackRenameInput = registerEmojiTarget(input);
-    trackRenameInput();
 
     // Během přejmenování nahraď tlačítka Přejmenovat/Smazat (teď zbytečná)
     // tlačítkem pro emoji, ať se nepřekrývá se vstupním polem - zůstane
@@ -1346,23 +1367,31 @@
       emojiBtn = document.createElement("button");
       emojiBtn.type = "button";
       emojiBtn.className = "folder-tool-btn emoji-trigger-btn";
-      emojiBtn.title = "Vložit emoji";
-      emojiBtn.setAttribute("aria-label", "Vložit emoji");
+      emojiBtn.title = "Vybrat ikonu";
+      emojiBtn.setAttribute("aria-label", "Vybrat ikonu");
       emojiBtn.textContent = "😊";
       tools.appendChild(emojiBtn);
       tools.classList.add("force-visible");
       guardFocus(emojiBtn);
       emojiBtn.addEventListener("click", (e) => {
         e.stopPropagation();
-        trackRenameInput();
+        // Vybrana emoji se ulozi jako ikona kategorie (misto koleckem
+        // pouzivane pozice), NE do textu nazvu.
+        emojiIconTarget = {
+          setIcon: (emoji) => {
+            currentIcon = emoji;
+            if (iconSpan) iconSpan.textContent = emoji;
+          }
+        };
         toggleEmojiPicker(emojiBtn);
       });
     }
 
     const finish = async () => {
       const newName = input.value.trim();
-      if (newName && newName !== f.nazev) {
-        await renameFolder(f, newName);
+      if (!newName) { renderFolders(); return; }
+      if (newName !== f.nazev || currentIcon !== (f.ikona || "")) {
+        await renameFolder(f, newName, currentIcon);
       } else {
         renderFolders();
       }
@@ -1380,14 +1409,19 @@
     });
   }
 
-  async function renameFolder(folder, newName) {
-    const affected = allNotes.filter(n => n.druh === folder.nazev);
-    const batch = writeBatch(db);
-    affected.forEach(n => batch.update(doc(db, NOTES_COL, n.id), { druh: newName }));
-    batch.update(doc(db, FOLDERS_COL, folder.id), { nazev: newName });
-    await batch.commit();
+  async function renameFolder(folder, newName, newIcon) {
+    if (newName !== folder.nazev) {
+      const affected = allNotes.filter(n => n.druh === folder.nazev);
+      const batch = writeBatch(db);
+      affected.forEach(n => batch.update(doc(db, NOTES_COL, n.id), { druh: newName }));
+      batch.update(doc(db, FOLDERS_COL, folder.id), { nazev: newName, ikona: newIcon });
+      await batch.commit();
+      showToast("Složka přejmenována");
+    } else {
+      await updateDoc(doc(db, FOLDERS_COL, folder.id), { ikona: newIcon });
+      showToast("Uloženo");
+    }
     if (view.type === "folder" && view.id === folder.id) view.nazev = newName;
-    showToast("Složka přejmenována");
   }
 
   async function deleteFolder(id) {
@@ -1403,12 +1437,24 @@
     if (view.type === "folder" && view.id === id) selectView({ type: "all" });
   }
 
+  // Ikona nove slozky (vybrana pres emoji tlacitko) - neuklada se do textu
+  // nazvu, drzi se zvlast a uklada az spolu s ulozenim slozky.
+  let newFolderIcon = "";
+  function resetNewFolderIcon() {
+    newFolderIcon = "";
+    newFolderIconPreview.textContent = "";
+  }
+
   addFolderBtn.addEventListener("click", () => {
     addFolderPanel.classList.add("visible");
     newFolderName.value = "";
+    resetNewFolderIcon();
     newFolderName.focus();
   });
-  cancelFolderBtn.addEventListener("click", () => addFolderPanel.classList.remove("visible"));
+  cancelFolderBtn.addEventListener("click", () => {
+    addFolderPanel.classList.remove("visible");
+    resetNewFolderIcon();
+  });
   saveFolderBtn.addEventListener("click", async () => {
     const name = newFolderName.value.trim();
     if (!name) { newFolderName.focus(); return; }
@@ -1418,14 +1464,15 @@
     }
     const maxPoradi = folders.reduce((m, f) => Math.max(m, f.poradi ?? 0), -1);
     await addDoc(collection(db, FOLDERS_COL), {
-      nazev: name, barva: newFolderColor.value, poradi: maxPoradi + 1, uid: currentUid
+      nazev: name, barva: newFolderColor.value, ikona: newFolderIcon, poradi: maxPoradi + 1, uid: currentUid
     });
     addFolderPanel.classList.remove("visible");
+    resetNewFolderIcon();
     showToast("Složka přidána");
   });
 
   function renderEditorFolderOptions() {
-    editorFolder.innerHTML = folders.map(f => `<option value="${escapeHtml(f.nazev)}">${escapeHtml(f.nazev)}</option>`).join("");
+    editorFolder.innerHTML = folders.map(f => `<option value="${escapeHtml(f.nazev)}">${folderIconPrefix(f)}${escapeHtml(f.nazev)}</option>`).join("");
   }
 
   // ---------- View selection ----------
@@ -1496,7 +1543,7 @@
     currentMemoryNoteId = memory.id;
     const folder = folderByName(memory.druh);
     const color = folder ? folder.barva : "#999";
-    memoryModalMeta.innerHTML = `<span class="note-row-badge" style="background:${color}22;color:${color}">${escapeHtml(memory.druh || "")}</span> <strong>${escapeHtml(noteTitle(memory))}</strong> <span class="memory-modal-date">${formatDate(memory.datum)}</span>`;
+    memoryModalMeta.innerHTML = `<span class="note-row-badge" style="background:${color}22;color:${color}">${folderIconPrefix(folder)}${escapeHtml(memory.druh || "")}</span> <strong>${escapeHtml(noteTitle(memory))}</strong> <span class="memory-modal-date">${formatDate(memory.datum)}</span>`;
     memoryModalContent.innerHTML = memory.popis || "<em>Prázdná poznámka</em>";
     memoryModal.classList.add("visible");
     return true;
@@ -1607,7 +1654,7 @@
     return `<div class="${rowClasses}" style="border-left-color:${color}" data-id="${n.id}"${titleAttr}>
       <button class="note-row-del" data-id="${n.id}" title="Smazat poznámku" aria-label="Smazat poznámku">🗑</button>
       <div class="note-row-top">
-        <span class="note-row-badge" style="background:${color}22;color:${color}">${escapeHtml(n.druh || "")}</span>
+        <span class="note-row-badge" style="background:${color}22;color:${color}">${folderIconPrefix(folder)}${escapeHtml(n.druh || "")}</span>
         <button class="note-row-star ${starActive ? "active" : ""}" data-id="${n.id}" title="Oblíbené" aria-label="Oblíbené">★</button>
       </div>
       <div class="note-row-title">${ratingBadgeHtml(n.hodnoceni)}${escapeHtml(title)}</div>
@@ -1626,7 +1673,10 @@
 
     if (view.type === "all") notesColTitle.textContent = "Všechny poznámky";
     else if (view.type === "rating") notesColTitle.textContent = `Hodnocení ${view.value}`;
-    else notesColTitle.textContent = view.nazev;
+    else {
+      const f = folderByName(view.nazev);
+      notesColTitle.textContent = (f && f.ikona ? f.ikona + " " : "") + view.nazev;
+    }
 
     const list = currentViewNotes();
     // Poznámky s termínem napřed (prošlé/aktuální/budoucí vzestupně), pak
@@ -1683,7 +1733,7 @@
     const title = noteTitle(n);
     const truncated = title.length > maxLen ? title.slice(0, maxLen) + "…" : title;
     return `<div class="calendar-note-chip" data-id="${n.id}" title="${escapeHtml(title)}">
-      <span class="calendar-note-cat" style="color:${color}">${escapeHtml(n.druh || "")}</span>
+      <span class="calendar-note-cat" style="color:${color}">${folderIconPrefix(folder)}${escapeHtml(n.druh || "")}</span>
       ${ratingBadgeHtml(n.hodnoceni)}<span class="calendar-note-title">${escapeHtml(truncated)}</span>
     </div>`;
   }
@@ -1887,7 +1937,7 @@
       const title = noteTitle(n);
       return `<div class="note-row trash-tile" style="border-left-color:${color}" data-id="${n.id}">
         <div class="note-row-top">
-          <span class="note-row-badge" style="background:${color}22;color:${color}">${escapeHtml(n.druh || "")}</span>
+          <span class="note-row-badge" style="background:${color}22;color:${color}">${folderIconPrefix(folder)}${escapeHtml(n.druh || "")}</span>
         </div>
         <div class="note-row-title">${escapeHtml(title)}</div>
         <div class="note-row-meta">${formatDate(n.datum)}</div>
@@ -1972,7 +2022,7 @@
       const color = folder ? folder.barva : "#999";
       html += `<div class="dashboard-group">
         <div class="dashboard-group-label">
-          <span class="folder-dot" style="background:${color}"></span>${escapeHtml(name || "Bez složky")}
+          <span class="folder-dot" style="background:${color}"></span>${folderIconPrefix(folder)}${escapeHtml(name || "Bez složky")}
         </div>
         <div class="dashboard-row">`;
       notesInGroup.forEach(n => {
@@ -2375,7 +2425,6 @@
     return update;
   }
   registerEmojiTarget(editorTitle);
-  const trackNewFolderName = registerEmojiTarget(newFolderName);
 
   // ---------- Výběr emoji ----------
   const EMOJI_SECTIONS = [
@@ -2437,11 +2486,18 @@
 
   emojiPickerBtn.addEventListener("click", (e) => {
     e.stopPropagation();
+    emojiIconTarget = null;
     toggleEmojiPicker(emojiPickerBtn);
   });
   newFolderEmojiBtn.addEventListener("click", (e) => {
     e.stopPropagation();
-    trackNewFolderName();
+    // Vybrana emoji se ulozi jako ikona nove slozky, ne do textu nazvu.
+    emojiIconTarget = {
+      setIcon: (emoji) => {
+        newFolderIcon = emoji;
+        newFolderIconPreview.textContent = emoji;
+      }
+    };
     toggleEmojiPicker(newFolderEmojiBtn);
   });
   emojiPickerPanel.addEventListener("click", (e) => {
@@ -2459,6 +2515,10 @@
   });
 
   function insertEmoji(emoji) {
+    if (emojiIconTarget) {
+      emojiIconTarget.setIcon(emoji);
+      return;
+    }
     if (lastFocusIsQuill && quill) {
       const range = quillLastRange || quill.getSelection(true) || { index: Math.max(0, quill.getLength() - 1), length: 0 };
       quill.insertText(range.index, emoji, "user");
@@ -2615,9 +2675,10 @@
     let html = `<div class="print-folder-title">${escapeHtml(notesColTitle.textContent)}</div>`;
     list.forEach(n => {
       const title = (n.nazev && n.nazev.trim()) ? n.nazev.trim() : "Bez názvu";
+      const folder = folderByName(n.druh);
       html += `<div class="print-note">
         <div class="print-title">${escapeHtml(title)}</div>
-        <div class="print-meta">${formatDate(n.datum)} · ${escapeHtml(n.druh || "")}</div>
+        <div class="print-meta">${formatDate(n.datum)} · ${folderIconPrefix(folder)}${escapeHtml(n.druh || "")}</div>
         <div class="print-content">${n.popis || ""}</div>
       </div>`;
     });
