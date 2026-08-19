@@ -77,6 +77,9 @@
     font-size: 13px; font-style: italic; color: var(--ink-soft);
     min-height: 16px; margin-top: 4px; padding: 0 2px;
   }
+  .mic-status {
+    font-size: 11px; color: #a89f92; min-height: 14px; margin-top: 2px; padding: 0 2px;
+  }
   .field-required {
     background: var(--accent-soft); border: 1.5px solid var(--accent);
     border-radius: 12px; padding: 10px 12px 12px;
@@ -193,6 +196,7 @@
       </div>
       <textarea id="popis" placeholder="Napiš, co se stalo…"></textarea>
       <div class="mic-interim" id="micInterim" aria-live="polite"></div>
+      <div class="mic-status" id="micStatus"></div>
     </div>
     <button type="submit" class="btn">Uložit záznam</button>
   </form>
@@ -254,6 +258,7 @@
   const terminEl = document.getElementById("termin");
   const micBtn = document.getElementById("micBtn");
   const micInterim = document.getElementById("micInterim");
+  const micStatus = document.getElementById("micStatus");
   const toast = document.getElementById("toast");
 
   let currentUid = null;
@@ -334,11 +339,36 @@
     if (micInterim) micInterim.textContent = text || "";
   }
 
+  // DOČASNÁ DIAGNOSTIKA - appka se teď na dálku nedá odladit hádáním, tak
+  // radši malý viditelný "deník" toho, co rozpoznávání skutečně dělá kolo
+  // po kole (nastartovalo? zachytilo zvuk? poznalo řeč? přišel vůbec nějaký
+  // "result"? jaká přesná chybová hláška?). Zobrazuje se přímo pod polem
+  // Popis, takže to jde přečíst i na telefonu bez připojení k počítači.
+  function setStatus(text) {
+    if (micStatus) micStatus.textContent = text;
+  }
+
   if (SpeechRecognitionCtor && micBtn) {
     recognition = new SpeechRecognitionCtor();
     recognition.lang = "cs-CZ";
     recognition.continuous = true;
     recognition.interimResults = true;
+
+    recognition.addEventListener("start", () => {
+      setStatus("① Rozpoznávání nastartovalo…");
+    });
+
+    recognition.addEventListener("audiostart", () => {
+      setStatus("② Mikrofon zachytává zvuk…");
+    });
+
+    recognition.addEventListener("speechstart", () => {
+      setStatus("③ Slyším řeč…");
+    });
+
+    recognition.addEventListener("speechend", () => {
+      setStatus("④ Řeč skončila, zpracovávám…");
+    });
 
     recognition.addEventListener("result", (e) => {
       let finalChunk = "";
@@ -354,6 +384,9 @@
         const sep = popisEl.value.trim() ? " " : "";
         popisEl.value = popisEl.value.trim() + sep + finalChunk;
         popisEl.dispatchEvent(new Event("input"));
+        setStatus("⑤ Zapsáno: „" + finalChunk + "“");
+      } else if (interimChunk) {
+        setStatus("⑤ Průběžně slyším: „" + interimChunk + "“");
       }
       setInterimPreview(interimChunk);
     });
@@ -362,12 +395,14 @@
       isRecording = false;
       micBtn.classList.remove("recording");
       setInterimPreview("");
+      setStatus((s => s ? s + " · Ukončeno" : "Ukončeno")(micStatus ? micStatus.textContent : ""));
     });
 
     recognition.addEventListener("error", (e) => {
       isRecording = false;
       micBtn.classList.remove("recording");
       setInterimPreview("");
+      setStatus("❌ Chyba: " + e.error);
       if (e.error !== "no-speech" && e.error !== "aborted") {
         showToast("Diktování selhalo (" + e.error + ")");
       }
@@ -381,11 +416,13 @@
       isRecording = true;
       micBtn.classList.add("recording");
       setInterimPreview("");
+      setStatus("Startuji…");
       try {
         recognition.start();
       } catch (err) {
         isRecording = false;
         micBtn.classList.remove("recording");
+        setStatus("❌ Start selhal: " + err.message);
       }
     });
   } else if (micBtn) {
