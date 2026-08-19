@@ -319,13 +319,45 @@
   // řadě zařízení, typicky Android Chrome, vedlo ke zdvojování vět).
   let baseText = "";
   let restartTimer = null;
+  // Kolikáté kolo naslouchání právě běží - slouží jako "razítko", aby šlo
+  // spolehlivě poznat výsledek/chybu/konec patřící ke STARÉMU kolu, i kdyby
+  // (na některých zařízeních, typicky Android Chrome) dorazily po startu
+  // nového kola se zpožděním. Bez tohohle razítka může start nového kola a
+  // doručení opožděné události ze starého proběhnout tak těsně u sebe, že
+  // pouhé odpojení posluchačů (removeEventListener) už výsledek nestihne
+  // zachytit včas - to je přesně ono "slova se zdvojují a vkládají se
+  // úplně jiná".
+  let recognitionRoundId = 0;
 
   function capitalizeFirstIfEmpty(base, chunk) {
     if (base.trim()) return chunk;
     return chunk.charAt(0).toUpperCase() + chunk.slice(1);
   }
 
-  function handleSpeechResult(e) {
+  // Ořízne ze začátku "addition" slova, která se doslovně shodují s koncem
+  // "base" - ochrana proti tomu, že restart rozpoznávání (nová instance,
+  // nový zvukový stream) na některých zařízeních znovu zachytí a přepíše
+  // zlomek zvuku z úplně konce předchozího kola, takže by se poslední
+  // slovo/slova jinak objevila v textu dvakrát za sebou.
+  function trimOverlap(base, addition) {
+    const baseWords = base.trim().split(/\s+/).filter(Boolean);
+    const addWords = addition.trim().split(/\s+/).filter(Boolean);
+    if (!baseWords.length || !addWords.length) return addition;
+    const maxOverlap = Math.min(baseWords.length, addWords.length, 6);
+    for (let n = maxOverlap; n > 0; n--) {
+      const baseTail = baseWords.slice(-n).join(" ").toLowerCase();
+      const addHead = addWords.slice(0, n).join(" ").toLowerCase();
+      if (baseTail === addHead) {
+        return addWords.slice(n).join(" ");
+      }
+    }
+    return addition;
+  }
+
+  function handleSpeechResult(roundId, e) {
+    // Vysledek patri k jiz opustenemu kolu (dorazil pozde, po restartu) -
+    // zahodit, aby se nepomichal se soucasnym kolem.
+    if (roundId !== recognitionRoundId) return;
     let sessionFinal = "";
     let sessionInterim = "";
     for (let i = 0; i < e.results.length; i++) {
@@ -340,9 +372,10 @@
     if (sessionInterim) {
       sessionText = (sessionText ? sessionText + " " : "") + sessionInterim;
     }
+    sessionText = trimOverlap(baseText, sessionText);
     sessionText = capitalizeFirstIfEmpty(baseText, sessionText);
 
-    const sep = baseText.trim() ? " " : "";
+    const sep = baseText.trim() && sessionText.trim() ? " " : "";
     popisEl.value = baseText.trim() + sep + sessionText;
     popisEl.dispatchEvent(new Event("input"));
   }
@@ -353,28 +386,31 @@
   // co už bylo spuštěno nové kolo - a ten by pak popsal text ze staré
   // session znovu navrch nového základu (odtud ono "slova se zdvojují a
   // vkládají se úplně jiná" - reálně šlo o prolínání dvou překrývajících
-  // se nahrávacích session najednou).
+  // se nahrávacích session najednou). Kombinuje se s razítkem
+  // recognitionRoundId výše jako druhá, nezávislá pojistka.
   function detachRecognition(r) {
     if (!r) return;
-    r.removeEventListener("result", handleSpeechResult);
-    r.removeEventListener("end", handleSpeechEnd);
-    r.removeEventListener("error", handleSpeechError);
+    r.onresult = null;
+    r.onend = null;
+    r.onerror = null;
   }
 
-  function handleSpeechEnd() {
+  function handleSpeechEnd(roundId) {
+    if (roundId !== recognitionRoundId) return;
     baseText = popisEl.value;
     const finished = recognition;
     if (recordingRequested) {
       // Male zpozdeni pred restartem - okamzity synchronni restart uvnitr
       // "end" muze na nekterych zarizenich zpusobit, ze si nove kolo jeste
       // "pamatuje" zvukovy buffer z predchoziho (odtud casti spatne
-      // rozpoznanych/cizich slov po restartu).
+      // rozpoznanych/cizich slov po restartu). 400 ms dava mikrofonu a
+      // rozpoznavaci sluzbe realisticky cas na uvolneni pred dalsim startem.
       clearTimeout(restartTimer);
       restartTimer = setTimeout(() => {
         detachRecognition(finished);
         if (!recordingRequested) return;
         startNewRecognitionRound();
-      }, 300);
+      }, 400);
       return;
     }
     detachRecognition(finished);
@@ -383,7 +419,8 @@
     micBtn.classList.remove("recording");
   }
 
-  function handleSpeechError(e) {
+  function handleSpeechError(roundId, e) {
+    if (roundId !== recognitionRoundId) return;
     if (e.error === "no-speech" && recordingRequested) {
       // Jen ticho - o ukončení/restart se postará "end" handler výš.
       return;
@@ -399,14 +436,20 @@
   // Pro kazde kolo (prvni start i kazdy tichem vyvolany restart) se vytvori
   // UPLNE NOVA instance SpeechRecognition (misto opakovaneho .start() na te
   // same) - zabrani to krizeni starych a novych vysledku popsanemu vyse.
+  // Kazde kolo dostane vlastni cislo (recognitionRoundId), ktere si jeho
+  // posluchace "pamatuji" v uzaverce - takze i kdyby stary posluchac jeste
+  // stihl vystrelit driv, nez ho stihneme odpojit, sam pozna, ze uz nepatri
+  // k aktualnimu kolu, a nic neudela.
   function startNewRecognitionRound() {
+    recognitionRoundId += 1;
+    const roundId = recognitionRoundId;
     recognition = new SpeechRecognitionCtor();
     recognition.lang = "cs-CZ";
     recognition.continuous = true;
     recognition.interimResults = true;
-    recognition.addEventListener("result", handleSpeechResult);
-    recognition.addEventListener("end", handleSpeechEnd);
-    recognition.addEventListener("error", handleSpeechError);
+    recognition.onresult = (e) => handleSpeechResult(roundId, e);
+    recognition.onend = () => handleSpeechEnd(roundId);
+    recognition.onerror = (e) => handleSpeechError(roundId, e);
     try {
       recognition.start();
     } catch (err) {

@@ -833,16 +833,16 @@
   let lastFocusCursor = null;
   let quillLastRange = null;
   let emojiPickerCurrentTrigger = null;
-  // Dokud se ve slozce prave edituje nazev/ikona, hlavni menu se NESMI
+  // Dokud se ve slozce prave edituje nazev, hlavni menu se NESMI
   // prekreslit (renderFolders() prepisuje cely #foldersList.innerHTML) -
   // jinak by Firestore snapshot prichazejici v prubehu editace (coz se
   // bezne deje, typicky hned po prihlaseni prijde jeste jednou navic ze
-  // serveru) tise smazal rozepsany <input> i vybranou-ale-jeste-neulozenou
-  // ikonu drive, nez stihnou dojit na radu tlacitka pro vyber emoji.
+  // serveru) tise smazal rozepsany <input> drive, nez ho uzivatel stihne
+  // dokoncit.
   let renamingFolderId = null;
   // Kdyz neni null, tlacitko pro vyber emoji NEVKLADA znak do textoveho pole,
   // ale zavola tuto funkci - pouziva se pro ikony kategorii (misto vkladani do
-  // nazvu slozky primo v textu).
+  // nazvu slozky primo v textu) a pro ikonu nove slozky.
   let emojiIconTarget = null;
 
   function showToast(msg) {
@@ -1245,6 +1245,32 @@
     });
   }
 
+  // Prive/aktualizuje ovladaci tlacitko pro vyber ikony slozky (soucast pasu
+  // tlacitek vedle barvy/prejmenovani/smazani) - klik rovnou otevre emoji
+  // picker a vybranou emoji ulozi jako "ikona" slozky do Firestore (stejne
+  // okamzite jako barva), nezavisle na tom, jestli se prave slozka
+  // prejmenovava. Zaroven pro okamzitou zpetnou vazbu aktualizuje i span s
+  // ikonou pred nazvem slozky v tomtez radku.
+  function bindFolderIconBtn(btn, folderId) {
+    guardFocus(btn);
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      emojiIconTarget = {
+        setIcon: async (emoji) => {
+          const row = btn.closest(".folder-row");
+          const iconSpan = row ? row.querySelector(".folder-icon") : null;
+          if (iconSpan) iconSpan.textContent = emoji;
+          try {
+            await updateDoc(doc(db, FOLDERS_COL, folderId), { ikona: emoji });
+          } catch (err) {
+            showToast("Chyba při ukládání ikony: " + err.message);
+          }
+        }
+      };
+      toggleEmojiPicker(btn);
+    });
+  }
+
   function renderFolders() {
     if (renamingFolderId) return;
     const notesForCounts = visibleNotes();
@@ -1283,6 +1309,7 @@
         <span class="folder-name" data-name-for="${f.id}"${nameStyle}>${escapeHtml(f.nazev)}</span>
         <span class="folder-count">${count}</span>
         <div class="folder-tools">
+          <button class="folder-tool-btn emoji-trigger-btn" data-icon="${f.id}" title="Ikona složky" aria-label="Ikona složky">😊</button>
           <span class="folder-color-wrap" style="position:relative;">
             <button class="folder-tool-btn" title="Barva složky" aria-label="Barva složky">🎨</button>
             <input type="color" class="folder-color-input" data-id="${f.id}" value="${f.barva}">
@@ -1340,6 +1367,9 @@
         await updateDoc(doc(db, FOLDERS_COL, inp.dataset.id), { barva: inp.value });
       });
     });
+    foldersList.querySelectorAll("[data-icon]").forEach(btn => {
+      bindFolderIconBtn(btn, btn.dataset.icon);
+    });
     foldersList.querySelectorAll("[data-rename]").forEach(btn => {
       btn.addEventListener("click", (e) => {
         e.stopPropagation();
@@ -1361,10 +1391,6 @@
     renamingFolderId = id;
     const row = span.closest(".folder-row");
     const tools = row ? row.querySelector(".folder-tools") : null;
-    const iconSpan = row ? row.querySelector(".folder-icon") : null;
-    // Aktualni (jeste neulozena) ikona teto slozky - tlacitko emoji ji jen
-    // preklopi tady a v nahledu vedle, neuklada se pri kazdem kliknuti.
-    let currentIcon = f.ikona || "";
 
     const input = document.createElement("input");
     input.type = "text";
@@ -1378,78 +1404,35 @@
     const endPos = input.value.length;
     input.setSelectionRange(endPos, endPos);
 
-    // Během přejmenování nahraď tlačítka Přejmenovat/Smazat (teď zbytečná)
-    // tlačítkem pro emoji, ať se nepřekrývá se vstupním polem - zůstane
-    // viditelná i barva složky.
-    let emojiBtn = null;
-    let renameBtn = null;
-    let deleteBtn = null;
-    let colorWrap = null;
-    if (tools) {
-      renameBtn = tools.querySelector("[data-rename]");
-      deleteBtn = tools.querySelector("[data-delete]");
-      colorWrap = tools.querySelector(".folder-color-wrap");
-      if (renameBtn) renameBtn.style.display = "none";
-      if (deleteBtn) deleteBtn.style.display = "none";
-      if (colorWrap) colorWrap.style.display = "none";
-      emojiBtn = document.createElement("button");
-      emojiBtn.type = "button";
-      emojiBtn.className = "folder-tool-btn emoji-trigger-btn";
-      emojiBtn.title = "Vybrat ikonu";
-      emojiBtn.setAttribute("aria-label", "Vybrat ikonu");
-      emojiBtn.textContent = "😊";
-      tools.appendChild(emojiBtn);
-      tools.classList.add("force-visible");
-      guardFocus(emojiBtn);
-      emojiBtn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        // Vybrana emoji se ulozi jako ikona kategorie (misto koleckem
-        // pouzivane pozice), NE do textu nazvu.
-        emojiIconTarget = {
-          setIcon: (emoji) => {
-            currentIcon = emoji;
-            if (iconSpan) iconSpan.textContent = emoji;
-          }
-        };
-        toggleEmojiPicker(emojiBtn);
-      });
-    }
+    // Cely pas tlacitek (ikona/barva/prejmenovat/smazat) zustava behem
+    // prejmenovavani viditelny a funkcni - jen se vynuti jeho zobrazeni
+    // (jinak by .folder-tools zmizel, jakmile mys opusti radek behem psani).
+    if (tools) tools.classList.add("force-visible");
 
     const finish = async () => {
       renamingFolderId = null;
       const newName = input.value.trim();
       if (!newName) { renderFolders(); return; }
-      if (newName !== f.nazev || currentIcon !== (f.ikona || "")) {
-        await renameFolder(f, newName, currentIcon);
+      if (newName !== f.nazev) {
+        await renameFolder(f, newName);
       } else {
         renderFolders();
       }
     };
-    input.addEventListener("blur", (e) => {
-      // Neukončuj úpravu, pokud focus jen přeskočil na tlačítko emoji
-      // (to samo o sobě focus nekrade díky preventDefault na mousedown,
-      // tahle podmínka je jen dodatečná pojistka).
-      if (emojiBtn && e.relatedTarget === emojiBtn) return;
-      finish();
-    });
+    input.addEventListener("blur", () => finish());
     input.addEventListener("keydown", (e) => {
       if (e.key === "Enter") input.blur();
       if (e.key === "Escape") { input.value = f.nazev; input.blur(); }
     });
   }
 
-  async function renameFolder(folder, newName, newIcon) {
-    if (newName !== folder.nazev) {
-      const affected = allNotes.filter(n => n.druh === folder.nazev);
-      const batch = writeBatch(db);
-      affected.forEach(n => batch.update(doc(db, NOTES_COL, n.id), { druh: newName }));
-      batch.update(doc(db, FOLDERS_COL, folder.id), { nazev: newName, ikona: newIcon });
-      await batch.commit();
-      showToast("Složka přejmenována");
-    } else {
-      await updateDoc(doc(db, FOLDERS_COL, folder.id), { ikona: newIcon });
-      showToast("Uloženo");
-    }
+  async function renameFolder(folder, newName) {
+    const affected = allNotes.filter(n => n.druh === folder.nazev);
+    const batch = writeBatch(db);
+    affected.forEach(n => batch.update(doc(db, NOTES_COL, n.id), { druh: newName }));
+    batch.update(doc(db, FOLDERS_COL, folder.id), { nazev: newName });
+    await batch.commit();
+    showToast("Složka přejmenována");
     if (view.type === "folder" && view.id === folder.id) view.nazev = newName;
   }
 
@@ -2480,7 +2463,8 @@
   buildEmojiPicker();
 
   // Otevře/zavře panel u konkrétního tlačítka (může jich být víc - v editoru
-  // poznámky, u nové složky, u přejmenování složky) a umístí ho hned pod něj.
+  // poznámky, u nové složky, u kterékoli existující složky v levém menu) a
+  // umístí ho hned pod něj.
   function toggleEmojiPicker(triggerEl) {
     const isOpenForThis = emojiPickerPanel.classList.contains("visible") && emojiPickerCurrentTrigger === triggerEl;
     if (isOpenForThis) {
@@ -2546,6 +2530,8 @@
   function insertEmoji(emoji) {
     if (emojiIconTarget) {
       emojiIconTarget.setIcon(emoji);
+      emojiPickerPanel.classList.remove("visible");
+      emojiPickerCurrentTrigger = null;
       return;
     }
     if (lastFocusIsQuill && quill) {
