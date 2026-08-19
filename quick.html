@@ -280,50 +280,98 @@
   const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
   let recognition = null;
   let isRecording = false;
+  // Prohlížeč (typicky Chrome/Android) sám ukončí naslouchání po pár
+  // vteřinách ticha - žádný parametr na prodloužení tohoto intervalu Web
+  // Speech API nenabízí. Řešení: dokud uživatel sám neklikne na "stop",
+  // appka po každém takovém tichem vyvolaném konci naslouchání potichu
+  // nastartuje nové kolo, takže diktování reálně běží, dokud ho uživatel
+  // sám nezastaví.
+  let recordingRequested = false;
+  // Trvalý (potvrzený) text nezávislý na průběžném "živém" náhledu -
+  // interim výsledky se do něj nezapisují natrvalo, jen se dočasně
+  // připojí za něj na displeji.
+  let committedText = "";
+
+  function capitalizeFirstIfEmpty(base, chunk) {
+    if (base.trim()) return chunk;
+    return chunk.charAt(0).toUpperCase() + chunk.slice(1);
+  }
 
   if (SpeechRecognitionCtor && micBtn) {
     recognition = new SpeechRecognitionCtor();
     recognition.lang = "cs-CZ";
     recognition.continuous = true;
-    recognition.interimResults = false;
+    recognition.interimResults = true;
 
     recognition.addEventListener("result", (e) => {
-      let transcript = "";
+      let finalChunk = "";
+      let interimChunk = "";
       for (let i = e.resultIndex; i < e.results.length; i++) {
-        if (e.results[i].isFinal) transcript += e.results[i][0].transcript;
+        const chunk = e.results[i][0].transcript;
+        if (e.results[i].isFinal) finalChunk += chunk;
+        else interimChunk += chunk;
       }
-      transcript = transcript.trim();
-      if (transcript) {
-        const sep = popisEl.value.trim() ? " " : "";
-        popisEl.value = popisEl.value.trim() + sep + transcript;
-        popisEl.dispatchEvent(new Event("input"));
+      if (finalChunk.trim()) {
+        finalChunk = capitalizeFirstIfEmpty(committedText, finalChunk.trim());
+        const sep = committedText.trim() ? " " : "";
+        committedText = committedText.trim() + sep + finalChunk;
       }
+      // Živý náhled: rozepsaná (ještě nedokončená) věta se rovnou zobrazí
+      // v poli, ale natrvalo se uloží až po dokončení jako finalChunk výše.
+      let display = committedText;
+      if (interimChunk.trim()) {
+        const preview = capitalizeFirstIfEmpty(committedText, interimChunk.trim());
+        const sep = committedText.trim() ? " " : "";
+        display = committedText.trim() + sep + preview;
+      }
+      popisEl.value = display;
+      popisEl.dispatchEvent(new Event("input"));
     });
 
     recognition.addEventListener("end", () => {
+      if (recordingRequested) {
+        // Konec vyvolaný tichem, ne uživatelem - hned pokračuj dál.
+        try {
+          recognition.start();
+          return;
+        } catch (err) {
+          // Nešlo restartovat (např. appka na chvíli přešla na pozadí) -
+          // dál se to už nesnaž, ať tlačítko nezůstane věčně "nahrává".
+        }
+      }
       isRecording = false;
+      recordingRequested = false;
       micBtn.classList.remove("recording");
     });
 
     recognition.addEventListener("error", (e) => {
+      if (e.error === "no-speech" && recordingRequested) {
+        // Jen ticho - o ukončení/restart se postará "end" handler výš.
+        return;
+      }
       isRecording = false;
+      recordingRequested = false;
       micBtn.classList.remove("recording");
-      if (e.error !== "no-speech" && e.error !== "aborted") {
+      if (e.error !== "aborted") {
         showToast("Diktování selhalo (" + e.error + ")");
       }
     });
 
     micBtn.addEventListener("click", () => {
       if (isRecording) {
+        recordingRequested = false;
         recognition.stop();
         return;
       }
       isRecording = true;
+      recordingRequested = true;
+      committedText = popisEl.value;
       micBtn.classList.add("recording");
       try {
         recognition.start();
       } catch (err) {
         isRecording = false;
+        recordingRequested = false;
         micBtn.classList.remove("recording");
       }
     });
