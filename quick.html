@@ -77,9 +77,6 @@
     font-size: 13px; font-style: italic; color: var(--ink-soft);
     min-height: 16px; margin-top: 4px; padding: 0 2px;
   }
-  .mic-status {
-    font-size: 11px; color: #a89f92; min-height: 14px; margin-top: 2px; padding: 0 2px;
-  }
   .field-required {
     background: var(--accent-soft); border: 1.5px solid var(--accent);
     border-radius: 12px; padding: 10px 12px 12px;
@@ -196,7 +193,6 @@
       </div>
       <textarea id="popis" placeholder="Napiš, co se stalo…"></textarea>
       <div class="mic-interim" id="micInterim" aria-live="polite"></div>
-      <div class="mic-status" id="micStatus"></div>
     </div>
     <button type="submit" class="btn">Uložit záznam</button>
   </form>
@@ -258,7 +254,6 @@
   const terminEl = document.getElementById("termin");
   const micBtn = document.getElementById("micBtn");
   const micInterim = document.getElementById("micInterim");
-  const micStatus = document.getElementById("micStatus");
   const toast = document.getElementById("toast");
 
   let currentUid = null;
@@ -314,38 +309,30 @@
   });
 
   // ---------- Diktování hlasem do Popisu ----------
-  // Základ je přesně ta verze, která na uživatelčině telefonu (Samsung)
-  // prokazatelně spolehlivě fungovala už 13. 8. Klíčové vlastnosti, které
-  // NEMĚNIT bez otestování na reálném zařízení:
-  //  - JEDNA instance SpeechRecognition vytvořená jednou při načtení
-  //    stránky (ne nová při každém startu/restartu)
-  //  - do POLE (popisEl.value) se vždy jen PŘIDÁ nový FINÁLNÍ úsek
-  //    (e.resultIndex), nikdy se nepřepisuje/neskládá celá session odznova
-  //  - žádný automatický restart po odmlce - "end" jen uklidí tlačítko,
-  //    pro pokračování je potřeba klepnout na mikrofon znovu
+  // SKUTEČNÁ příčina zdvojování slov (nalezeno 19. 8. 2026 diagnostikou):
+  // na tomhle telefonu není `e.resultIndex` v kontinuálním režimu s
+  // `interimResults: true` spolehlivý - opakovaně se vracel na 0, takže se
+  // při KAŽDÉM novém finálním slově znovu procházely i všechny už dřív
+  // zapsané výsledky a jejich text se do pole připsal ZNOVU navrch (odtud
+  // typický obrazec "Včera Včera neděle Včera neděle byla ..." - kumulující
+  // se prefix). `e.resultIndex` se proto dál NEPOUŽÍVÁ.
   //
-  // Živé zobrazování textu za mluvení (interimResults: true) je zpátky, ale
-  // NEjde do samotného pole poznámky - běžící (ještě nehotový, nepřesný)
-  // odhad appka ukazuje jen v odděleném řádku pod textarea (#micInterim).
-  // Do pole se pořád zapisuje výhradně finální, hotový text stejným
-  // ověřeným mechanismem jako předtím - takže i kdyby živý odhad chvíli
-  // "blbnul" (u průběžných odhadů je to normální, opravují se za pochodu),
-  // do uložené poznámky se to nikdy nedostane.
+  // Místo toho appka sama sleduje, které konkrétní indexy v e.results už
+  // jednou zapsala (finalizedIndices) a každý zapíše nejvýš jednou, ať
+  // "result" even přijde kolikrát chce a ať e.resultIndex tvrdí cokoliv.
+  // Živý (interim) náhled za mluvení se zobrazuje jen v odděleném řádku
+  // pod textarea (#micInterim), nikdy se neukládá do pole Popis.
+  //
+  // Žádný automatický restart po odmlce - "end" jen uklidí tlačítko, pro
+  // pokračování je potřeba klepnout na mikrofon znovu (to bylo prokazatelně
+  // nespolehlivé v dřívějších verzích).
   const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
   let recognition = null;
   let isRecording = false;
+  let finalizedIndices = null;
 
   function setInterimPreview(text) {
     if (micInterim) micInterim.textContent = text || "";
-  }
-
-  // DOČASNÁ DIAGNOSTIKA - appka se teď na dálku nedá odladit hádáním, tak
-  // radši malý viditelný "deník" toho, co rozpoznávání skutečně dělá kolo
-  // po kole (nastartovalo? zachytilo zvuk? poznalo řeč? přišel vůbec nějaký
-  // "result"? jaká přesná chybová hláška?). Zobrazuje se přímo pod polem
-  // Popis, takže to jde přečíst i na telefonu bez připojení k počítači.
-  function setStatus(text) {
-    if (micStatus) micStatus.textContent = text;
   }
 
   if (SpeechRecognitionCtor && micBtn) {
@@ -354,39 +341,26 @@
     recognition.continuous = true;
     recognition.interimResults = true;
 
-    recognition.addEventListener("start", () => {
-      setStatus("① Rozpoznávání nastartovalo…");
-    });
-
-    recognition.addEventListener("audiostart", () => {
-      setStatus("② Mikrofon zachytává zvuk…");
-    });
-
-    recognition.addEventListener("speechstart", () => {
-      setStatus("③ Slyším řeč…");
-    });
-
-    recognition.addEventListener("speechend", () => {
-      setStatus("④ Řeč skončila, zpracovávám…");
-    });
-
     recognition.addEventListener("result", (e) => {
-      let finalChunk = "";
+      let newFinal = "";
       let interimChunk = "";
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const chunk = e.results[i][0].transcript;
-        if (e.results[i].isFinal) finalChunk += chunk;
-        else interimChunk += chunk;
+      for (let i = 0; i < e.results.length; i++) {
+        const result = e.results[i];
+        if (result.isFinal) {
+          if (!finalizedIndices.has(i)) {
+            finalizedIndices.add(i);
+            const chunk = result[0].transcript.trim();
+            if (chunk) newFinal += (newFinal ? " " : "") + chunk;
+          }
+        } else {
+          interimChunk += result[0].transcript;
+        }
       }
-      finalChunk = finalChunk.trim();
       interimChunk = interimChunk.trim();
-      if (finalChunk) {
+      if (newFinal) {
         const sep = popisEl.value.trim() ? " " : "";
-        popisEl.value = popisEl.value.trim() + sep + finalChunk;
+        popisEl.value = popisEl.value.trim() + sep + newFinal;
         popisEl.dispatchEvent(new Event("input"));
-        setStatus("⑤ Zapsáno: „" + finalChunk + "“");
-      } else if (interimChunk) {
-        setStatus("⑤ Průběžně slyším: „" + interimChunk + "“");
       }
       setInterimPreview(interimChunk);
     });
@@ -395,14 +369,12 @@
       isRecording = false;
       micBtn.classList.remove("recording");
       setInterimPreview("");
-      setStatus((s => s ? s + " · Ukončeno" : "Ukončeno")(micStatus ? micStatus.textContent : ""));
     });
 
     recognition.addEventListener("error", (e) => {
       isRecording = false;
       micBtn.classList.remove("recording");
       setInterimPreview("");
-      setStatus("❌ Chyba: " + e.error);
       if (e.error !== "no-speech" && e.error !== "aborted") {
         showToast("Diktování selhalo (" + e.error + ")");
       }
@@ -414,15 +386,14 @@
         return;
       }
       isRecording = true;
+      finalizedIndices = new Set();
       micBtn.classList.add("recording");
       setInterimPreview("");
-      setStatus("Startuji…");
       try {
         recognition.start();
       } catch (err) {
         isRecording = false;
         micBtn.classList.remove("recording");
-        setStatus("❌ Start selhal: " + err.message);
       }
     });
   } else if (micBtn) {
