@@ -490,6 +490,17 @@
     .calendar-day-single .calendar-day-num { font-size: 13px; }
     .calendar-week-list .calendar-note-chip,
     .calendar-day-single .calendar-note-chip { font-size: 12px; padding: 3px 6px; }
+
+    /* Klavesnice na mobilu prekryva spodni cast obrazovky a .col-editor ma
+       pevnou vysku 100vh, ktera se pri otevrene klavesnici automaticky
+       nezmensuje - psany text v Popisu tak muze skoncit schovany pod
+       klavesnici. Reseni: misto schovavani jinych poli se cely editor-wrap
+       stane scrollovatelny a Quill editor se pri fokusu sam odscrolluje
+       nahoru (viz JS focus listener) - nic se neschovava, jen se to tam
+       posune scrollem, a zpatky na Datum/Nazev/Stitky se da kdykoliv
+       normalne doscrollovat.  */
+    .editor-wrap { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+    .editor-wrap #quillContainer { flex: none; overflow-y: visible; }
   }
 </style>
 </head>
@@ -1003,6 +1014,17 @@
       if (range) {
         lastFocusIsQuill = true;
         quillLastRange = range;
+      }
+    });
+
+    // Viz CSS pravidlo vyse - na mobilu po zaklepnuti do Popisu se
+    // editor-wrap odscrolluje tak, aby Popis zacinal na vrsku obrazovky
+    // (mimo klavesnici). Nic se neschovava, jen se to tam posune scrollem -
+    // zpatky nahoru na Datum/Nazev/Stitky se da kdykoliv normalne
+    // doscrollovat.
+    quill.root.addEventListener("focus", () => {
+      if (window.innerWidth <= 900) {
+        document.getElementById("quillContainer").scrollIntoView({ block: "start", behavior: "smooth" });
       }
     });
 

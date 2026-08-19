@@ -1,7 +1,7 @@
 {
-  "name": "Rychlý zápis — Vtipníci",
-  "short_name": "Zápis",
-  "start_url": "quick.html",
+  "name": "Termín na zítra — Vtipníci",
+  "short_name": "Termín",
+  "start_url": "quick.html?termin=1",
   "display": "standalone",
   "background_color": "#dceefb",
   "theme_color": "#2f9e5f",

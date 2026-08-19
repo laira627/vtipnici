@@ -9,7 +9,21 @@
 <meta name="apple-mobile-web-app-title" content="Zápis">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#dceefb">
-<link rel="manifest" href="manifest-quick.json">
+<link rel="manifest" href="manifest-quick.json" id="manifestLink">
+<script>
+  // Kdyz je stranka otevrena jako quick.html?termin=1 (druha ikona na
+  // plose pro rezim "Termin na zitra"), musi se pouzit JINY manifest -
+  // ten s vlastnim start_url vcetne "?termin=1". Android totiz pri
+  // "Pridat na plochu" pouziva pro spusteni z ikony start_url z manifestu
+  // MISTO skutecne adresy, ze ktere se zastupce vytvaril - bez tohohle
+  // prepnuti by obe ikony (bezny Quick i Termin) vzdy skoncily na stejnem
+  // (spolecnem) start_url a rezim Termin by se tak z plochy nikdy
+  // nespustil. Musi byt inline a co nejdriv v <head>, aby to platilo uz
+  // ve chvili, kdy prohlizec zjistuje, jestli je stranka "instalovatelna".
+  if (new URLSearchParams(location.search).get("termin") === "1") {
+    document.getElementById("manifestLink").href = "manifest-quick-termin.json";
+  }
+</script>
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32-quick.png">
 <link rel="icon" type="image/png" sizes="16x16" href="favicon-16-quick.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ctext%20y%3D%22.9em%22%20font-size%3D%2290%22%3E%F0%9F%93%8C%3C/text%3E%3C/svg%3E">
@@ -299,10 +313,16 @@
   // nastartuje nové kolo, takže diktování reálně běží, dokud ho uživatel
   // sám nezastaví.
   let recordingRequested = false;
-  // Trvalý (potvrzený) text nezávislý na průběžném "živém" náhledu -
-  // interim výsledky se do něj nezapisují natrvalo, jen se dočasně
-  // připojí za něj na displeji.
-  let committedText = "";
+  // Text v poli PŘED začátkem aktuální "session" naslouchání (tedy před
+  // posledním recognition.start()). Při každém vysledku se do displeje
+  // znovu poskládá baseText + celý aktuální přepis session odznova -
+  // NIKDY se do baseText jen "nepřičítá delta". Původní kód spoléhal na
+  // e.resultIndex jako na spolehlivý ukazatel, odkud číst nové kousky,
+  // ale na řadě zařízení (typicky Android Chrome) se resultIndex chová
+  // nespolehlivě/vrací se zpátky, takže se už jednou započtené finální
+  // věty načetly a připočetly znovu a znovu - odtud to zdvojování a
+  // "narůstající" opakování celých vět.
+  let baseText = "";
 
   function capitalizeFirstIfEmpty(base, chunk) {
     if (base.trim()) return chunk;
@@ -316,31 +336,37 @@
     recognition.interimResults = true;
 
     recognition.addEventListener("result", (e) => {
-      let finalChunk = "";
-      let interimChunk = "";
-      for (let i = e.resultIndex; i < e.results.length; i++) {
+      // Vždy se čte CELÉ pole e.results od začátku (index 0), ne od
+      // e.resultIndex - jednou finalizovaný výsledek se už nemění, takže
+      // je to bezpečné, a hlavně to obchází zařízení, kde resultIndex
+      // není spolehlivý. Session text se tedy pokaždé PŘEPOČÍTÁ nanovo,
+      // nikdy se nepřičítá k tomu, co bylo zobrazeno předtím.
+      let sessionFinal = "";
+      let sessionInterim = "";
+      for (let i = 0; i < e.results.length; i++) {
         const chunk = e.results[i][0].transcript;
-        if (e.results[i].isFinal) finalChunk += chunk;
-        else interimChunk += chunk;
+        if (e.results[i].isFinal) sessionFinal += chunk;
+        else sessionInterim += chunk;
       }
-      if (finalChunk.trim()) {
-        finalChunk = capitalizeFirstIfEmpty(committedText, finalChunk.trim());
-        const sep = committedText.trim() ? " " : "";
-        committedText = committedText.trim() + sep + finalChunk;
+      sessionFinal = sessionFinal.trim();
+      sessionInterim = sessionInterim.trim();
+
+      let sessionText = sessionFinal;
+      if (sessionInterim) {
+        sessionText = (sessionText ? sessionText + " " : "") + sessionInterim;
       }
-      // Živý náhled: rozepsaná (ještě nedokončená) věta se rovnou zobrazí
-      // v poli, ale natrvalo se uloží až po dokončení jako finalChunk výše.
-      let display = committedText;
-      if (interimChunk.trim()) {
-        const preview = capitalizeFirstIfEmpty(committedText, interimChunk.trim());
-        const sep = committedText.trim() ? " " : "";
-        display = committedText.trim() + sep + preview;
-      }
-      popisEl.value = display;
+      sessionText = capitalizeFirstIfEmpty(baseText, sessionText);
+
+      const sep = baseText.trim() ? " " : "";
+      popisEl.value = baseText.trim() + sep + sessionText;
       popisEl.dispatchEvent(new Event("input"));
     });
 
     recognition.addEventListener("end", () => {
+      // Uzavři aktuální session - vše, co v ní bylo napsáno (i nedokončený
+      // živý náhled), se stane novým základem pro další kolo. Po restartu
+      // začne e.results zase od indexu 0, proto se to musí takhle "sklopit".
+      baseText = popisEl.value;
       if (recordingRequested) {
         // Konec vyvolaný tichem, ne uživatelem - hned pokračuj dál.
         try {
@@ -377,7 +403,7 @@
       }
       isRecording = true;
       recordingRequested = true;
-      committedText = popisEl.value;
+      baseText = popisEl.value;
       micBtn.classList.add("recording");
       try {
         recognition.start();
