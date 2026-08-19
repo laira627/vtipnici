@@ -73,6 +73,10 @@
     border-radius: 8px; padding: 4px 9px; font-size: 14px; cursor: pointer; line-height: 1.4;
   }
   .mic-btn.recording { background: #f6cdc6; border-color: #b3261e; color: #b3261e; }
+  .mic-interim {
+    font-size: 13px; font-style: italic; color: var(--ink-soft);
+    min-height: 16px; margin-top: 4px; padding: 0 2px;
+  }
   .field-required {
     background: var(--accent-soft); border: 1.5px solid var(--accent);
     border-radius: 12px; padding: 10px 12px 12px;
@@ -188,6 +192,7 @@
         <button type="button" id="micBtn" class="mic-btn" title="Diktovat hlasem" aria-label="Diktovat hlasem">🎙️</button>
       </div>
       <textarea id="popis" placeholder="Napiš, co se stalo…"></textarea>
+      <div class="mic-interim" id="micInterim" aria-live="polite"></div>
     </div>
     <button type="submit" class="btn">Uložit záznam</button>
   </form>
@@ -248,6 +253,7 @@
   const stitkyEl = document.getElementById("stitky");
   const terminEl = document.getElementById("termin");
   const micBtn = document.getElementById("micBtn");
+  const micInterim = document.getElementById("micInterim");
   const toast = document.getElementById("toast");
 
   let currentUid = null;
@@ -303,132 +309,84 @@
   });
 
   // ---------- Diktování hlasem do Popisu ----------
-  // HISTORIE: appka postupně zkoušela různé varianty automatického
-  // restartování mikrofonu po odmlce (nová instance při restartu, číslovaná
-  // kola, tolerance 5 vteřin ticha), aby mikrofon nikdy sám nezhasl. Na
-  // uživatelčině telefonu (Samsung, potvrzeno stejně v Chromu i v Opeře) ale
-  // KAŽDÁ varianta s restartem vedla k tomu, že rozpoznávání chvíli po
-  // restartu chytalo zkomolený/nesouvisející zvuk a do textu se pletla
-  // nesmyslná slova. Jediná verze, která byla na jejím zařízení spolehlivá,
-  // je tahle - BEZ jakéhokoliv automatického restartu: mikrofon se po
-  // odmlce sám vypne a pro pokračování je potřeba na něj klepnout znovu.
-  // Pokud budeš chtít tohle znovu měnit, mysli na to, že jakýkoliv
-  // auto-restart na tomhle telefonu spolehlivě dělal problémy.
+  // Základ je přesně ta verze, která na uživatelčině telefonu (Samsung)
+  // prokazatelně spolehlivě fungovala už 13. 8. Klíčové vlastnosti, které
+  // NEMĚNIT bez otestování na reálném zařízení:
+  //  - JEDNA instance SpeechRecognition vytvořená jednou při načtení
+  //    stránky (ne nová při každém startu/restartu)
+  //  - do POLE (popisEl.value) se vždy jen PŘIDÁ nový FINÁLNÍ úsek
+  //    (e.resultIndex), nikdy se nepřepisuje/neskládá celá session odznova
+  //  - žádný automatický restart po odmlce - "end" jen uklidí tlačítko,
+  //    pro pokračování je potřeba klepnout na mikrofon znovu
+  //
+  // Živé zobrazování textu za mluvení (interimResults: true) je zpátky, ale
+  // NEjde do samotného pole poznámky - běžící (ještě nehotový, nepřesný)
+  // odhad appka ukazuje jen v odděleném řádku pod textarea (#micInterim).
+  // Do pole se pořád zapisuje výhradně finální, hotový text stejným
+  // ověřeným mechanismem jako předtím - takže i kdyby živý odhad chvíli
+  // "blbnul" (u průběžných odhadů je to normální, opravují se za pochodu),
+  // do uložené poznámky se to nikdy nedostane.
   const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
   let recognition = null;
   let isRecording = false;
-  // Text v poli PŘED začátkem aktuálního naslouchání (buď úplně první
-  // klepnutí, nebo další klepnutí po tom, co předchozí kolo samo doznělo).
-  // Při každém výsledku se do displeje znovu poskládá baseText + celý
-  // aktuální přepis odznova - nikdy se nepřičítá jen "delta" (to na řadě
-  // zařízení, typicky Android, vedlo ke zdvojování vět).
-  let baseText = "";
 
-  function capitalizeFirstIfEmpty(base, chunk) {
-    if (base.trim()) return chunk;
-    return chunk.charAt(0).toUpperCase() + chunk.slice(1);
+  function setInterimPreview(text) {
+    if (micInterim) micInterim.textContent = text || "";
   }
 
-  // Ořízne ze začátku "addition" slova, která se doslovně shodují s koncem
-  // "base" - ochrana pro případ, že by nové (ručně zaklepnuté) kolo
-  // naslouchání ještě zachytilo zlomek zvuku z úplně konce toho
-  // předchozího, takže by se poslední slovo/slova jinak objevila v textu
-  // dvakrát za sebou.
-  function trimOverlap(base, addition) {
-    const baseWords = base.trim().split(/\s+/).filter(Boolean);
-    const addWords = addition.trim().split(/\s+/).filter(Boolean);
-    if (!baseWords.length || !addWords.length) return addition;
-    const maxOverlap = Math.min(baseWords.length, addWords.length, 6);
-    for (let n = maxOverlap; n > 0; n--) {
-      const baseTail = baseWords.slice(-n).join(" ").toLowerCase();
-      const addHead = addWords.slice(0, n).join(" ").toLowerCase();
-      if (baseTail === addHead) {
-        return addWords.slice(n).join(" ");
-      }
-    }
-    return addition;
-  }
-
-  function handleSpeechResult(e) {
-    let sessionFinal = "";
-    let sessionInterim = "";
-    for (let i = 0; i < e.results.length; i++) {
-      const chunk = e.results[i][0].transcript;
-      if (e.results[i].isFinal) sessionFinal += chunk;
-      else sessionInterim += chunk;
-    }
-    sessionFinal = sessionFinal.trim();
-    sessionInterim = sessionInterim.trim();
-
-    let sessionText = sessionFinal;
-    if (sessionInterim) {
-      sessionText = (sessionText ? sessionText + " " : "") + sessionInterim;
-    }
-    sessionText = trimOverlap(baseText, sessionText);
-    sessionText = capitalizeFirstIfEmpty(baseText, sessionText);
-
-    const sep = baseText.trim() && sessionText.trim() ? " " : "";
-    popisEl.value = baseText.trim() + sep + sessionText;
-    popisEl.dispatchEvent(new Event("input"));
-  }
-
-  function detachRecognition(r) {
-    if (!r) return;
-    r.onresult = null;
-    r.onend = null;
-    r.onerror = null;
-  }
-
-  // Rozpoznávání samo skončilo - buď po delší odmlce (telefon ji vyhodnotil
-  // jako konec promluvy), nebo protože uživatel klikl na stop. V obou
-  // případech appka jen uklidí stav tlačítka a NEspouští nové kolo samo -
-  // pro pokračování v diktování stačí na mikrofon klepnout znovu.
-  function handleSpeechEnd() {
-    baseText = popisEl.value;
-    detachRecognition(recognition);
-    isRecording = false;
-    micBtn.classList.remove("recording");
-  }
-
-  function handleSpeechError(e) {
-    if (e.error === "no-speech") {
-      // Jen ticho - o úklid stavu se postará "end" handler výš.
-      return;
-    }
-    isRecording = false;
-    micBtn.classList.remove("recording");
-    if (e.error !== "aborted") {
-      showToast("Diktování selhalo (" + e.error + ")");
-    }
-  }
-
-  function startRecognition() {
-    detachRecognition(recognition);
+  if (SpeechRecognitionCtor && micBtn) {
     recognition = new SpeechRecognitionCtor();
     recognition.lang = "cs-CZ";
     recognition.continuous = true;
     recognition.interimResults = true;
-    recognition.onresult = handleSpeechResult;
-    recognition.onend = handleSpeechEnd;
-    recognition.onerror = handleSpeechError;
-    try {
-      recognition.start();
-    } catch (err) {
+
+    recognition.addEventListener("result", (e) => {
+      let finalChunk = "";
+      let interimChunk = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const chunk = e.results[i][0].transcript;
+        if (e.results[i].isFinal) finalChunk += chunk;
+        else interimChunk += chunk;
+      }
+      finalChunk = finalChunk.trim();
+      interimChunk = interimChunk.trim();
+      if (finalChunk) {
+        const sep = popisEl.value.trim() ? " " : "";
+        popisEl.value = popisEl.value.trim() + sep + finalChunk;
+        popisEl.dispatchEvent(new Event("input"));
+      }
+      setInterimPreview(interimChunk);
+    });
+
+    recognition.addEventListener("end", () => {
       isRecording = false;
       micBtn.classList.remove("recording");
-    }
-  }
+      setInterimPreview("");
+    });
 
-  if (SpeechRecognitionCtor && micBtn) {
+    recognition.addEventListener("error", (e) => {
+      isRecording = false;
+      micBtn.classList.remove("recording");
+      setInterimPreview("");
+      if (e.error !== "no-speech" && e.error !== "aborted") {
+        showToast("Diktování selhalo (" + e.error + ")");
+      }
+    });
+
     micBtn.addEventListener("click", () => {
       if (isRecording) {
-        if (recognition) recognition.stop();
+        recognition.stop();
         return;
       }
       isRecording = true;
-      baseText = popisEl.value;
       micBtn.classList.add("recording");
-      startRecognition();
+      setInterimPreview("");
+      try {
+        recognition.start();
+      } catch (err) {
+        isRecording = false;
+        micBtn.classList.remove("recording");
+      }
     });
   } else if (micBtn) {
     // Web Speech API tu není podporovaná (typicky desktopový Firefox) -
