@@ -163,7 +163,7 @@
 <!-- QUICK ENTRY -->
 <div class="card" id="entryScreen">
   <h1>📓 Rychlý zápis</h1>
-  <div class="build-tag">verze: 19. 8. 2026, kolo 10 (oprava diktování)</div>
+  <div class="build-tag">verze: 19. 8. 2026, kolo 11 (mikrofon nezhasíná po odmlce)</div>
   <p class="sub">Zadej poznámku a ulož jedním klepnutím</p>
   <form id="entryForm">
     <div class="row2">
@@ -329,10 +329,21 @@
   // hotový -> ten se teprve teď zapíše do pole a začne se sledovat nový.
   // Tohle funguje spolehlivě, ať appka posílá skutečné přírůstky (jako
   // dřív 13. 8.), nebo pořád dokola celou narůstající větu (jako teď).
+  //
+  // Protože zdvojování je teď vyřešené na úrovni obsahu (ne indexů), je
+  // konečně bezpečné vrátit i druhý dřívější požadavek - ať mikrofon sám
+  // nezhasne po každé krátké odmlce. Telefon tuhle konkrétní session sám
+  // ukončuje po pár vteřinách ticha ("end") - pokud to nebylo vyžádané
+  // kliknutím na mikrofon (stopRequested), appka rozpoznávání potichu znovu
+  // nastartuje, takže diktování dál pokračuje jako jedna nepřerušená věc.
+  // Rozpracovaný text se před každým restartem vždy nejdřív zapíše
+  // (commitDraft), takže se při restartu nemůže nic ztratit ani zdvojit.
   const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
   let recognition = null;
   let isRecording = false;
+  let stopRequested = false;
   let draftText = ""; // rozpracovaný (ještě nezapsaný) úsek aktuální nahrávky
+  let restartTimer = null;
 
   function setInterimPreview(text) {
     if (micInterim) micInterim.textContent = text || "";
@@ -352,6 +363,24 @@
     recognition.lang = "cs-CZ";
     recognition.continuous = true;
     recognition.interimResults = true;
+
+    function startSession() {
+      try {
+        recognition.start();
+      } catch (err) {
+        // Na Androidu se občas nedá nastartovat hned po předchozím "end" -
+        // krátce počkat a zkusit jednou znovu, než to appka vzdá.
+        clearTimeout(restartTimer);
+        restartTimer = setTimeout(() => {
+          try {
+            recognition.start();
+          } catch (err2) {
+            isRecording = false;
+            micBtn.classList.remove("recording");
+          }
+        }, 300);
+      }
+    }
 
     recognition.addEventListener("result", (e) => {
       const last = e.results[e.results.length - 1];
@@ -391,35 +420,46 @@
 
     recognition.addEventListener("end", () => {
       commitDraft();
-      isRecording = false;
-      micBtn.classList.remove("recording");
       setInterimPreview("");
+      if (stopRequested || !isRecording) {
+        isRecording = false;
+        stopRequested = false;
+        micBtn.classList.remove("recording");
+        return;
+      }
+      // appka sama ukončila naslouchání (krátký limit ticha na tomhle
+      // telefonu), ale uživatelka o konec nepožádala - pokračovat dál
+      clearTimeout(restartTimer);
+      restartTimer = setTimeout(() => {
+        if (!stopRequested && isRecording) startSession();
+      }, 250);
     });
 
     recognition.addEventListener("error", (e) => {
-      isRecording = false;
-      micBtn.classList.remove("recording");
-      setInterimPreview("");
       if (e.error !== "no-speech" && e.error !== "aborted") {
         showToast("Diktování selhalo (" + e.error + ")");
       }
+      if (e.error === "not-allowed" || e.error === "audio-capture" || e.error === "service-not-allowed") {
+        // opravdová chyba (např. nepovolený mikrofon) - dál to nezkoušet
+        stopRequested = true;
+      }
+      // "end" se spustí hned po "error" - tam se podle stopRequested
+      // rozhodne, jestli appka pokračuje, nebo definitivně skončí.
     });
 
     micBtn.addEventListener("click", () => {
       if (isRecording) {
+        stopRequested = true;
+        clearTimeout(restartTimer);
         recognition.stop();
         return;
       }
       isRecording = true;
+      stopRequested = false;
       draftText = "";
       micBtn.classList.add("recording");
       setInterimPreview("");
-      try {
-        recognition.start();
-      } catch (err) {
-        isRecording = false;
-        micBtn.classList.remove("recording");
-      }
+      startSession();
     });
   } else if (micBtn) {
     // Web Speech API tu není podporovaná (typicky desktopový Firefox) -
