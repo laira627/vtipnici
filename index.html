@@ -1439,7 +1439,10 @@
   async function deleteFolder(id) {
     const f = folders.find(x => x.id === id);
     if (!f) return;
-    const count = allNotes.filter(n => n.druh === f.nazev).length;
+    // Počítat jen viditelné (nesmazané) poznámky - stejně jako badge u
+    // složky v levém menu. Poznámky, které už jsou v koši (smazano: true),
+    // nemají blokovat smazání prázdně vypadající složky.
+    const count = visibleNotes().filter(n => n.druh === f.nazev).length;
     if (count > 0) {
       showToast(`Nejprve přesuň nebo smaž ${count} poznámek v této složce`);
       return;
