@@ -249,6 +249,10 @@
     border: 1px solid var(--line); background: var(--paper); border-radius: 6px; cursor: pointer;
     font-size: 14px; line-height: 1; padding: 4px 6px;
   }
+  .calendar-note-retermin-label { position: relative; display: inline-flex; align-items: center; justify-content: center; min-width: 30px; min-height: 30px; }
+  .calendar-note-retermin-input {
+    position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; border: 0; padding: 0; margin: 0;
+  }
   .calendar-note-action-btn:hover { border-color: var(--accent); background: var(--accent-soft); }
   .calendar-note-delete-btn:hover { border-color: var(--danger); background: #fce8e6; color: var(--danger); }
   .calendar-nav-label { font-size: 15px; font-weight: 700; flex: 1; text-align: center; }
@@ -440,7 +444,7 @@
   .nl-card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
   .nl-badges { display: flex; flex-wrap: wrap; gap: 8px; }
   .nl-badge {
-    display: inline-block; background: var(--nl-color, #999); color: #fff;
+    display: inline-block; background: var(--nl-badge-color, var(--nl-color, #999)); color: #fff;
     font-weight: 700; font-size: 26px; padding: 10px 18px; border-radius: 999px;
   }
   .nl-date { font-size: 24px; color: #786464; }
@@ -1764,8 +1768,16 @@
     const color = folder ? folder.barva : "#999";
     const title = noteTitle(n);
     const truncated = title.length > maxLen ? title.slice(0, maxLen) + "…" : title;
+    // Tlačítko na změnu termínu je přímo <label> obalující skutečný nativní
+    // <input type="date"> (průhledný, přes celou plochu ikony). Tap na ikonu
+    // tak je fyzicky tap na nativní date input - prohlížeč / mobil pak vždy
+    // spolehlivě otevře svůj datumový picker sám, appka se nemusí spoléhat
+    // na programové .showPicker() volání z JS, které se na některých mobilech
+    // (potvrzeno na Androidu) nedalo vůbec rozkliknout.
     const actionsHtml = compact ? "" : `<div class="calendar-note-chip-actions">
-      <button class="calendar-note-action-btn calendar-note-retermin-btn" data-id="${n.id}" data-termin="${n.termin || ""}" type="button" title="Změnit termín" aria-label="Změnit termín">📅✎</button>
+      <label class="calendar-note-action-btn calendar-note-retermin-label" title="Změnit termín" aria-label="Změnit termín">
+        📅<input type="date" class="calendar-note-retermin-input" data-id="${n.id}" value="${n.termin || ""}">
+      </label>
       <button class="calendar-note-action-btn calendar-note-delete-btn" data-id="${n.id}" type="button" title="Smazat" aria-label="Smazat">🗑</button>
     </div>`;
     return `<div class="calendar-note-chip ${compact ? "" : "calendar-note-chip-expanded"}" data-id="${n.id}" title="${escapeHtml(title)}">
@@ -1916,11 +1928,15 @@
         deleteNoteRow(btn.dataset.id);
       });
     });
-    notesList.querySelectorAll(".calendar-note-retermin-btn").forEach(btn => {
-      btn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        changeTerminForNote(btn.dataset.id, btn.dataset.termin);
-      });
+    notesList.querySelectorAll(".calendar-note-retermin-label").forEach(label => {
+      // Zabránit probublání kliknutí na chip (jinak by tap na ikonu zároveň
+      // otevřel poznámku v editoru) - samotné otevření date pickeru řeší
+      // prohlížeč sám, protože je to skutečný nativní <input type="date">.
+      label.addEventListener("click", (e) => e.stopPropagation());
+    });
+    notesList.querySelectorAll(".calendar-note-retermin-input").forEach(input => {
+      input.addEventListener("click", (e) => e.stopPropagation());
+      input.addEventListener("change", () => changeTerminForNote(input.dataset.id, input.value));
     });
     notesList.querySelectorAll(".calendar-day[data-date]").forEach(dayEl => {
       dayEl.addEventListener("click", () => {
@@ -1930,44 +1946,18 @@
   }
 
   // Rychlá změna termínu přímo z Kalendáře (denní/týdenní pohled) - bez
-  // nutnosti otevírat celou poznámku v editoru. Vytvoří skryté <input
-  // type="date">, rovnou otevře nativní date picker a po výběru zapíše
-  // nový termín do Firestore.
-  async function changeTerminForNote(id, currentTermin) {
-    const input = document.createElement("input");
-    input.type = "date";
-    input.value = currentTermin || "";
-    input.style.position = "fixed";
-    input.style.left = "-9999px";
-    input.style.top = "0";
-    document.body.appendChild(input);
-
-    let removed = false;
-    const cleanup = () => {
-      if (removed) return;
-      removed = true;
-      if (document.body.contains(input)) document.body.removeChild(input);
-    };
-
-    input.addEventListener("change", async () => {
-      const newDate = input.value;
-      cleanup();
-      if (!newDate || newDate === currentTermin) return;
-      try {
-        await updateDoc(doc(db, NOTES_COL, id), { termin: newDate, upraveno: serverTimestamp() });
-        allNotes = allNotes.map(x => x.id === id ? { ...x, termin: newDate } : x);
-        renderNotes();
-        showToast("Termín změněn");
-      } catch (err) {
-        showToast("Chyba při změně termínu: " + err.message);
-      }
-    });
-    input.addEventListener("blur", cleanup);
-
-    if (input.showPicker) {
-      try { input.showPicker(); } catch (e) { input.focus(); }
-    } else {
-      input.focus();
+  // nutnosti otevírat celou poznámku v editoru. Ikona je skutečný nativní
+  // <input type="date"> (viz calendarNoteChipHtml) - appka jen zapíše
+  // vybranou hodnotu do Firestore po jeho "change" události.
+  async function changeTerminForNote(id, newDate) {
+    if (!newDate) return;
+    try {
+      await updateDoc(doc(db, NOTES_COL, id), { termin: newDate, upraveno: serverTimestamp() });
+      allNotes = allNotes.map(x => x.id === id ? { ...x, termin: newDate } : x);
+      renderNotes();
+      showToast("Termín změněn");
+    } catch (err) {
+      showToast("Chyba při změně termínu: " + err.message);
     }
   }
 
@@ -2881,7 +2871,7 @@
       const tags = Array.isArray(n.stitky) ? n.stitky : [];
       const color = tagColor(tags[0] || n.id);
       const badgesHtml = tags.length
-        ? tags.map(t => `<span class="nl-badge">${escapeHtml(t.toUpperCase())}</span>`).join(" ")
+        ? tags.map(t => `<span class="nl-badge" style="--nl-badge-color:${tagColor(t)}">${escapeHtml(t.toUpperCase())}</span>`).join(" ")
         : "<span></span>";
       const title = (n.nazev && n.nazev.trim()) ? n.nazev.trim() : "";
       const text = htmlToPlainText(n.popis);
