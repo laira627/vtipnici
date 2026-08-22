@@ -2856,6 +2856,21 @@
     runNewsletterExport(from, to);
   });
 
+  // Export "Hláška" - když je v rozsahu moc hlášek najednou, výsledný obrázek
+  // vychází extrémně vysoký (jeden dlouhý sloupec karet) a na spoustě
+  // telefonů/WhatsAppu se pak sdílení spolehlivě nepodaří (WhatsApp takový
+  // "obrázek" v praxi odmítne přijmout - přijde jeho vlastní hláška
+  // "Sdílení se nepodařilo"). Appka proto hlášky rozdělí po menších dávkách
+  // do víc samostatných obrázků (každý rozumně vysoký) a všechny nabídne
+  // ke sdílení najednou.
+  const NL_MAX_PER_IMAGE = 8;
+
+  function chunkArray(arr, size) {
+    const out = [];
+    for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+    return out;
+  }
+
   async function runNewsletterExport(from, to) {
     if (typeof html2canvas === "undefined") {
       showToast("Nepodařilo se načíst knihovnu pro export obrázku");
@@ -2867,67 +2882,97 @@
     list.sort((a, b) => (a.datum > b.datum ? 1 : -1)); // od nejstarší po nejnovější
     if (list.length === 0) { showToast("V daném rozsahu nejsou žádné hlášky"); return; }
 
-    const cardsHtml = list.map(n => {
-      const tags = Array.isArray(n.stitky) ? n.stitky : [];
-      const color = tagColor(tags[0] || n.id);
-      const badgesHtml = tags.length
-        ? tags.map(t => `<span class="nl-badge" style="--nl-badge-color:${tagColor(t)}">${escapeHtml(t.toUpperCase())}</span>`).join(" ")
-        : "<span></span>";
-      const title = (n.nazev && n.nazev.trim()) ? n.nazev.trim() : "";
-      const text = htmlToPlainText(n.popis);
+    const pages = chunkArray(list, NL_MAX_PER_IMAGE);
+    showToast(pages.length > 1 ? `Generuji ${pages.length} obrázky…` : "Generuji obrázek…");
+
+    function buildPageHtml(pageList, pageNum, pageCount) {
+      const cardsHtml = pageList.map(n => {
+        const tags = Array.isArray(n.stitky) ? n.stitky : [];
+        const color = tagColor(tags[0] || n.id);
+        const badgesHtml = tags.length
+          ? tags.map(t => `<span class="nl-badge" style="--nl-badge-color:${tagColor(t)}">${escapeHtml(t.toUpperCase())}</span>`).join(" ")
+          : "<span></span>";
+        const title = (n.nazev && n.nazev.trim()) ? n.nazev.trim() : "";
+        const text = htmlToPlainText(n.popis);
+        return `
+          <div class="nl-card" style="--nl-color:${color}">
+            <div class="nl-card-top">
+              <span class="nl-badges">${badgesHtml}</span>
+              <span class="nl-date">${formatNlDate(n.datum)}</span>
+            </div>
+            ${title ? `<div class="nl-title">${escapeHtml(title)}</div>` : ""}
+            <div class="nl-text">${escapeHtml(text)}</div>
+          </div>`;
+      }).join("");
+
+      const subLabel = pageCount > 1
+        ? `${escapeHtml(formatNlRange(from, to))} · nejlepší výroky · ${pageNum}/${pageCount}`
+        : `${escapeHtml(formatNlRange(from, to))} · nejlepší výroky`;
+
       return `
-        <div class="nl-card" style="--nl-color:${color}">
-          <div class="nl-card-top">
-            <span class="nl-badges">${badgesHtml}</span>
-            <span class="nl-date">${formatNlDate(n.datum)}</span>
+        <div class="nl-root">
+          <div class="nl-header">
+            <h1>😂 RODINNÉ HLÁŠKY</h1>
+            <div class="nl-sub">${subLabel}</div>
+            <div class="nl-src">z aplikace Vtipníci</div>
           </div>
-          ${title ? `<div class="nl-title">${escapeHtml(title)}</div>` : ""}
-          <div class="nl-text">${escapeHtml(text)}</div>
+          <div class="nl-cards">${cardsHtml}</div>
+          <div class="nl-footer">
+            <p class="nl-f1">✎ Zaznamenáno v appce Vtipníci</p>
+            <p class="nl-f2">Ať i vás dnešní hlášky rozesmějí ♥</p>
+          </div>
         </div>`;
-    }).join("");
-
-    newsletterStage.innerHTML = `
-      <div class="nl-root">
-        <div class="nl-header">
-          <h1>😂 RODINNÉ HLÁŠKY</h1>
-          <div class="nl-sub">${escapeHtml(formatNlRange(from, to))} · nejlepší výroky</div>
-          <div class="nl-src">z aplikace Vtipníci</div>
-        </div>
-        <div class="nl-cards">${cardsHtml}</div>
-        <div class="nl-footer">
-          <p class="nl-f1">✎ Zaznamenáno v appce Vtipníci</p>
-          <p class="nl-f2">Ať i vás dnešní hlášky rozesmějí ♥</p>
-        </div>
-      </div>`;
-
-    showToast("Generuji obrázek…");
-    await new Promise(r => setTimeout(r, 60));
+    }
 
     try {
-      const target = newsletterStage.firstElementChild;
-      const canvas = await html2canvas(target, { backgroundColor: "#fffaf0", scale: 2, useCORS: true });
-      canvas.toBlob(async (blob) => {
-        const fileName = `hlasky-newsletter-${from || "vse"}_${to || "vse"}.png`;
-        const file = new File([blob], fileName, { type: "image/png" });
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          try {
-            await navigator.share({ files: [file], title: "Rodinné hlášky" });
-            newsletterStage.innerHTML = "";
-            return;
-          } catch (err) {
-            // uživatel sdílení zrušil nebo selhalo -> spadneme na stažení
-          }
+      const files = [];
+      for (let i = 0; i < pages.length; i++) {
+        newsletterStage.innerHTML = buildPageHtml(pages[i], i + 1, pages.length);
+        await new Promise(r => setTimeout(r, 60));
+        const target = newsletterStage.firstElementChild;
+        const canvas = await html2canvas(target, { backgroundColor: "#fffaf0", scale: 2, useCORS: true });
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/png"));
+        const suffix = pages.length > 1 ? `-${i + 1}z${pages.length}` : "";
+        const fileName = `hlasky-newsletter-${from || "vse"}_${to || "vse"}${suffix}.png`;
+        files.push(new File([blob], fileName, { type: "image/png" }));
+      }
+      newsletterStage.innerHTML = "";
+
+      // WhatsApp na některých telefonech obrázek předaný přes systémové
+      // sdílení tiše odmítne přijmout, i když je malý - jde o chybu na
+      // straně Androidu/WhatsAppu, appka to nedokáže poznat ani ovlivnit
+      // (navigator.share() se v tu chvíli tváří, že proběhlo v pořádku).
+      // Proto appka obrázek vždy i stáhne do telefonu jako zálohu - pokud
+      // by sdílení do WhatsAppu selhalo, jde ho poslat ručně přes přílohu
+      // (Galerie). Výjimka: pokud uživatel nabídku sdílení sám zavřel
+      // (zrušil), appka respektuje jeho volbu a nic nestahuje.
+      let shareSucceeded = false;
+      let userCancelled = false;
+      if (navigator.canShare && navigator.canShare({ files })) {
+        try {
+          await navigator.share({ files, title: "Rodinné hlášky" });
+          shareSucceeded = true;
+        } catch (err) {
+          if (err && err.name === "AbortError") userCancelled = true;
         }
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = fileName;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 4000);
-        newsletterStage.innerHTML = "";
-      }, "image/png");
+      }
+      if (userCancelled) return;
+
+      files.forEach((file, i) => {
+        setTimeout(() => {
+          const url = URL.createObjectURL(file);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = file.name;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 4000);
+        }, i * 300);
+      });
+      if (shareSucceeded) {
+        showToast("Obrázek uložen i do telefonu jako záloha, kdyby sdílení do WhatsAppu selhalo");
+      }
     } catch (err) {
       newsletterStage.innerHTML = "";
       showToast("Export obrázku selhal: " + err.message);
