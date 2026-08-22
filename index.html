@@ -239,9 +239,18 @@
   .calendar-week-list .calendar-day { min-height: auto; max-height: 320px; }
   .calendar-day-single .calendar-day { min-height: 320px; max-height: 560px; cursor: pointer; }
   .calendar-week-list .calendar-day-num,
-  .calendar-day-single .calendar-day-num { font-size: 15px; }
+  .calendar-day-single .calendar-day-num { font-size: 18px; }
   .calendar-week-list .calendar-note-chip,
-  .calendar-day-single .calendar-note-chip { font-size: 13.5px; padding: 4px 8px; }
+  .calendar-day-single .calendar-note-chip { font-size: 16px; padding: 6px 10px; }
+  .calendar-note-chip-expanded { white-space: normal; overflow: visible; text-overflow: clip; display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+  .calendar-note-chip-main { display: flex; align-items: center; gap: 4px; flex: 1; min-width: 0; }
+  .calendar-note-chip-actions { display: flex; gap: 4px; flex-shrink: 0; }
+  .calendar-note-action-btn {
+    border: 1px solid var(--line); background: var(--paper); border-radius: 6px; cursor: pointer;
+    font-size: 14px; line-height: 1; padding: 4px 6px;
+  }
+  .calendar-note-action-btn:hover { border-color: var(--accent); background: var(--accent-soft); }
+  .calendar-note-delete-btn:hover { border-color: var(--danger); background: #fce8e6; color: var(--danger); }
   .calendar-nav-label { font-size: 15px; font-weight: 700; flex: 1; text-align: center; }
   .calendar-nav-btn { flex-shrink: 0; }
   .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
@@ -429,6 +438,7 @@
     border-left: 14px solid var(--nl-color, #999);
   }
   .nl-card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+  .nl-badges { display: flex; flex-wrap: wrap; gap: 8px; }
   .nl-badge {
     display: inline-block; background: var(--nl-color, #999); color: #fff;
     font-weight: 700; font-size: 26px; padding: 10px 18px; border-radius: 999px;
@@ -492,9 +502,10 @@
     .calendar-week-list .calendar-day { min-height: auto; max-height: 260px; }
     .calendar-day-single .calendar-day { min-height: 200px; max-height: 400px; }
     .calendar-week-list .calendar-day-num,
-    .calendar-day-single .calendar-day-num { font-size: 13px; }
+    .calendar-day-single .calendar-day-num { font-size: 16px; }
     .calendar-week-list .calendar-note-chip,
-    .calendar-day-single .calendar-note-chip { font-size: 12px; padding: 3px 6px; }
+    .calendar-day-single .calendar-note-chip { font-size: 14.5px; padding: 5px 8px; }
+    .calendar-note-action-btn { font-size: 13px; padding: 4px 5px; }
 
     /* Klavesnice na mobilu prekryva spodni cast obrazovky a .col-editor ma
        pevnou vysku 100vh, ktera se pri otevrene klavesnici automaticky
@@ -1539,12 +1550,18 @@
     const todayStr = localTodayStr();
     if (localStorage.getItem("terminSummaryShownDate") === todayStr) return false;
     const todays = visibleNotes().filter(n => n.termin === todayStr);
-    if (todays.length === 0) return false;
+    const overdue = visibleNotes().filter(n => n.termin && n.termin < todayStr);
+    if (todays.length === 0 && overdue.length === 0) return false;
     localStorage.setItem("terminSummaryShownDate", todayStr);
-    const count = todays.length;
-    const word = count === 1 ? "termín" : count < 5 ? "termíny" : "termínů";
-    const titles = todays.map(n => noteTitle(n)).join(", ");
-    terminSummaryModalText.textContent = `Dnes máš ${count} ${word}: ${titles}`;
+    const todayCount = todays.length;
+    const overdueCount = overdue.length;
+    const todayWord = todayCount === 1 ? "termín" : todayCount < 5 ? "termíny" : "termínů";
+    const overdueWord = overdueCount === 1 ? "termín" : overdueCount < 5 ? "termíny" : "termínů";
+    const parts = [];
+    if (todayCount > 0) parts.push(`dnes máš ${todayCount} ${todayWord}`);
+    if (overdueCount > 0) parts.push(`po termínu ${overdueCount} ${overdueWord}`);
+    const text = parts.join(", ");
+    terminSummaryModalText.textContent = text.charAt(0).toUpperCase() + text.slice(1);
     terminSummaryModal.classList.add("visible");
     return true;
   }
@@ -1742,14 +1759,21 @@
   let calendarRefDate = null; // ISO "YYYY-MM-DD" - referenční den pro aktuální režim
   let calendarViewMode = localStorage.getItem("calendarViewMode") || "month"; // "day" | "week" | "month"
 
-  function calendarNoteChipHtml(n, maxLen) {
+  function calendarNoteChipHtml(n, maxLen, compact) {
     const folder = folderByName(n.druh);
     const color = folder ? folder.barva : "#999";
     const title = noteTitle(n);
     const truncated = title.length > maxLen ? title.slice(0, maxLen) + "…" : title;
-    return `<div class="calendar-note-chip" data-id="${n.id}" title="${escapeHtml(title)}">
-      <span class="calendar-note-cat" style="color:${color}">${folderIconPrefix(folder)}${escapeHtml(n.druh || "")}</span>
-      ${ratingBadgeHtml(n.hodnoceni)}<span class="calendar-note-title">${escapeHtml(truncated)}</span>
+    const actionsHtml = compact ? "" : `<div class="calendar-note-chip-actions">
+      <button class="calendar-note-action-btn calendar-note-retermin-btn" data-id="${n.id}" data-termin="${n.termin || ""}" type="button" title="Změnit termín" aria-label="Změnit termín">📅✎</button>
+      <button class="calendar-note-action-btn calendar-note-delete-btn" data-id="${n.id}" type="button" title="Smazat" aria-label="Smazat">🗑</button>
+    </div>`;
+    return `<div class="calendar-note-chip ${compact ? "" : "calendar-note-chip-expanded"}" data-id="${n.id}" title="${escapeHtml(title)}">
+      <div class="calendar-note-chip-main">
+        <span class="calendar-note-cat" style="color:${color}">${folderIconPrefix(folder)}${escapeHtml(n.druh || "")}</span>
+        ${ratingBadgeHtml(n.hodnoceni)}<span class="calendar-note-title">${escapeHtml(truncated)}</span>
+      </div>
+      ${actionsHtml}
     </div>`;
   }
 
@@ -1759,7 +1783,7 @@
     const notesToday = (notesByDate.get(dateStr) || []).slice()
       .sort((a, b) => (a.druh || "").localeCompare(b.druh || "", "cs"));
     const maxLen = compact ? 14 : 60;
-    const chips = notesToday.map(n => calendarNoteChipHtml(n, maxLen)).join("");
+    const chips = notesToday.map(n => calendarNoteChipHtml(n, maxLen, compact)).join("");
     return `<div class="calendar-day ${isToday ? "calendar-day-today" : ""}" data-date="${dateStr}">
       <div class="calendar-day-num">${dayLabel}</div>
       <div class="calendar-day-notes">${chips}</div>
@@ -1886,11 +1910,65 @@
         goToNoteInFolder(chip.dataset.id);
       });
     });
+    notesList.querySelectorAll(".calendar-note-delete-btn").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        deleteNoteRow(btn.dataset.id);
+      });
+    });
+    notesList.querySelectorAll(".calendar-note-retermin-btn").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        changeTerminForNote(btn.dataset.id, btn.dataset.termin);
+      });
+    });
     notesList.querySelectorAll(".calendar-day[data-date]").forEach(dayEl => {
       dayEl.addEventListener("click", () => {
         createNoteForCalendarDay(dayEl.dataset.date);
       });
     });
+  }
+
+  // Rychlá změna termínu přímo z Kalendáře (denní/týdenní pohled) - bez
+  // nutnosti otevírat celou poznámku v editoru. Vytvoří skryté <input
+  // type="date">, rovnou otevře nativní date picker a po výběru zapíše
+  // nový termín do Firestore.
+  async function changeTerminForNote(id, currentTermin) {
+    const input = document.createElement("input");
+    input.type = "date";
+    input.value = currentTermin || "";
+    input.style.position = "fixed";
+    input.style.left = "-9999px";
+    input.style.top = "0";
+    document.body.appendChild(input);
+
+    let removed = false;
+    const cleanup = () => {
+      if (removed) return;
+      removed = true;
+      if (document.body.contains(input)) document.body.removeChild(input);
+    };
+
+    input.addEventListener("change", async () => {
+      const newDate = input.value;
+      cleanup();
+      if (!newDate || newDate === currentTermin) return;
+      try {
+        await updateDoc(doc(db, NOTES_COL, id), { termin: newDate, upraveno: serverTimestamp() });
+        allNotes = allNotes.map(x => x.id === id ? { ...x, termin: newDate } : x);
+        renderNotes();
+        showToast("Termín změněn");
+      } catch (err) {
+        showToast("Chyba při změně termínu: " + err.message);
+      }
+    });
+    input.addEventListener("blur", cleanup);
+
+    if (input.showPicker) {
+      try { input.showPicker(); } catch (e) { input.focus(); }
+    } else {
+      input.focus();
+    }
   }
 
   // Klik na prázdné místo v den v Kalendáři rovnou založí novou poznámku
@@ -1936,13 +2014,23 @@
 
   function renderTrashView() {
     notesColTitle.textContent = "🗑 Koš";
-    const items = trashNotes().slice().sort((a, b) => {
+    let items = trashNotes().slice().sort((a, b) => {
       const at = (a.smazanoKdy && a.smazanoKdy.toMillis) ? a.smazanoKdy.toMillis() : 0;
       const bt = (b.smazanoKdy && b.smazanoKdy.toMillis) ? b.smazanoKdy.toMillis() : 0;
       return bt - at;
     });
+    const term = searchInput.value.trim().toLowerCase();
+    if (term) {
+      items = items.filter(n => {
+        const t = (n.nazev || "").toLowerCase();
+        const c = stripHtml(n.popis || "").toLowerCase();
+        const tags = Array.isArray(n.stitky) ? n.stitky : [];
+        const tagMatch = tags.some(tag => tag.toLowerCase().includes(term));
+        return t.includes(term) || c.includes(term) || tagMatch;
+      });
+    }
     if (items.length === 0) {
-      notesList.innerHTML = `<div class="empty-state">Koš je prázdný.</div>`;
+      notesList.innerHTML = `<div class="empty-state">${term ? "Žádná odpovídající poznámka v koši." : "Koš je prázdný."}</div>`;
       return;
     }
     notesList.innerHTML = items.map(n => {
@@ -2791,14 +2879,16 @@
 
     const cardsHtml = list.map(n => {
       const tags = Array.isArray(n.stitky) ? n.stitky : [];
-      const who = (tags[0] || "").toUpperCase();
       const color = tagColor(tags[0] || n.id);
+      const badgesHtml = tags.length
+        ? tags.map(t => `<span class="nl-badge">${escapeHtml(t.toUpperCase())}</span>`).join(" ")
+        : "<span></span>";
       const title = (n.nazev && n.nazev.trim()) ? n.nazev.trim() : "";
       const text = htmlToPlainText(n.popis);
       return `
         <div class="nl-card" style="--nl-color:${color}">
           <div class="nl-card-top">
-            ${who ? `<span class="nl-badge">${escapeHtml(who)}</span>` : "<span></span>"}
+            <span class="nl-badges">${badgesHtml}</span>
             <span class="nl-date">${formatNlDate(n.datum)}</span>
           </div>
           ${title ? `<div class="nl-title">${escapeHtml(title)}</div>` : ""}

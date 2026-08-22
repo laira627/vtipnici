@@ -546,12 +546,29 @@
     });
   });
 
+  // Popis se tu píše do obyčejného <textarea> jako čistý text s odřádkováním
+  // (\n), ale appka (index.html) ho zobrazuje jako HTML z Quill editoru
+  // (quill.root.innerHTML = ...). Prohlížeč při zobrazení čistého textu jako
+  // HTML zalomení řádků ignoruje - všechno by splynulo do jednoho řádku.
+  // Proto se text před uložením převede na odstavce <p>, stejně jako by je
+  // vytvořil Quill při psaní s Enterem - odřádkování se pak v appce zachová.
+  function plainTextToHtml(text) {
+    const esc = s => s
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+    return text
+      .split(/\r\n|\r|\n/)
+      .map(line => (line.length ? `<p>${esc(line)}</p>` : "<p><br></p>"))
+      .join("");
+  }
+
   entryForm.addEventListener("submit", async (e) => {
     e.preventDefault();
     const datum = datumEl.value;
     const druh = druhEl.value;
     const nazev = nazevEl.value.trim();
-    const popis = popisEl.value.trim();
+    const popis = plainTextToHtml(popisEl.value.trim());
     const stitky = stitkyEl.value
       .split(",")
       .map(t => t.trim().replace(/^#/, ""))
