@@ -522,6 +522,56 @@
     .editor-wrap { overflow-y: auto; -webkit-overflow-scrolling: touch; }
     .editor-wrap #quillContainer { flex: none; overflow-y: visible; }
   }
+
+  /* ---------- Verze appky ---------- */
+  .app-version-badge {
+    color: #b7afa1; font-size: 11px; font-weight: 600; margin-left: 6px;
+    vertical-align: middle; letter-spacing: .02em;
+  }
+
+  /* ---------- Pastelové pozadí přehledů (Termín / Kalendář / Dashboard) ---------- */
+  .columns.view-termin .col-notes {
+    background-color: #fdf3d9;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'%3E%3Cg fill='%23e0a733' fill-opacity='0.16'%3E%3Ccircle cx='32' cy='17' r='6'/%3E%3Ccircle cx='32' cy='47' r='6'/%3E%3Ccircle cx='17' cy='32' r='6'/%3E%3Ccircle cx='47' cy='32' r='6'/%3E%3Ccircle cx='32' cy='32' r='5'/%3E%3C/g%3E%3C/svg%3E");
+  }
+  .columns.view-calendar .col-notes {
+    background-color: #e6f5ec;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'%3E%3Cg fill='%235fa87d' fill-opacity='0.16'%3E%3Ccircle cx='32' cy='17' r='6'/%3E%3Ccircle cx='32' cy='47' r='6'/%3E%3Ccircle cx='17' cy='32' r='6'/%3E%3Ccircle cx='47' cy='32' r='6'/%3E%3Ccircle cx='32' cy='32' r='5'/%3E%3C/g%3E%3C/svg%3E");
+  }
+  .columns.view-dashboard .col-notes {
+    background-color: #f6e9f4;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'%3E%3Cg fill='%23c17bb0' fill-opacity='0.16'%3E%3Ccircle cx='32' cy='17' r='6'/%3E%3Ccircle cx='32' cy='47' r='6'/%3E%3Ccircle cx='17' cy='32' r='6'/%3E%3Ccircle cx='47' cy='32' r='6'/%3E%3Ccircle cx='32' cy='32' r='5'/%3E%3C/g%3E%3C/svg%3E");
+  }
+
+  /* ---------- Kalendář Den/Týden - box poznámek se výšce nepřizpůsobuje,
+     roste dle obsahu (nescrolluje se uvnitř) - platí pro desktop i mobil,
+     Měsíční pohled zůstává kompaktní beze změny (viz .calendar-day výše). */
+  .calendar-week-list .calendar-day,
+  .calendar-day-single .calendar-day {
+    max-height: none !important;
+    overflow-y: visible !important;
+  }
+
+  /* ---------- Dashboard - poznámky jako stickies ---------- */
+  .dashboard-stickies {
+    display: flex; flex-wrap: wrap; align-content: flex-start; gap: 12px; margin-bottom: 18px;
+  }
+  .dashboard-stickies-wide { margin-bottom: 12px; }
+  .dashboard-sticky {
+    flex: 0 1 250px; width: 250px; border-radius: 14px; padding: 12px 14px 14px;
+    box-shadow: var(--shadow); position: relative; cursor: pointer;
+    display: flex; flex-direction: column; gap: 6px; border: 1.5px solid transparent;
+  }
+  .dashboard-sticky-wide { flex: 1 1 100%; width: 100%; }
+  .dashboard-sticky:hover .note-row-del { display: block; }
+  .dashboard-sticky-top { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+  .dashboard-sticky-content { font-size: 13.5px; line-height: 1.45; color: var(--ink); }
+  .dashboard-sticky-content p { margin: 0 0 8px; }
+  .dashboard-sticky-content p:last-child { margin-bottom: 0; }
+  .dashboard-sticky-content img { max-width: 100%; border-radius: 8px; }
+  @media (max-width: 900px) {
+    .dashboard-sticky { flex: 1 1 100%; width: auto; }
+  }
 </style>
 </head>
 <body>
@@ -529,7 +579,7 @@
 <!-- LOGIN SCREEN -->
 <div id="loginScreen">
   <div class="login-card">
-    <h1>📓 Vtipníci</h1>
+    <h1>📓 Vtipníci <span class="app-version-badge" id="loginVersionBadge"></span></h1>
     <p class="sub">Osobní zápisník hlášek, filmů, knih a myšlenek</p>
     <form id="loginForm">
       <div class="field">
@@ -553,7 +603,7 @@
     <!-- FOLDERS COLUMN -->
     <div class="col col-folders">
       <div class="col-head">
-        <div class="brand">📓 Vtipníci</div>
+        <div class="brand">📓 Vtipníci <span class="app-version-badge" id="brandVersionBadge"></span></div>
         <div class="head-actions">
           <button class="icon-btn small" id="jsonExportBtn" title="Záloha JSON" aria-label="Záloha JSON">⬇</button>
           <button class="icon-btn small" id="logoutBtn" title="Odhlásit" aria-label="Odhlásit">⏻</button>
@@ -729,6 +779,16 @@
     query, where, orderBy, onSnapshot, serverTimestamp, writeBatch, getDocs
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
+  // Číslo verze appky - zobrazuje se malým světle šedým písmem hned vedle
+  // názvu "Vtipníci" (na přihlašovací obrazovce i v appce), ať Iri po
+  // nahrání nové verze na GitHub pozná (i přes zpoždění nasazení), jestli
+  // se jí už načetla nejnovější verze, nebo pořád vidí tu starou z cache.
+  // Při KAŽDÉ příští úpravě index.html je potřeba tohle číslo zvýšit o 1.
+  const APP_VERSION = "1";
+  document.querySelectorAll(".app-version-badge").forEach(el => {
+    el.textContent = "v" + APP_VERSION;
+  });
+
   const firebaseConfig = {
     apiKey: "AIzaSyCeOsvSECUhxjCQ7y2fFv3ybkxw2vsHwEo",
     authDomain: "vtipnici.firebaseapp.com",
@@ -859,6 +919,22 @@
   // ale zavola tuto funkci - pouziva se pro ikony kategorii (misto vkladani do
   // nazvu slozky primo v textu) a pro ikonu nove slozky.
   let emojiIconTarget = null;
+  // Kdyz je true, prekresleni seznamu poznamek vyvolane prichozim snapshotem
+  // z Firestore se AZ DO ODVOLANI presklakuje - pouziva se, dokud ma
+  // uzivatel na desktopu otevreny nativni <input type="date"> picker pro
+  // zmenu terminu v Kalendari (Den/Tyden). Bez tohohle by prekresleni
+  // (notesList.innerHTML = ...) v nepredvidatelnem okamziku - typicky kdyz
+  // Firestore potvrdi drivejsi zapis serverem - vyhodilo z DOM prave
+  // otevreny picker jine poznamky, coz na desktopu picker tise zavre bez
+  // udalosti change (uzivatel pak marne klika, "nic se nestane"). Na
+  // mobilu je datumovy picker OS-level modal nezavisly na zivotnim cyklu
+  // DOM elementu, proto se tam bug neprojevoval.
+  let pendingRenderAfterPicker = false;
+
+  function isTerminPickerOpen() {
+    return !!(document.activeElement && document.activeElement.classList &&
+      document.activeElement.classList.contains("calendar-note-retermin-input"));
+  }
 
   function showToast(msg) {
     clearTimeout(undoToastTimer);
@@ -993,6 +1069,16 @@
   // vsude, kde se zobrazuje nazev kategorie poznamky (badge, kalendar, dashboard...).
   function folderIconPrefix(folder) {
     return (folder && folder.ikona) ? escapeHtml(folder.ikona) + " " : "";
+  }
+
+  // Barva kategorie prevedena na rgba s nizkou pruhlednosti - pouziva se pro
+  // jemne podbarveni "sticky" karticek na Dashboardu podle barvy kategorie.
+  function hexToRgba(hex, alpha) {
+    let h = (hex || "#999999").replace("#", "");
+    if (h.length === 3) h = h.split("").map(c => c + c).join("");
+    const num = parseInt(h, 16) || 0x999999;
+    const r = (num >> 16) & 255, g = (num >> 8) & 255, b = num & 255;
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
   }
 
   // ---------- Quill init ----------
@@ -1511,6 +1597,13 @@
     searchInput.value = "";
     updateSearchClearBtn();
     columnsEl.classList.toggle("dashboard-mode", v.type === "dashboard" || v.type === "termin" || v.type === "calendar");
+    // Pastelové podbarvení (s jemným květinovým vzorem) - každý z těchto tří
+    // přehledů má svou vlastní barvu (viz CSS .columns.view-*), ať jsou od
+    // sebe na první pohled odlišitelné.
+    columnsEl.classList.remove("view-termin", "view-calendar", "view-dashboard");
+    if (v.type === "termin") columnsEl.classList.add("view-termin");
+    else if (v.type === "calendar") columnsEl.classList.add("view-calendar");
+    else if (v.type === "dashboard") columnsEl.classList.add("view-dashboard");
     if (v.type === "dashboard" || v.type === "termin" || v.type === "trash" || v.type === "calendar") closeEditor();
     newNoteBtn.style.display = v.type === "trash" ? "none" : "";
     exportPdfBtn.style.display = v.type === "trash" ? "none" : "";
@@ -1526,8 +1619,14 @@
     const q = query(collection(db, NOTES_COL), where("uid", "==", uid), orderBy("datum", "desc"));
     unsubNotes = onSnapshot(q, (snapshot) => {
       allNotes = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-      renderFolders();
-      renderNotes();
+      if (isTerminPickerOpen()) {
+        // Nekresli pod prave otevrenym nativnim date pickerem (zmena terminu
+        // v Kalendari Den/Tyden) - viz komentar u pendingRenderAfterPicker.
+        pendingRenderAfterPicker = true;
+      } else {
+        renderFolders();
+        renderNotes();
+      }
       if (selectedNoteId) {
         const still = allNotes.find(n => n.id === selectedNoteId);
         if (!still) closeEditor();
@@ -1937,6 +2036,21 @@
     notesList.querySelectorAll(".calendar-note-retermin-input").forEach(input => {
       input.addEventListener("click", (e) => e.stopPropagation());
       input.addEventListener("change", () => changeTerminForNote(input.dataset.id, input.value));
+      // Dokud je tenhle nativní date picker otevřený (input má focus), appka
+      // si prekresleni seznamu jen "poznamena" (viz pendingRenderAfterPicker)
+      // misto aby ho hned provedla - jinak by na desktopu prekresleni
+      // vyvolane treba jen potvrzenim driveji zmeneneho terminu ze serveru
+      // vytrhlo tenhle prave otevreny picker z DOM a prohlizec by ho tise
+      // zavrel, aniz by se zmena projevila ("nic se nestane" pri kliku na
+      // dalsi poznamku). Jakmile picker zavre (blur - ať už vybranim data,
+      // nebo Escape/kliknutim mimo), dluzne prekresleni se hned dozene.
+      input.addEventListener("blur", () => {
+        if (pendingRenderAfterPicker) {
+          pendingRenderAfterPicker = false;
+          renderFolders();
+          renderNotes();
+        }
+      });
     });
     notesList.querySelectorAll(".calendar-day[data-date]").forEach(dayEl => {
       dayEl.addEventListener("click", () => {
@@ -1954,6 +2068,7 @@
     try {
       await updateDoc(doc(db, NOTES_COL, id), { termin: newDate, upraveno: serverTimestamp() });
       allNotes = allNotes.map(x => x.id === id ? { ...x, termin: newDate } : x);
+      pendingRenderAfterPicker = false;
       renderNotes();
       showToast("Termín změněn");
     } catch (err) {
@@ -2085,6 +2200,33 @@
     </div>`;
   }
 
+  // Sticky karticka poznamky na Dashboardu - narozdil od noteTileHtml()
+  // ukazuje CELY obsah poznamky (ne jen zkraceny snippet), vysku si
+  // prizpusobuje obsahu (zadna pevna vyska), a je jemne podbarvena barvou
+  // vlastni kategorie (misto jen barevneho pruhu vlevo). Poznamky z
+  // kategorie Hláška se navic zobrazuji na celou sirku (viz caller).
+  function stickyTileHtml(n, opts = {}) {
+    const { wide = false } = opts;
+    const folder = folderByName(n.druh);
+    const color = folder ? folder.barva : "#999";
+    const title = (n.nazev && n.nazev.trim()) ? n.nazev.trim() : "";
+    const contentHtml = (n.popis && n.popis.trim()) ? n.popis : "<p><em>Prázdná poznámka</em></p>";
+    const tags = Array.isArray(n.stitky) ? n.stitky : [];
+    const tagsHtml = tags.length
+      ? `<div class="note-row-tags">${tags.map(t => `<span class="tag-pill">#${escapeHtml(t)}</span>`).join("")}</div>`
+      : "";
+    return `<div class="dashboard-sticky ${wide ? "dashboard-sticky-wide" : ""}" style="background:${hexToRgba(color, 0.16)};border-color:${hexToRgba(color, 0.45)}" data-id="${n.id}">
+      <button class="note-row-del" data-id="${n.id}" title="Smazat poznámku" aria-label="Smazat poznámku">🗑</button>
+      <div class="dashboard-sticky-top">
+        <span class="note-row-badge" style="background:${color}33;color:${color}">${folderIconPrefix(folder)}${escapeHtml(n.druh || "")}</span>
+        <button class="note-row-star active" data-id="${n.id}" title="Oblíbené" aria-label="Oblíbené">★</button>
+      </div>
+      ${title ? `<div class="note-row-title">${ratingBadgeHtml(n.hodnoceni)}${escapeHtml(title)}</div>` : ""}
+      <div class="dashboard-sticky-content">${contentHtml}</div>
+      ${tagsHtml}
+    </div>`;
+  }
+
   function renderDashboardView() {
     notesColTitle.textContent = "🏠 Dashboard";
     const favs = visibleNotes().filter(n => n.oblibene);
@@ -2094,37 +2236,43 @@
       return;
     }
 
-    const groups = new Map();
-    favs.forEach(n => {
-      const key = n.druh || "";
-      if (!groups.has(key)) groups.set(key, []);
-      groups.get(key).push(n);
-    });
-    const groupNames = [...groups.keys()].sort((a, b) => a.localeCompare(b, "cs"));
+    // Řazení podle data vzniku poznámky (ne podle data v poli Datum) -
+    // nejnovější nahoře, nejstarší dole. Starší poznámky bez pole
+    // "vytvoreno" (z doby před jeho zavedením) spadnou na konec dle Datumu.
+    const byCreatedDesc = (a, b) => {
+      const at = (a.vytvoreno && a.vytvoreno.toMillis) ? a.vytvoreno.toMillis() : 0;
+      const bt = (b.vytvoreno && b.vytvoreno.toMillis) ? b.vytvoreno.toMillis() : 0;
+      if (at !== bt) return bt - at;
+      if (a.datum !== b.datum) return a.datum < b.datum ? 1 : -1;
+      return 0;
+    };
+
+    // Poznámky z kategorie Hláška se zobrazují zvlášť, na celou šířku,
+    // nahoře nad ostatními oblíbenými poznámkami (viz zadání) - bez názvů
+    // kategorií, jen jako obarvené "sticky" kartičky.
+    const hlaskaFavs = favs.filter(n => isHlaskaFolder(n.druh)).sort(byCreatedDesc);
+    const otherFavs = favs.filter(n => !isHlaskaFolder(n.druh)).sort(byCreatedDesc);
 
     let html = memoryHtml;
     if (favs.length === 0) {
       html += `<div class="empty-state">Zatím žádné oblíbené poznámky.</div>`;
     }
-    groupNames.forEach(name => {
-      const notesInGroup = groups.get(name).slice().sort((a, b) => {
-        if (a.datum === b.datum) return 0;
-        return a.datum < b.datum ? 1 : -1;
-      });
-      const folder = folderByName(name);
-      const color = folder ? folder.barva : "#999";
-      html += `<div class="dashboard-group">
-        <div class="dashboard-group-label">
-          <span class="folder-dot" style="background:${color}"></span>${folderIconPrefix(folder)}${escapeHtml(name || "Bez složky")}
-        </div>
-        <div class="dashboard-row">`;
-      notesInGroup.forEach(n => {
-        html += noteTileHtml(n, { extraClasses: "dashboard-tile", starForceActive: true, showDatum: true, showTermin: false });
-      });
-      html += `</div></div>`;
-    });
+    if (hlaskaFavs.length > 0) {
+      html += `<div class="dashboard-stickies dashboard-stickies-wide">` +
+        hlaskaFavs.map(n => stickyTileHtml(n, { wide: true })).join("") + `</div>`;
+    }
+    if (otherFavs.length > 0) {
+      html += `<div class="dashboard-stickies">` +
+        otherFavs.map(n => stickyTileHtml(n)).join("") + `</div>`;
+    }
     notesList.innerHTML = html;
 
+    notesList.querySelectorAll(".dashboard-sticky").forEach(tile => {
+      tile.addEventListener("click", (e) => {
+        if (e.target.closest(".note-row-del") || e.target.closest(".note-row-star")) return;
+        goToNoteInFolder(tile.dataset.id);
+      });
+    });
     notesList.querySelectorAll(".dashboard-tile").forEach(tile => {
       tile.addEventListener("click", (e) => {
         if (e.target.closest(".note-row-del") || e.target.closest(".note-row-star")) return;
@@ -2223,6 +2371,7 @@
     if (searchInput.value.trim() && ["dashboard", "termin", "calendar"].includes(view.type)) {
       view = { type: "all" };
       columnsEl.classList.remove("dashboard-mode");
+      columnsEl.classList.remove("view-termin", "view-calendar", "view-dashboard");
       newNoteBtn.style.display = "";
       exportPdfBtn.style.display = "";
       newsletterBtn.style.display = "";
