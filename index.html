@@ -402,16 +402,8 @@
   }
   .toast.visible { opacity: 1; transform: translateX(-50%) translateY(-6px); pointer-events: auto; }
 
-  /* ---------- Ranní dialogy (termíny, vzpomínka) ---------- */
+  /* ---------- Ranní dialog (termíny) ---------- */
   .modal-card.termin-summary-card { background: #fdf3d9; border: 2px solid #e8c14a; max-width: 400px; }
-  .modal-card.memory-summary-card { background: #fdf3e8; border: 2px solid #e8c896; max-width: 480px; }
-  .memory-modal-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
-  .memory-modal-date { font-size: 12px; color: var(--ink-soft); }
-  .memory-modal-content {
-    max-height: 45vh; overflow-y: auto; font-size: 14px; line-height: 1.5;
-    padding: 12px; background: var(--paper); border-radius: 10px; border: 1px solid var(--line);
-  }
-  .memory-modal-content img { max-width: 100%; }
   .toast-undo-btn {
     background: transparent; border: 1.5px solid rgba(255,255,255,0.5); color: #fff;
     border-radius: 7px; padding: 4px 11px; font-size: 12.5px; font-weight: 700; cursor: pointer;
@@ -481,7 +473,6 @@
   .dashboard-row { display: flex; flex-wrap: wrap; gap: 8px; }
   .dashboard-tile { flex: 1 1 180px; max-width: 280px; margin-bottom: 0; }
   .dashboard-tile.termin-dash-tile { flex: 0 0 280px; width: 280px; }
-  .dashboard-tile.memory-tile { flex: 1 1 100%; width: auto; max-width: none; background: #fdf3e8; border-color: #e8c896; }
 
   /* ---------- Mobile ---------- */
   .back-btn { display: none; }
@@ -495,7 +486,6 @@
     .back-btn { display: inline-flex; }
     .dashboard-tile { flex: 1 1 100%; max-width: 100%; }
     .dashboard-tile.termin-dash-tile { flex: 1 1 100%; width: auto; }
-    .dashboard-tile.memory-tile { flex: 1 1 100%; width: auto; }
     .calendar-grid { gap: 3px; }
     .calendar-day { min-height: 56px; max-height: 100px; padding: 3px; }
     .calendar-day-num { font-size: 10px; }
@@ -613,6 +603,14 @@
   .dashboard-sticky-wide { margin-bottom: 0; }
   .dashboard-sticky:hover .note-row-del { display: block; }
   .dashboard-sticky-top { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+  /* .note-row-title je jinde v appce (řádky v seznamu, čipy v kalendáři)
+     schválně jednořádkový s "..." na konci - uvnitř sticky karty ale chceme
+     vidět celý název, i kdyby byl dlouhý, proto se tu toto pravidlo pro
+     tuto konkrétní kombinaci selektorů přebíjí. */
+  .dashboard-sticky .note-row-title {
+    white-space: normal; overflow: visible; text-overflow: clip;
+    overflow-wrap: anywhere; word-break: break-word;
+  }
   /* Text (včetně dlouhých odkazů bez mezer) se musí zalomit uvnitř boxu,
      jinak přeteče přes okraj do dalšího sloupce - platí i pro vnořené
      elementy (odkazy, tučné/kurzíva, položky seznamu...). */
@@ -765,18 +763,6 @@
   </div>
 </div>
 
-<div class="modal-overlay" id="memoryModal">
-  <div class="modal-card memory-summary-card">
-    <h3>💭 Vzpomínka</h3>
-    <div class="memory-modal-meta" id="memoryModalMeta"></div>
-    <div class="memory-modal-content" id="memoryModalContent"></div>
-    <div class="row-btns">
-      <button class="btn btn-secondary" id="memoryModalOpenBtn" type="button">Otevřít poznámku</button>
-      <button class="btn" id="memoryModalCloseBtn" type="button">Zavřít</button>
-    </div>
-  </div>
-</div>
-
 <div class="toast" id="toast"></div>
 
 <div class="modal-overlay" id="pdfRangeModal">
@@ -837,7 +823,7 @@
   // nahrání nové verze na GitHub pozná (i přes zpoždění nasazení), jestli
   // se jí už načetla nejnovější verze, nebo pořád vidí tu starou z cache.
   // Při KAŽDÉ příští úpravě index.html je potřeba tohle číslo zvýšit o 1.
-  const APP_VERSION = "1";
+  const APP_VERSION = "2";
   document.querySelectorAll(".app-version-badge").forEach(el => {
     el.textContent = "v" + APP_VERSION;
   });
@@ -881,11 +867,6 @@
   const terminSummaryModal = document.getElementById("terminSummaryModal");
   const terminSummaryModalText = document.getElementById("terminSummaryModalText");
   const terminSummaryModalCloseBtn = document.getElementById("terminSummaryModalCloseBtn");
-  const memoryModal = document.getElementById("memoryModal");
-  const memoryModalMeta = document.getElementById("memoryModalMeta");
-  const memoryModalContent = document.getElementById("memoryModalContent");
-  const memoryModalOpenBtn = document.getElementById("memoryModalOpenBtn");
-  const memoryModalCloseBtn = document.getElementById("memoryModalCloseBtn");
   const columnsEl = document.getElementById("columns");
 
   const foldersList = document.getElementById("foldersList");
@@ -1704,15 +1685,10 @@
     });
   }
 
-  // ---------- Ranní dialogy (termíny, vzpomínka) ----------
-  // Čistě informační dialogy - appka si při prvním otevření daný den (jednou
-  // denně, hlídáno přes localStorage) sama všimne dnešních termínů a denní
-  // vzpomínky. Dialog s termíny se navíc zobrazuje jen po 6:00 (ranní
-  // souhrn), dialog se vzpomínkou žádné časové omezení nemá. Pokud by měly
-  // platit oba zároveň, zobrazí se nejdřív termíny a po jejich zavření
-  // vzpomínka, ať appka nezobrazuje dva dialogy najednou přes sebe.
-  let currentMemoryNoteId = null;
-
+  // ---------- Ranní dialog (termíny) ----------
+  // Čistě informační dialog - appka si při prvním otevření daný den (jednou
+  // denně, hlídáno přes localStorage) sama všimne dnešních termínů. Zobrazuje
+  // se jen po 6:00 (ranní souhrn).
   function tryShowTerminSummaryModal() {
     const now = new Date();
     if (now.getHours() < 6) return false;
@@ -1735,38 +1711,16 @@
     return true;
   }
 
-  function tryShowMemoryModal() {
-    const todayStr = localTodayStr();
-    if (localStorage.getItem("memoryShownDate") === todayStr) return false;
-    const memory = pickDailyMemory();
-    if (!memory) return false;
-    localStorage.setItem("memoryShownDate", todayStr);
-    currentMemoryNoteId = memory.id;
-    const folder = folderByName(memory.druh);
-    const color = folder ? folder.barva : "#999";
-    memoryModalMeta.innerHTML = `<span class="note-row-badge" style="background:${color}22;color:${color}">${folderIconPrefix(folder)}${escapeHtml(memory.druh || "")}</span> <strong>${escapeHtml(noteTitle(memory))}</strong> <span class="memory-modal-date">${formatDate(memory.datum)}</span>`;
-    memoryModalContent.innerHTML = memory.popis || "<em>Prázdná poznámka</em>";
-    memoryModal.classList.add("visible");
-    return true;
-  }
-
+  // Samostatný dialog se "vzpomínkou" byl zrušen - vzpomínka se teď ukazuje
+  // rovnou jako sticky karta na Dashboardu a při každém jeho vykreslení se
+  // může vybrat jiná (viz pickDailyMemory), takže samostatné denní
+  // upozornění by na to jen zbytečně upozorňovalo dvakrát.
   function runDailyDialogs() {
-    const shownTermin = tryShowTerminSummaryModal();
-    if (!shownTermin) tryShowMemoryModal();
+    tryShowTerminSummaryModal();
   }
 
   terminSummaryModalCloseBtn.addEventListener("click", () => {
     terminSummaryModal.classList.remove("visible");
-    tryShowMemoryModal();
-  });
-
-  memoryModalCloseBtn.addEventListener("click", () => {
-    memoryModal.classList.remove("visible");
-  });
-
-  memoryModalOpenBtn.addEventListener("click", () => {
-    memoryModal.classList.remove("visible");
-    if (currentMemoryNoteId) goToNoteInFolder(currentMemoryNoteId);
   });
 
   function currentViewNotes() {
@@ -2231,38 +2185,25 @@
     });
   }
 
-  // Denně jiná vzpomínka ze složky Hlášky - deterministicky podle dnešního
-  // data, ať appka na stejném zařízení i po znovunačtení ukazuje ten samý
-  // den pořád stejnou vzpomínku. Řazeno od nejstarší po nejnovější a pak
-  // znovu od začátku (kolotoč).
+  // Vzpomínka ze složky Hlášky - vybírá se náhodně při KAŽDÉM vykreslení
+  // Dashboardu (ne jednou za den), takže se může změnit i v rámci téhož dne
+  // při pouhém znovunačtení stránky.
   function pickDailyMemory() {
-    const hlaskyNotes = visibleNotes()
-      .filter(n => isHlaskaFolder(n.druh))
-      .slice()
-      .sort((a, b) => (a.datum < b.datum ? -1 : a.datum > b.datum ? 1 : 0));
+    const hlaskyNotes = visibleNotes().filter(n => isHlaskaFolder(n.druh));
     if (hlaskyNotes.length === 0) return null;
-    const todayStr = localTodayStr();
-    const [y, m, d] = todayStr.split("-").map(Number);
-    const dayIndex = Math.floor(Date.UTC(y, m - 1, d) / 86400000);
-    const idx = ((dayIndex % hlaskyNotes.length) + hlaskyNotes.length) % hlaskyNotes.length;
+    const idx = Math.floor(Math.random() * hlaskyNotes.length);
     return hlaskyNotes[idx];
   }
 
+  // Vzpomínka se na Dashboardu zobrazuje jako obyčejná sticky karta na celou
+  // šířku (stejná komponenta jako u ostatních poznámek, jen s vlastní
+  // broskvovou barvou) - bez samostatného nadpisu skupiny a bez omezení
+  // výšky, ať je vidět celý obsah.
   function memorySectionHtml() {
     const memory = pickDailyMemory();
     if (!memory) return "";
-    return `<div class="dashboard-group memory-group">
-      <div class="dashboard-group-label">
-        <span class="folder-dot" style="background:#c9772e"></span>💭 Vzpomínka
-      </div>
-      <div class="dashboard-row">
-        ${noteTileHtml(memory, {
-          extraClasses: "dashboard-tile memory-tile",
-          showDatum: true,
-          showTermin: false,
-          tooltipText: htmlToShareText(memory.popis || "", { markdown: false })
-        })}
-      </div>
+    return `<div class="dashboard-stickies dashboard-stickies-wide">
+      ${stickyTileHtml(memory, { wide: true, forceBg: "#fdf3e8", forceBorder: "#e8c896", badgeExtra: "💭 " })}
     </div>`;
   }
 
@@ -2272,7 +2213,7 @@
   // vlastni kategorie (misto jen barevneho pruhu vlevo). Poznamky z
   // kategorie Hláška se navic zobrazuji na celou sirku (viz caller).
   function stickyTileHtml(n, opts = {}) {
-    const { wide = false } = opts;
+    const { wide = false, forceBg = null, forceBorder = null, badgeExtra = "" } = opts;
     const folder = folderByName(n.druh);
     const color = folder ? folder.barva : "#999";
     const title = (n.nazev && n.nazev.trim()) ? n.nazev.trim() : "";
@@ -2283,11 +2224,16 @@
       : "";
     // Neprůhledný pastelový odstín (ne hexToRgba) - musí plně zakrýt jemný
     // květinový vzor pozadí Dashboardu pod sebou, jinak by jím prosvítal.
-    return `<div class="dashboard-sticky ${wide ? "dashboard-sticky-wide" : ""}" style="background:${mixWithWhite(color, 0.16)};border-color:${hexToRgba(color, 0.45)}" data-id="${n.id}">
+    // forceBg/forceBorder umožňují přebít barvu odvozenou od kategorie -
+    // využívá karta se "vzpomínkou", která má vždy vlastní broskvový odstín
+    // bez ohledu na kategorii zdrojové poznámky.
+    const bg = forceBg || mixWithWhite(color, 0.16);
+    const border = forceBorder || hexToRgba(color, 0.45);
+    return `<div class="dashboard-sticky ${wide ? "dashboard-sticky-wide" : ""}" style="background:${bg};border-color:${border}" data-id="${n.id}">
       <button class="note-row-del" data-id="${n.id}" title="Smazat poznámku" aria-label="Smazat poznámku">🗑</button>
       <div class="dashboard-sticky-top">
-        <span class="note-row-badge" style="background:${color}33;color:${color}">${folderIconPrefix(folder)}${escapeHtml(n.druh || "")}</span>
-        <button class="note-row-star active" data-id="${n.id}" title="Oblíbené" aria-label="Oblíbené">★</button>
+        <span class="note-row-badge" style="background:${color}33;color:${color}">${badgeExtra}${folderIconPrefix(folder)}${escapeHtml(n.druh || "")}</span>
+        <button class="note-row-star ${n.oblibene ? "active" : ""}" data-id="${n.id}" title="Oblíbené" aria-label="Oblíbené">★</button>
       </div>
       ${title ? `<div class="note-row-title">${ratingBadgeHtml(n.hodnoceni)}${escapeHtml(title)}</div>` : ""}
       <div class="dashboard-sticky-content">${contentHtml}</div>
