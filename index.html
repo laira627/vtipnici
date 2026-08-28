@@ -392,6 +392,9 @@
   .modal-card .modal-sub { color: var(--ink-soft); font-size: 13px; margin: 0 0 16px; }
   .modal-card .row-btns { display: flex; gap: 8px; margin-top: 6px; }
   .modal-card .row-btns .btn { padding: 10px; font-size: 14px; }
+  .nl-format-row { display: flex; gap: 14px; flex-wrap: wrap; }
+  .nl-format-option { display: flex; align-items: center; gap: 6px; font-size: 13.5px; font-weight: 600; color: var(--ink-soft); cursor: pointer; }
+  .nl-format-option input { width: auto; margin: 0; }
 
   .toast {
     position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
@@ -413,10 +416,10 @@
 
   /* ---------- Newsletter (Hláška) ---------- */
   #newsletterStage {
-    position: fixed; left: -99999px; top: 0; width: 1080px;
+    position: fixed; left: -99999px; top: 0;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   }
-  .nl-root { background: #fffaf0; }
+  .nl-root { background: #fffaf0; width: 1080px; }
   .nl-header {
     background: linear-gradient(180deg, #ffd6a5 0%, #ff9a9e 100%);
     padding: 70px 60px 45px; text-align: center; position: relative; overflow: hidden;
@@ -449,6 +452,37 @@
   .nl-footer .nl-f1 { font-size: 26px; font-weight: 700; color: #78412d; margin: 0 0 12px; }
   .nl-footer .nl-f2 { font-size: 24px; color: #965f4b; margin: 0; }
 
+  /* ---------- Export A4 (fotokniha) ---------- */
+  .a4-page {
+    width: 1240px; background: #fffaf0; box-sizing: border-box;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  .a4-page-fixed { height: 1754px; overflow: hidden; }
+  .a4-header {
+    background: linear-gradient(180deg, #ffd6a5 0%, #ff9a9e 100%);
+    padding: 46px 60px 30px; text-align: center;
+  }
+  .a4-header h1 { font-size: 46px; font-weight: 800; color: #46161e; margin: 0 0 8px; letter-spacing: .5px; }
+  .a4-header-range { font-size: 21px; color: #5a2d2d; }
+  .a4-header-pagenum { font-size: 15px; color: #783f3f; margin-top: 6px; }
+  .a4-content { padding: 28px 46px 6px; }
+  .a4-cards { column-count: 2; column-gap: 20px; }
+  .a4-card {
+    background: #fff; border-radius: 14px; padding: 16px 18px; margin: 8px 0 18px;
+    box-shadow: 4px 5px 0 #e1cdc3; border-left: 7px solid var(--nl-color, #999);
+    break-inside: avoid; -webkit-column-break-inside: avoid;
+  }
+  .a4-card-top { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 8px; }
+  .a4-badges { display: flex; flex-wrap: wrap; gap: 5px; }
+  .a4-badge {
+    display: inline-block; background: var(--nl-badge-color, var(--nl-color, #999)); color: #fff;
+    font-weight: 700; font-size: 10.5px; padding: 3px 9px; border-radius: 999px;
+  }
+  .a4-date { font-size: 11px; color: #786464; }
+  .a4-title { font-size: 15px; font-weight: 700; color: #3c2d32; margin: 0 0 8px; }
+  .a4-text { font-size: 13.5px; line-height: 1.42; color: #373237; white-space: pre-wrap; }
+  .a4-footer { text-align: center; padding: 10px 20px 26px; font-size: 15px; font-weight: 700; color: #965f4b; }
+
   /* ---------- Print ---------- */
   #printArea { display: none; }
   @media print {
@@ -457,6 +491,11 @@
     .print-note { page-break-inside: avoid; margin-bottom: 26px; }
     .print-title { font-size: 20px; font-weight: 700; margin: 0 0 2px; }
     .print-meta { font-size: 12px; color: #555; margin-bottom: 10px; }
+    .print-tags { margin: 0 0 10px; }
+    .print-tag-pill {
+      display: inline-block; font-size: 11px; font-weight: 600; background: #eef3f8; color: #2c527f;
+      padding: 2px 8px; border-radius: 999px; margin: 0 4px 4px 0;
+    }
     .print-folder-title { font-size: 26px; margin-bottom: 20px; }
     .print-content img { max-width: 100%; }
   }
@@ -519,20 +558,10 @@
     vertical-align: middle; letter-spacing: .02em;
   }
 
-  /* ---------- Pastelové pozadí přehledů (Termín / Kalendář / Dashboard) ----------
-     Velmi světlý tón + jemná květinová/listová "větvička" nahoře, která
-     směrem dolů vyhasíná (mask-image gradient) - podobně jako ukázkové
-     obrázky (větvičky/motýlci nahoře, dole čistá barva). Vzor je na
-     ::before s záporným z-indexem, takže leží ZA veškerým obsahem sloupce
-     (vyhledávání, stickies, karty) a nikdy jim nepřekrývá/neprosvítá skrz. */
+  /* ---------- Pastelové pozadí přehledů (Termín / Kalendář / Dashboard) ---------- */
   .columns.view-termin .col-notes,
   .columns.view-calendar .col-notes,
   .columns.view-dashboard .col-notes {
-    /* z-index: 0 (ne jen position: relative) je tu nutné, aby tenhle
-       element sám založil vlastní "stacking context" - bez něj by záporný
-       z-index na ::before níže neskočil jen za JEHO vlastní obsah, ale
-       mohl by propadnout až za úplně jiné, vzdálenější předky (a vzor by
-       tak zmizel úplně z vrstvy, kterou je vidět). */
     position: relative;
     z-index: 0;
   }
@@ -546,46 +575,27 @@
     -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 30%, transparent 90%);
     mask-image: linear-gradient(to bottom, #000 0%, #000 30%, transparent 90%);
   }
-  .columns.view-termin .col-notes {
-    background-color: #fffaf2;
-  }
+  .columns.view-termin .col-notes { background-color: #fffaf2; }
   .columns.view-termin .col-notes::before {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='340' height='150' viewBox='0 0 340 150'%3E%3Cpath d='M-10,16 C 30,30 55,4 95,18 C 135,32 155,6 195,20 C 235,34 255,6 295,18 C 315,24 325,14 350,20' stroke='%23c9a24a' stroke-width='1.4' fill='none' opacity='0.5'/%3E%3Cellipse cx='3.1' cy='24.0' rx='7.0' ry='2.9' fill='%23f0c98a' opacity='0.65' transform='rotate(-1 3.1 24.0)'/%3E%3Cellipse cx='33.6' cy='12.5' rx='7.7' ry='3.2' fill='%23f0c98a' opacity='0.52' transform='rotate(37 33.6 12.5)'/%3E%3Cellipse cx='30.5' cy='19.4' rx='8.4' ry='3.5' fill='%23e0a733' opacity='0.46' transform='rotate(-56 30.5 19.4)'/%3E%3Cellipse cx='60.3' cy='43.0' rx='8.7' ry='3.7' fill='%23e0a733' opacity='0.64' transform='rotate(66 60.3 43.0)'/%3E%3Cellipse cx='60.1' cy='41.9' rx='8.2' ry='3.4' fill='%23f0c98a' opacity='0.69' transform='rotate(-22 60.1 41.9)'/%3E%3Cellipse cx='82.7' cy='37.6' rx='6.7' ry='2.8' fill='%23e0a733' opacity='0.64' transform='rotate(69 82.7 37.6)'/%3E%3Cellipse cx='104.6' cy='31.7' rx='8.0' ry='3.4' fill='%23f0c98a' opacity='0.60' transform='rotate(57 104.6 31.7)'/%3E%3Cellipse cx='102.9' cy='40.5' rx='9.4' ry='3.9' fill='%23e0a733' opacity='0.57' transform='rotate(1 102.9 40.5)'/%3E%3Cellipse cx='124.0' cy='35.5' rx='7.5' ry='3.1' fill='%23f0c98a' opacity='0.47' transform='rotate(54 124.0 35.5)'/%3E%3Cellipse cx='145.7' cy='24.5' rx='8.1' ry='3.4' fill='%23e0a733' opacity='0.57' transform='rotate(-15 145.7 24.5)'/%3E%3Cellipse cx='172.5' cy='30.6' rx='8.6' ry='3.6' fill='%23e0a733' opacity='0.64' transform='rotate(-46 172.5 30.6)'/%3E%3Cellipse cx='169.2' cy='36.9' rx='9.4' ry='4.0' fill='%23f0c98a' opacity='0.56' transform='rotate(-37 169.2 36.9)'/%3E%3Cellipse cx='196.7' cy='41.8' rx='7.5' ry='3.2' fill='%23e0a733' opacity='0.58' transform='rotate(50 196.7 41.8)'/%3E%3Cellipse cx='218.3' cy='31.0' rx='7.9' ry='3.3' fill='%23f0c98a' opacity='0.57' transform='rotate(-19 218.3 31.0)'/%3E%3Cellipse cx='242.2' cy='22.6' rx='7.8' ry='3.3' fill='%23e0a733' opacity='0.59' transform='rotate(-66 242.2 22.6)'/%3E%3Cellipse cx='251.3' cy='36.3' rx='6.4' ry='2.7' fill='%23f0c98a' opacity='0.46' transform='rotate(7 251.3 36.3)'/%3E%3Cellipse cx='271.5' cy='19.3' rx='7.8' ry='3.3' fill='%23f0c98a' opacity='0.48' transform='rotate(36 271.5 19.3)'/%3E%3Cellipse cx='293.5' cy='38.5' rx='6.7' ry='2.8' fill='%23f0c98a' opacity='0.61' transform='rotate(-34 293.5 38.5)'/%3E%3Cellipse cx='317.1' cy='31.7' rx='7.9' ry='3.3' fill='%23f0c98a' opacity='0.65' transform='rotate(-67 317.1 31.7)'/%3E%3Cellipse cx='314.2' cy='44.7' rx='7.0' ry='2.9' fill='%23f0c98a' opacity='0.65' transform='rotate(32 314.2 44.7)'/%3E%3Cg opacity='0.66' transform='translate(18.1 30.4) scale(0.87)'%3E%3Cellipse cx='3.4' cy='0.0' rx='2.6' ry='1.7' fill='%23f0b499' transform='rotate(0 3.4 0.0)'/%3E%3Cellipse cx='1.1' cy='3.2' rx='2.6' ry='1.7' fill='%23f0b499' transform='rotate(72 1.1 3.2)'/%3E%3Cellipse cx='-2.8' cy='2.0' rx='2.6' ry='1.7' fill='%23f0b499' transform='rotate(144 -2.8 2.0)'/%3E%3Cellipse cx='-2.8' cy='-2.0' rx='2.6' ry='1.7' fill='%23f0b499' transform='rotate(216 -2.8 -2.0)'/%3E%3Cellipse cx='1.1' cy='-3.2' rx='2.6' ry='1.7' fill='%23f0b499' transform='rotate(288 1.1 -3.2)'/%3E%3Ccircle cx='0' cy='0' r='1.6' fill='%23c9772e'/%3E%3C/g%3E%3Cg opacity='0.61' transform='translate(64.4 39.4) scale(1.17)'%3E%3Cellipse cx='3.4' cy='0.0' rx='2.6' ry='1.7' fill='%23e8935f' transform='rotate(0 3.4 0.0)'/%3E%3Cellipse cx='1.1' cy='3.2' rx='2.6' ry='1.7' fill='%23e8935f' transform='rotate(72 1.1 3.2)'/%3E%3Cellipse cx='-2.8' cy='2.0' rx='2.6' ry='1.7' fill='%23e8935f' transform='rotate(144 -2.8 2.0)'/%3E%3Cellipse cx='-2.8' cy='-2.0' rx='2.6' ry='1.7' fill='%23e8935f' transform='rotate(216 -2.8 -2.0)'/%3E%3Cellipse cx='1.1' cy='-3.2' rx='2.6' ry='1.7' fill='%23e8935f' transform='rotate(288 1.1 -3.2)'/%3E%3Ccircle cx='0' cy='0' r='1.6' fill='%23c9772e'/%3E%3C/g%3E%3Cg opacity='0.71' transform='translate(106.8 38.7) scale(1.06)'%3E%3Cellipse cx='3.4' cy='0.0' rx='2.6' ry='1.7' fill='%23e8935f' transform='rotate(0 3.4 0.0)'/%3E%3Cellipse cx='1.1' cy='3.2' rx='2.6' ry='1.7' fill='%23e8935f' transform='rotate(72 1.1 3.2)'/%3E%3Cellipse cx='-2.8' cy='2.0' rx='2.6' ry='1.7' fill='%23e8935f' transform='rotate(144 -2.8 2.0)'/%3E%3Cellipse cx='-2.8' cy='-2.0' rx='2.6' ry='1.7' fill='%23e8935f' transform='rotate(216 -2.8 -2.0)'/%3E%3Cellipse cx='1.1' cy='-3.2' rx='2.6' ry='1.7' fill='%23e8935f' transform='rotate(288 1.1 -3.2)'/%3E%3Ccircle cx='0' cy='0' r='1.6' fill='%23c9772e'/%3E%3C/g%3E%3Cg opacity='0.77' transform='translate(146.9 46.2) scale(0.86)'%3E%3Cellipse cx='3.4' cy='0.0' rx='2.6' ry='1.7' fill='%23f0b499' transform='rotate(0 3.4 0.0)'/%3E%3Cellipse cx='1.1' cy='3.2' rx='2.6' ry='1.7' fill='%23f0b499' transform='rotate(72 1.1 3.2)'/%3E%3Cellipse cx='-2.8' cy='2.0' rx='2.6' ry='1.7' fill='%23f0b499' transform='rotate(144 -2.8 2.0)'/%3E%3Cellipse cx='-2.8' cy='-2.0' rx='2.6' ry='1.7' fill='%23f0b499' transform='rotate(216 -2.8 -2.0)'/%3E%3Cellipse cx='1.1' cy='-3.2' rx='2.6' ry='1.7' fill='%23f0b499' transform='rotate(288 1.1 -3.2)'/%3E%3Ccircle cx='0' cy='0' r='1.6' fill='%23c9772e'/%3E%3C/g%3E%3Cg opacity='0.74' transform='translate(186.7 48.9) scale(0.94)'%3E%3Cellipse cx='3.4' cy='0.0' rx='2.6' ry='1.7' fill='%23e8935f' transform='rotate(0 3.4 0.0)'/%3E%3Cellipse cx='1.1' cy='3.2' rx='2.6' ry='1.7' fill='%23e8935f' transform='rotate(72 1.1 3.2)'/%3E%3Cellipse cx='-2.8' cy='2.0' rx='2.6' ry='1.7' fill='%23e8935f' transform='rotate(144 -2.8 2.0)'/%3E%3Cellipse cx='-2.8' cy='-2.0' rx='2.6' ry='1.7' fill='%23e8935f' transform='rotate(216 -2.8 -2.0)'/%3E%3Cellipse cx='1.1' cy='-3.2' rx='2.6' ry='1.7' fill='%23e8935f' transform='rotate(288 1.1 -3.2)'/%3E%3Ccircle cx='0' cy='0' r='1.6' fill='%23c9772e'/%3E%3C/g%3E%3Cg opacity='0.70' transform='translate(227.5 35.6) scale(0.80)'%3E%3Cellipse cx='3.4' cy='0.0' rx='2.6' ry='1.7' fill='%23f0b499' transform='rotate(0 3.4 0.0)'/%3E%3Cellipse cx='1.1' cy='3.2' rx='2.6' ry='1.7' fill='%23f0b499' transform='rotate(72 1.1 3.2)'/%3E%3Cellipse cx='-2.8' cy='2.0' rx='2.6' ry='1.7' fill='%23f0b499' transform='rotate(144 -2.8 2.0)'/%3E%3Cellipse cx='-2.8' cy='-2.0' rx='2.6' ry='1.7' fill='%23f0b499' transform='rotate(216 -2.8 -2.0)'/%3E%3Cellipse cx='1.1' cy='-3.2' rx='2.6' ry='1.7' fill='%23f0b499' transform='rotate(288 1.1 -3.2)'/%3E%3Ccircle cx='0' cy='0' r='1.6' fill='%23c9772e'/%3E%3C/g%3E%3Cg opacity='0.64' transform='translate(273.6 49.8) scale(1.01)'%3E%3Cellipse cx='3.4' cy='0.0' rx='2.6' ry='1.7' fill='%23f0b499' transform='rotate(0 3.4 0.0)'/%3E%3Cellipse cx='1.1' cy='3.2' rx='2.6' ry='1.7' fill='%23f0b499' transform='rotate(72 1.1 3.2)'/%3E%3Cellipse cx='-2.8' cy='2.0' rx='2.6' ry='1.7' fill='%23f0b499' transform='rotate(144 -2.8 2.0)'/%3E%3Cellipse cx='-2.8' cy='-2.0' rx='2.6' ry='1.7' fill='%23f0b499' transform='rotate(216 -2.8 -2.0)'/%3E%3Cellipse cx='1.1' cy='-3.2' rx='2.6' ry='1.7' fill='%23f0b499' transform='rotate(288 1.1 -3.2)'/%3E%3Ccircle cx='0' cy='0' r='1.6' fill='%23c9772e'/%3E%3C/g%3E%3Cg opacity='0.70' transform='translate(311.9 34.5) scale(1.10)'%3E%3Cellipse cx='3.4' cy='0.0' rx='2.6' ry='1.7' fill='%23e8935f' transform='rotate(0 3.4 0.0)'/%3E%3Cellipse cx='1.1' cy='3.2' rx='2.6' ry='1.7' fill='%23e8935f' transform='rotate(72 1.1 3.2)'/%3E%3Cellipse cx='-2.8' cy='2.0' rx='2.6' ry='1.7' fill='%23e8935f' transform='rotate(144 -2.8 2.0)'/%3E%3Cellipse cx='-2.8' cy='-2.0' rx='2.6' ry='1.7' fill='%23e8935f' transform='rotate(216 -2.8 -2.0)'/%3E%3Cellipse cx='1.1' cy='-3.2' rx='2.6' ry='1.7' fill='%23e8935f' transform='rotate(288 1.1 -3.2)'/%3E%3Ccircle cx='0' cy='0' r='1.6' fill='%23c9772e'/%3E%3C/g%3E%3Cellipse cx='318.9' cy='79.6' rx='4.8' ry='2.0' fill='%23f0b499' opacity='0.23' transform='rotate(3 318.9 79.6)'/%3E%3Cellipse cx='296.4' cy='111.7' rx='3.5' ry='1.5' fill='%23f0c98a' opacity='0.12' transform='rotate(36 296.4 111.7)'/%3E%3Cellipse cx='275.8' cy='90.5' rx='3.8' ry='1.6' fill='%23f0c98a' opacity='0.20' transform='rotate(77 275.8 90.5)'/%3E%3Cellipse cx='229.3' cy='107.8' rx='5.8' ry='2.4' fill='%23f0b499' opacity='0.14' transform='rotate(62 229.3 107.8)'/%3E%3Cellipse cx='181.7' cy='103.4' rx='4.8' ry='2.0' fill='%23e0a733' opacity='0.15' transform='rotate(12 181.7 103.4)'/%3E%3Cellipse cx='28.8' cy='65.7' rx='5.8' ry='2.4' fill='%23f0c98a' opacity='0.28' transform='rotate(38 28.8 65.7)'/%3E%3Cellipse cx='204.1' cy='108.0' rx='4.4' ry='1.9' fill='%23f0c98a' opacity='0.13' transform='rotate(61 204.1 108.0)'/%3E%3Cellipse cx='80.0' cy='114.5' rx='5.4' ry='2.3' fill='%23f0c98a' opacity='0.11' transform='rotate(129 80.0 114.5)'/%3E%3Cellipse cx='46.0' cy='89.7' rx='3.8' ry='1.6' fill='%23e0a733' opacity='0.20' transform='rotate(7 46.0 89.7)'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='340' height='150' viewBox='0 0 340 150'%3E%3Cpath d='M-10,16 C 30,30 55,4 95,18 C 135,32 155,6 195,20 C 235,34 255,6 295,18 C 315,24 325,14 350,20' stroke='%23c9a24a' stroke-width='1.4' fill='none' opacity='0.5'/%3E%3Cellipse cx='60' cy='30' rx='9' ry='4' fill='%23f0c98a' opacity='0.6'/%3E%3Cellipse cx='120' cy='34' rx='9' ry='4' fill='%23e0a733' opacity='0.55'/%3E%3Cellipse cx='180' cy='30' rx='9' ry='4' fill='%23f0c98a' opacity='0.55'/%3E%3Cellipse cx='240' cy='34' rx='9' ry='4' fill='%23e0a733' opacity='0.55'/%3E%3Cellipse cx='300' cy='30' rx='9' ry='4' fill='%23f0c98a' opacity='0.6'/%3E%3C/svg%3E");
   }
-  .columns.view-calendar .col-notes {
-    background-color: #f6faf7;
-  }
+  .columns.view-calendar .col-notes { background-color: #f6faf7; }
   .columns.view-calendar .col-notes::before {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='340' height='150' viewBox='0 0 340 150'%3E%3Cpath d='M-10,16 C 30,30 55,4 95,18 C 135,32 155,6 195,20 C 235,34 255,6 295,18 C 315,24 325,14 350,20' stroke='%238aab8a' stroke-width='1.4' fill='none' opacity='0.5'/%3E%3Cellipse cx='4.5' cy='31.0' rx='6.4' ry='2.7' fill='%23b6d9bd' opacity='0.51' transform='rotate(-19 4.5 31.0)'/%3E%3Cellipse cx='29.3' cy='30.3' rx='10.0' ry='4.2' fill='%23b6d9bd' opacity='0.59' transform='rotate(19 29.3 30.3)'/%3E%3Cellipse cx='59.6' cy='36.8' rx='9.5' ry='4.0' fill='%23b6d9bd' opacity='0.56' transform='rotate(-19 59.6 36.8)'/%3E%3Cellipse cx='76.3' cy='21.8' rx='6.9' ry='2.9' fill='%238fbf9f' opacity='0.58' transform='rotate(-67 76.3 21.8)'/%3E%3Cellipse cx='98.2' cy='29.3' rx='10.0' ry='4.2' fill='%23b6d9bd' opacity='0.65' transform='rotate(-8 98.2 29.3)'/%3E%3Cellipse cx='119.0' cy='43.4' rx='6.6' ry='2.8' fill='%23b6d9bd' opacity='0.61' transform='rotate(36 119.0 43.4)'/%3E%3Cellipse cx='121.5' cy='39.0' rx='7.1' ry='3.0' fill='%23b6d9bd' opacity='0.62' transform='rotate(-0 121.5 39.0)'/%3E%3Cellipse cx='153.3' cy='42.4' rx='8.3' ry='3.5' fill='%23b6d9bd' opacity='0.61' transform='rotate(59 153.3 42.4)'/%3E%3Cellipse cx='147.8' cy='45.7' rx='9.3' ry='3.9' fill='%23b6d9bd' opacity='0.64' transform='rotate(47 147.8 45.7)'/%3E%3Cellipse cx='170.1' cy='28.1' rx='7.2' ry='3.0' fill='%238fbf9f' opacity='0.65' transform='rotate(-41 170.1 28.1)'/%3E%3Cellipse cx='173.8' cy='38.8' rx='6.0' ry='2.5' fill='%238fbf9f' opacity='0.46' transform='rotate(44 173.8 38.8)'/%3E%3Cellipse cx='192.9' cy='33.0' rx='8.7' ry='3.7' fill='%238fbf9f' opacity='0.66' transform='rotate(58 192.9 33.0)'/%3E%3Cellipse cx='217.0' cy='16.1' rx='7.7' ry='3.2' fill='%23b6d9bd' opacity='0.54' transform='rotate(30 217.0 16.1)'/%3E%3Cellipse cx='241.5' cy='28.4' rx='9.8' ry='4.1' fill='%238fbf9f' opacity='0.54' transform='rotate(-66 241.5 28.4)'/%3E%3Cellipse cx='264.4' cy='39.9' rx='8.1' ry='3.4' fill='%238fbf9f' opacity='0.49' transform='rotate(-70 264.4 39.9)'/%3E%3Cellipse cx='299.1' cy='24.3' rx='7.1' ry='3.0' fill='%238fbf9f' opacity='0.68' transform='rotate(-2 299.1 24.3)'/%3E%3Cellipse cx='314.3' cy='40.3' rx='7.9' ry='3.3' fill='%23b6d9bd' opacity='0.66' transform='rotate(-38 314.3 40.3)'/%3E%3Cg opacity='0.67' transform='translate(15.2 47.3) scale(1.23)'%3E%3Cellipse cx='3.4' cy='0.0' rx='2.6' ry='1.7' fill='%23d9e8a8' transform='rotate(0 3.4 0.0)'/%3E%3Cellipse cx='1.1' cy='3.2' rx='2.6' ry='1.7' fill='%23d9e8a8' transform='rotate(72 1.1 3.2)'/%3E%3Cellipse cx='-2.8' cy='2.0' rx='2.6' ry='1.7' fill='%23d9e8a8' transform='rotate(144 -2.8 2.0)'/%3E%3Cellipse cx='-2.8' cy='-2.0' rx='2.6' ry='1.7' fill='%23d9e8a8' transform='rotate(216 -2.8 -2.0)'/%3E%3Cellipse cx='1.1' cy='-3.2' rx='2.6' ry='1.7' fill='%23d9e8a8' transform='rotate(288 1.1 -3.2)'/%3E%3Ccircle cx='0' cy='0' r='1.6' fill='%23e08fac'/%3E%3C/g%3E%3Cg opacity='0.70' transform='translate(60.7 49.2) scale(0.95)'%3E%3Cellipse cx='3.4' cy='0.0' rx='2.6' ry='1.7' fill='%23d9e8a8' transform='rotate(0 3.4 0.0)'/%3E%3Cellipse cx='1.1' cy='3.2' rx='2.6' ry='1.7' fill='%23d9e8a8' transform='rotate(72 1.1 3.2)'/%3E%3Cellipse cx='-2.8' cy='2.0' rx='2.6' ry='1.7' fill='%23d9e8a8' transform='rotate(144 -2.8 2.0)'/%3E%3Cellipse cx='-2.8' cy='-2.0' rx='2.6' ry='1.7' fill='%23d9e8a8' transform='rotate(216 -2.8 -2.0)'/%3E%3Cellipse cx='1.1' cy='-3.2' rx='2.6' ry='1.7' fill='%23d9e8a8' transform='rotate(288 1.1 -3.2)'/%3E%3Ccircle cx='0' cy='0' r='1.6' fill='%23e08fac'/%3E%3C/g%3E%3Cg opacity='0.72' transform='translate(104.0 30.4) scale(1.05)'%3E%3Cellipse cx='3.4' cy='0.0' rx='2.6' ry='1.7' fill='%23f3b8c9' transform='rotate(0 3.4 0.0)'/%3E%3Cellipse cx='1.1' cy='3.2' rx='2.6' ry='1.7' fill='%23f3b8c9' transform='rotate(72 1.1 3.2)'/%3E%3Cellipse cx='-2.8' cy='2.0' rx='2.6' ry='1.7' fill='%23f3b8c9' transform='rotate(144 -2.8 2.0)'/%3E%3Cellipse cx='-2.8' cy='-2.0' rx='2.6' ry='1.7' fill='%23f3b8c9' transform='rotate(216 -2.8 -2.0)'/%3E%3Cellipse cx='1.1' cy='-3.2' rx='2.6' ry='1.7' fill='%23f3b8c9' transform='rotate(288 1.1 -3.2)'/%3E%3Ccircle cx='0' cy='0' r='1.6' fill='%23e08fac'/%3E%3C/g%3E%3Cg opacity='0.71' transform='translate(150.1 32.9) scale(0.88)'%3E%3Cellipse cx='3.4' cy='0.0' rx='2.6' ry='1.7' fill='%23d9e8a8' transform='rotate(0 3.4 0.0)'/%3E%3Cellipse cx='1.1' cy='3.2' rx='2.6' ry='1.7' fill='%23d9e8a8' transform='rotate(72 1.1 3.2)'/%3E%3Cellipse cx='-2.8' cy='2.0' rx='2.6' ry='1.7' fill='%23d9e8a8' transform='rotate(144 -2.8 2.0)'/%3E%3Cellipse cx='-2.8' cy='-2.0' rx='2.6' ry='1.7' fill='%23d9e8a8' transform='rotate(216 -2.8 -2.0)'/%3E%3Cellipse cx='1.1' cy='-3.2' rx='2.6' ry='1.7' fill='%23d9e8a8' transform='rotate(288 1.1 -3.2)'/%3E%3Ccircle cx='0' cy='0' r='1.6' fill='%23e08fac'/%3E%3C/g%3E%3Cg opacity='0.61' transform='translate(187.1 51.6) scale(1.22)'%3E%3Cellipse cx='3.4' cy='0.0' rx='2.6' ry='1.7' fill='%23f3b8c9' transform='rotate(0 3.4 0.0)'/%3E%3Cellipse cx='1.1' cy='3.2' rx='2.6' ry='1.7' fill='%23f3b8c9' transform='rotate(72 1.1 3.2)'/%3E%3Cellipse cx='-2.8' cy='2.0' rx='2.6' ry='1.7' fill='%23f3b8c9' transform='rotate(144 -2.8 2.0)'/%3E%3Cellipse cx='-2.8' cy='-2.0' rx='2.6' ry='1.7' fill='%23f3b8c9' transform='rotate(216 -2.8 -2.0)'/%3E%3Cellipse cx='1.1' cy='-3.2' rx='2.6' ry='1.7' fill='%23f3b8c9' transform='rotate(288 1.1 -3.2)'/%3E%3Ccircle cx='0' cy='0' r='1.6' fill='%23e08fac'/%3E%3C/g%3E%3Cg opacity='0.61' transform='translate(230.8 35.5) scale(1.07)'%3E%3Cellipse cx='3.4' cy='0.0' rx='2.6' ry='1.7' fill='%23d9e8a8' transform='rotate(0 3.4 0.0)'/%3E%3Cellipse cx='1.1' cy='3.2' rx='2.6' ry='1.7' fill='%23d9e8a8' transform='rotate(72 1.1 3.2)'/%3E%3Cellipse cx='-2.8' cy='2.0' rx='2.6' ry='1.7' fill='%23d9e8a8' transform='rotate(144 -2.8 2.0)'/%3E%3Cellipse cx='-2.8' cy='-2.0' rx='2.6' ry='1.7' fill='%23d9e8a8' transform='rotate(216 -2.8 -2.0)'/%3E%3Cellipse cx='1.1' cy='-3.2' rx='2.6' ry='1.7' fill='%23d9e8a8' transform='rotate(288 1.1 -3.2)'/%3E%3Ccircle cx='0' cy='0' r='1.6' fill='%23e08fac'/%3E%3C/g%3E%3Cg opacity='0.65' transform='translate(270.6 41.6) scale(0.80)'%3E%3Cellipse cx='3.4' cy='0.0' rx='2.6' ry='1.7' fill='%23f3b8c9' transform='rotate(0 3.4 0.0)'/%3E%3Cellipse cx='1.1' cy='3.2' rx='2.6' ry='1.7' fill='%23f3b8c9' transform='rotate(72 1.1 3.2)'/%3E%3Cellipse cx='-2.8' cy='2.0' rx='2.6' ry='1.7' fill='%23f3b8c9' transform='rotate(144 -2.8 2.0)'/%3E%3Cellipse cx='-2.8' cy='-2.0' rx='2.6' ry='1.7' fill='%23f3b8c9' transform='rotate(216 -2.8 -2.0)'/%3E%3Cellipse cx='1.1' cy='-3.2' rx='2.6' ry='1.7' fill='%23f3b8c9' transform='rotate(288 1.1 -3.2)'/%3E%3Ccircle cx='0' cy='0' r='1.6' fill='%23e08fac'/%3E%3C/g%3E%3Cg opacity='0.57' transform='translate(306.9 41.3) scale(0.84)'%3E%3Cellipse cx='3.4' cy='0.0' rx='2.6' ry='1.7' fill='%23f3b8c9' transform='rotate(0 3.4 0.0)'/%3E%3Cellipse cx='1.1' cy='3.2' rx='2.6' ry='1.7' fill='%23f3b8c9' transform='rotate(72 1.1 3.2)'/%3E%3Cellipse cx='-2.8' cy='2.0' rx='2.6' ry='1.7' fill='%23f3b8c9' transform='rotate(144 -2.8 2.0)'/%3E%3Cellipse cx='-2.8' cy='-2.0' rx='2.6' ry='1.7' fill='%23f3b8c9' transform='rotate(216 -2.8 -2.0)'/%3E%3Cellipse cx='1.1' cy='-3.2' rx='2.6' ry='1.7' fill='%23f3b8c9' transform='rotate(288 1.1 -3.2)'/%3E%3Ccircle cx='0' cy='0' r='1.6' fill='%23e08fac'/%3E%3C/g%3E%3Cellipse cx='78.7' cy='68.7' rx='4.8' ry='2.0' fill='%23b6d9bd' opacity='0.27' transform='rotate(84 78.7 68.7)'/%3E%3Cellipse cx='182.1' cy='78.9' rx='5.2' ry='2.2' fill='%238fbf9f' opacity='0.24' transform='rotate(137 182.1 78.9)'/%3E%3Cellipse cx='247.8' cy='82.3' rx='4.8' ry='2.0' fill='%238fbf9f' opacity='0.22' transform='rotate(105 247.8 82.3)'/%3E%3Cellipse cx='299.7' cy='113.5' rx='5.0' ry='2.1' fill='%23f3b8c9' opacity='0.12' transform='rotate(166 299.7 113.5)'/%3E%3Cellipse cx='272.9' cy='78.1' rx='4.8' ry='2.0' fill='%23f3b8c9' opacity='0.24' transform='rotate(166 272.9 78.1)'/%3E%3Cellipse cx='124.6' cy='98.5' rx='5.8' ry='2.4' fill='%23f3b8c9' opacity='0.17' transform='rotate(55 124.6 98.5)'/%3E%3Cellipse cx='140.2' cy='61.6' rx='4.0' ry='1.7' fill='%238fbf9f' opacity='0.30' transform='rotate(140 140.2 61.6)'/%3E%3Cellipse cx='276.1' cy='58.8' rx='5.1' ry='2.1' fill='%23f3b8c9' opacity='0.31' transform='rotate(83 276.1 58.8)'/%3E%3Cellipse cx='208.6' cy='55.3' rx='3.6' ry='1.5' fill='%23f3b8c9' opacity='0.32' transform='rotate(55 208.6 55.3)'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='340' height='150' viewBox='0 0 340 150'%3E%3Cpath d='M-10,16 C 30,30 55,4 95,18 C 135,32 155,6 195,20 C 235,34 255,6 295,18 C 315,24 325,14 350,20' stroke='%238aab8a' stroke-width='1.4' fill='none' opacity='0.5'/%3E%3Cellipse cx='60' cy='36' rx='9' ry='4' fill='%23b6d9bd' opacity='0.6'/%3E%3Cellipse cx='120' cy='40' rx='9' ry='4' fill='%238fbf9f' opacity='0.55'/%3E%3Cellipse cx='180' cy='34' rx='9' ry='4' fill='%23b6d9bd' opacity='0.55'/%3E%3Cellipse cx='240' cy='38' rx='9' ry='4' fill='%238fbf9f' opacity='0.55'/%3E%3Cellipse cx='300' cy='34' rx='9' ry='4' fill='%23b6d9bd' opacity='0.6'/%3E%3C/svg%3E");
   }
-  .columns.view-dashboard .col-notes {
-    background-color: #fbf7fa;
-  }
+  .columns.view-dashboard .col-notes { background-color: #fbf7fa; }
   .columns.view-dashboard .col-notes::before {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='340' height='150' viewBox='0 0 340 150'%3E%3Cpath d='M-10,16 C 30,30 55,4 95,18 C 135,32 155,6 195,20 C 235,34 255,6 295,18 C 315,24 325,14 350,20' stroke='%23b599c9' stroke-width='1.4' fill='none' opacity='0.5'/%3E%3Cellipse cx='12.9' cy='29.6' rx='7.5' ry='3.1' fill='%23b7c9a8' opacity='0.60' transform='rotate(15 12.9 29.6)'/%3E%3Cellipse cx='34.3' cy='31.4' rx='6.8' ry='2.8' fill='%23cbb8d9' opacity='0.55' transform='rotate(30 34.3 31.4)'/%3E%3Cellipse cx='60.5' cy='32.0' rx='9.5' ry='4.0' fill='%23b7c9a8' opacity='0.49' transform='rotate(3 60.5 32.0)'/%3E%3Cellipse cx='83.1' cy='25.8' rx='9.3' ry='3.9' fill='%23cbb8d9' opacity='0.63' transform='rotate(-32 83.1 25.8)'/%3E%3Cellipse cx='96.6' cy='26.4' rx='9.9' ry='4.1' fill='%23b7c9a8' opacity='0.48' transform='rotate(-51 96.6 26.4)'/%3E%3Cellipse cx='104.0' cy='32.1' rx='9.9' ry='4.1' fill='%23cbb8d9' opacity='0.56' transform='rotate(-9 104.0 32.1)'/%3E%3Cellipse cx='127.9' cy='36.2' rx='8.3' ry='3.5' fill='%23b7c9a8' opacity='0.66' transform='rotate(57 127.9 36.2)'/%3E%3Cellipse cx='118.5' cy='40.1' rx='8.7' ry='3.6' fill='%23b7c9a8' opacity='0.63' transform='rotate(-47 118.5 40.1)'/%3E%3Cellipse cx='151.6' cy='44.1' rx='7.1' ry='3.0' fill='%23cbb8d9' opacity='0.47' transform='rotate(-61 151.6 44.1)'/%3E%3Cellipse cx='142.5' cy='31.8' rx='7.6' ry='3.2' fill='%23cbb8d9' opacity='0.67' transform='rotate(-49 142.5 31.8)'/%3E%3Cellipse cx='178.0' cy='34.0' rx='7.5' ry='3.2' fill='%23cbb8d9' opacity='0.58' transform='rotate(12 178.0 34.0)'/%3E%3Cellipse cx='193.2' cy='37.8' rx='6.4' ry='2.7' fill='%23cbb8d9' opacity='0.52' transform='rotate(5 193.2 37.8)'/%3E%3Cellipse cx='224.4' cy='42.8' rx='7.3' ry='3.0' fill='%23cbb8d9' opacity='0.54' transform='rotate(64 224.4 42.8)'/%3E%3Cellipse cx='225.3' cy='38.0' rx='7.5' ry='3.2' fill='%23b7c9a8' opacity='0.61' transform='rotate(51 225.3 38.0)'/%3E%3Cellipse cx='246.3' cy='40.7' rx='8.5' ry='3.6' fill='%23cbb8d9' opacity='0.69' transform='rotate(30 246.3 40.7)'/%3E%3Cellipse cx='247.4' cy='29.2' rx='8.2' ry='3.4' fill='%23cbb8d9' opacity='0.46' transform='rotate(-68 247.4 29.2)'/%3E%3Cellipse cx='267.3' cy='29.9' rx='8.5' ry='3.6' fill='%23cbb8d9' opacity='0.60' transform='rotate(-23 267.3 29.9)'/%3E%3Cellipse cx='297.2' cy='28.0' rx='9.8' ry='4.1' fill='%23cbb8d9' opacity='0.52' transform='rotate(-67 297.2 28.0)'/%3E%3Cellipse cx='315.3' cy='27.9' rx='7.3' ry='3.0' fill='%23cbb8d9' opacity='0.65' transform='rotate(-18 315.3 27.9)'/%3E%3Cg opacity='0.63' transform='translate(13.6 47.9) scale(1.24)'%3E%3Cellipse cx='3.4' cy='0.0' rx='2.6' ry='1.7' fill='%23e8a6d0' transform='rotate(0 3.4 0.0)'/%3E%3Cellipse cx='1.1' cy='3.2' rx='2.6' ry='1.7' fill='%23e8a6d0' transform='rotate(72 1.1 3.2)'/%3E%3Cellipse cx='-2.8' cy='2.0' rx='2.6' ry='1.7' fill='%23e8a6d0' transform='rotate(144 -2.8 2.0)'/%3E%3Cellipse cx='-2.8' cy='-2.0' rx='2.6' ry='1.7' fill='%23e8a6d0' transform='rotate(216 -2.8 -2.0)'/%3E%3Cellipse cx='1.1' cy='-3.2' rx='2.6' ry='1.7' fill='%23e8a6d0' transform='rotate(288 1.1 -3.2)'/%3E%3Ccircle cx='0' cy='0' r='1.6' fill='%23a866c2'/%3E%3C/g%3E%3Cg opacity='0.72' transform='translate(64.4 47.7) scale(0.91)'%3E%3Cellipse cx='3.4' cy='0.0' rx='2.6' ry='1.7' fill='%23e8a6d0' transform='rotate(0 3.4 0.0)'/%3E%3Cellipse cx='1.1' cy='3.2' rx='2.6' ry='1.7' fill='%23e8a6d0' transform='rotate(72 1.1 3.2)'/%3E%3Cellipse cx='-2.8' cy='2.0' rx='2.6' ry='1.7' fill='%23e8a6d0' transform='rotate(144 -2.8 2.0)'/%3E%3Cellipse cx='-2.8' cy='-2.0' rx='2.6' ry='1.7' fill='%23e8a6d0' transform='rotate(216 -2.8 -2.0)'/%3E%3Cellipse cx='1.1' cy='-3.2' rx='2.6' ry='1.7' fill='%23e8a6d0' transform='rotate(288 1.1 -3.2)'/%3E%3Ccircle cx='0' cy='0' r='1.6' fill='%23a866c2'/%3E%3C/g%3E%3Cg opacity='0.72' transform='translate(103.6 32.1) scale(1.07)'%3E%3Cellipse cx='3.4' cy='0.0' rx='2.6' ry='1.7' fill='%23c78fd9' transform='rotate(0 3.4 0.0)'/%3E%3Cellipse cx='1.1' cy='3.2' rx='2.6' ry='1.7' fill='%23c78fd9' transform='rotate(72 1.1 3.2)'/%3E%3Cellipse cx='-2.8' cy='2.0' rx='2.6' ry='1.7' fill='%23c78fd9' transform='rotate(144 -2.8 2.0)'/%3E%3Cellipse cx='-2.8' cy='-2.0' rx='2.6' ry='1.7' fill='%23c78fd9' transform='rotate(216 -2.8 -2.0)'/%3E%3Cellipse cx='1.1' cy='-3.2' rx='2.6' ry='1.7' fill='%23c78fd9' transform='rotate(288 1.1 -3.2)'/%3E%3Ccircle cx='0' cy='0' r='1.6' fill='%23a866c2'/%3E%3C/g%3E%3Cg opacity='0.63' transform='translate(152.4 47.8) scale(1.23)'%3E%3Cellipse cx='3.4' cy='0.0' rx='2.6' ry='1.7' fill='%23e8a6d0' transform='rotate(0 3.4 0.0)'/%3E%3Cellipse cx='1.1' cy='3.2' rx='2.6' ry='1.7' fill='%23e8a6d0' transform='rotate(72 1.1 3.2)'/%3E%3Cellipse cx='-2.8' cy='2.0' rx='2.6' ry='1.7' fill='%23e8a6d0' transform='rotate(144 -2.8 2.0)'/%3E%3Cellipse cx='-2.8' cy='-2.0' rx='2.6' ry='1.7' fill='%23e8a6d0' transform='rotate(216 -2.8 -2.0)'/%3E%3Cellipse cx='1.1' cy='-3.2' rx='2.6' ry='1.7' fill='%23e8a6d0' transform='rotate(288 1.1 -3.2)'/%3E%3Ccircle cx='0' cy='0' r='1.6' fill='%23a866c2'/%3E%3C/g%3E%3Cg opacity='0.75' transform='translate(180.5 49.5) scale(1.00)'%3E%3Cellipse cx='3.4' cy='0.0' rx='2.6' ry='1.7' fill='%23e8a6d0' transform='rotate(0 3.4 0.0)'/%3E%3Cellipse cx='1.1' cy='3.2' rx='2.6' ry='1.7' fill='%23e8a6d0' transform='rotate(72 1.1 3.2)'/%3E%3Cellipse cx='-2.8' cy='2.0' rx='2.6' ry='1.7' fill='%23e8a6d0' transform='rotate(144 -2.8 2.0)'/%3E%3Cellipse cx='-2.8' cy='-2.0' rx='2.6' ry='1.7' fill='%23e8a6d0' transform='rotate(216 -2.8 -2.0)'/%3E%3Cellipse cx='1.1' cy='-3.2' rx='2.6' ry='1.7' fill='%23e8a6d0' transform='rotate(288 1.1 -3.2)'/%3E%3Ccircle cx='0' cy='0' r='1.6' fill='%23a866c2'/%3E%3C/g%3E%3Cg opacity='0.77' transform='translate(229.4 51.1) scale(0.94)'%3E%3Cellipse cx='3.4' cy='0.0' rx='2.6' ry='1.7' fill='%23e8a6d0' transform='rotate(0 3.4 0.0)'/%3E%3Cellipse cx='1.1' cy='3.2' rx='2.6' ry='1.7' fill='%23e8a6d0' transform='rotate(72 1.1 3.2)'/%3E%3Cellipse cx='-2.8' cy='2.0' rx='2.6' ry='1.7' fill='%23e8a6d0' transform='rotate(144 -2.8 2.0)'/%3E%3Cellipse cx='-2.8' cy='-2.0' rx='2.6' ry='1.7' fill='%23e8a6d0' transform='rotate(216 -2.8 -2.0)'/%3E%3Cellipse cx='1.1' cy='-3.2' rx='2.6' ry='1.7' fill='%23e8a6d0' transform='rotate(288 1.1 -3.2)'/%3E%3Ccircle cx='0' cy='0' r='1.6' fill='%23a866c2'/%3E%3C/g%3E%3Cg opacity='0.70' transform='translate(274.7 48.2) scale(0.84)'%3E%3Cellipse cx='3.4' cy='0.0' rx='2.6' ry='1.7' fill='%23c78fd9' transform='rotate(0 3.4 0.0)'/%3E%3Cellipse cx='1.1' cy='3.2' rx='2.6' ry='1.7' fill='%23c78fd9' transform='rotate(72 1.1 3.2)'/%3E%3Cellipse cx='-2.8' cy='2.0' rx='2.6' ry='1.7' fill='%23c78fd9' transform='rotate(144 -2.8 2.0)'/%3E%3Cellipse cx='-2.8' cy='-2.0' rx='2.6' ry='1.7' fill='%23c78fd9' transform='rotate(216 -2.8 -2.0)'/%3E%3Cellipse cx='1.1' cy='-3.2' rx='2.6' ry='1.7' fill='%23c78fd9' transform='rotate(288 1.1 -3.2)'/%3E%3Ccircle cx='0' cy='0' r='1.6' fill='%23a866c2'/%3E%3C/g%3E%3Cg opacity='0.64' transform='translate(310.7 41.4) scale(1.18)'%3E%3Cellipse cx='3.4' cy='0.0' rx='2.6' ry='1.7' fill='%23c78fd9' transform='rotate(0 3.4 0.0)'/%3E%3Cellipse cx='1.1' cy='3.2' rx='2.6' ry='1.7' fill='%23c78fd9' transform='rotate(72 1.1 3.2)'/%3E%3Cellipse cx='-2.8' cy='2.0' rx='2.6' ry='1.7' fill='%23c78fd9' transform='rotate(144 -2.8 2.0)'/%3E%3Cellipse cx='-2.8' cy='-2.0' rx='2.6' ry='1.7' fill='%23c78fd9' transform='rotate(216 -2.8 -2.0)'/%3E%3Cellipse cx='1.1' cy='-3.2' rx='2.6' ry='1.7' fill='%23c78fd9' transform='rotate(288 1.1 -3.2)'/%3E%3Ccircle cx='0' cy='0' r='1.6' fill='%23a866c2'/%3E%3C/g%3E%3Cellipse cx='142.7' cy='80.8' rx='5.8' ry='2.4' fill='%23b7c9a8' opacity='0.23' transform='rotate(28 142.7 80.8)'/%3E%3Cellipse cx='162.3' cy='107.4' rx='5.1' ry='2.1' fill='%23e8a6d0' opacity='0.14' transform='rotate(92 162.3 107.4)'/%3E%3Cellipse cx='323.1' cy='113.4' rx='4.1' ry='1.7' fill='%23e8a6d0' opacity='0.12' transform='rotate(134 323.1 113.4)'/%3E%3Cellipse cx='254.3' cy='115.7' rx='4.9' ry='2.0' fill='%23b7c9a8' opacity='0.11' transform='rotate(160 254.3 115.7)'/%3E%3Cellipse cx='291.7' cy='116.2' rx='3.8' ry='1.6' fill='%23b7c9a8' opacity='0.11' transform='rotate(44 291.7 116.2)'/%3E%3Cellipse cx='307.2' cy='98.7' rx='5.8' ry='2.4' fill='%23cbb8d9' opacity='0.17' transform='rotate(161 307.2 98.7)'/%3E%3Cellipse cx='196.2' cy='55.8' rx='5.4' ry='2.3' fill='%23cbb8d9' opacity='0.32' transform='rotate(31 196.2 55.8)'/%3E%3Cellipse cx='81.3' cy='56.3' rx='4.8' ry='2.0' fill='%23e8a6d0' opacity='0.32' transform='rotate(10 81.3 56.3)'/%3E%3Cellipse cx='38.6' cy='62.9' rx='5.9' ry='2.5' fill='%23b7c9a8' opacity='0.29' transform='rotate(97 38.6 62.9)'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='340' height='150' viewBox='0 0 340 150'%3E%3Cpath d='M-10,16 C 30,30 55,4 95,18 C 135,32 155,6 195,20 C 235,34 255,6 295,18 C 315,24 325,14 350,20' stroke='%23b599c9' stroke-width='1.4' fill='none' opacity='0.5'/%3E%3Cellipse cx='60' cy='34' rx='9' ry='4' fill='%23cbb8d9' opacity='0.6'/%3E%3Cellipse cx='120' cy='38' rx='9' ry='4' fill='%23b7c9a8' opacity='0.55'/%3E%3Cellipse cx='180' cy='34' rx='9' ry='4' fill='%23e8a6d0' opacity='0.55'/%3E%3Cellipse cx='240' cy='40' rx='9' ry='4' fill='%23cbb8d9' opacity='0.55'/%3E%3Cellipse cx='300' cy='34' rx='9' ry='4' fill='%23b7c9a8' opacity='0.6'/%3E%3C/svg%3E");
   }
 
-  /* ---------- Kalendář Den/Týden - box poznámek se výšce nepřizpůsobuje,
-     roste dle obsahu (nescrolluje se uvnitř) - platí pro desktop i mobil,
-     Měsíční pohled zůstává kompaktní beze změny (viz .calendar-day výše). */
+  /* ---------- Kalendář Den/Týden - box poznámek se výšce nepřizpůsobuje ---------- */
   .calendar-week-list .calendar-day,
   .calendar-day-single .calendar-day {
     max-height: none !important;
     overflow-y: visible !important;
   }
 
-  /* ---------- Dashboard - poznámky jako stickies ----------
-     Masonry přes CSS vícesloupcový layout (column-width), NE flexbox -
-     flexbox s flex-wrap defaultně natahuje (align-items: stretch) všechny
-     kartičky ve stejné řadě na výšku té nejvyšší sousední, takže by nikdy
-     nemohly mít výšku podle vlastního obsahu. Vícesloupcový layout naopak
-     každou kartičku nechá přesně tak vysokou, jak potřebuje, a plynule je
-     řadí sloupec po sloupci - dvě nižší kartičky se tak mohou "srovnat" do
-     výšky jedné vyšší v sousedním sloupci. Kvůli tomu se ale kartičky řadí
-     nejdřív dolů prvním sloupcem a teprve pak druhým (ne přísně řádek po
-     řádku zleva doprava) - pořadí podle data vzniku (viz JS řazení) tím
-     zůstává zachované v rámci každého sloupce, jen se vizuálně "přeskládá"
-     do sloupců podle výšky, ne do jedné řady za druhou. */
+  /* ---------- Dashboard - poznámky jako stickies ---------- */
   .dashboard-stickies {
     column-width: 250px; column-gap: 12px; margin-bottom: 18px;
   }
@@ -603,17 +613,10 @@
   .dashboard-sticky-wide { margin-bottom: 0; }
   .dashboard-sticky:hover .note-row-del { display: block; }
   .dashboard-sticky-top { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
-  /* .note-row-title je jinde v appce (řádky v seznamu, čipy v kalendáři)
-     schválně jednořádkový s "..." na konci - uvnitř sticky karty ale chceme
-     vidět celý název, i kdyby byl dlouhý, proto se tu toto pravidlo pro
-     tuto konkrétní kombinaci selektorů přebíjí. */
   .dashboard-sticky .note-row-title {
     white-space: normal; overflow: visible; text-overflow: clip;
     overflow-wrap: anywhere; word-break: break-word;
   }
-  /* Text (včetně dlouhých odkazů bez mezer) se musí zalomit uvnitř boxu,
-     jinak přeteče přes okraj do dalšího sloupce - platí i pro vnořené
-     elementy (odkazy, tučné/kurzíva, položky seznamu...). */
   .dashboard-sticky-content {
     font-size: 13.5px; line-height: 1.45; color: var(--ink);
     overflow-wrap: anywhere; word-break: break-word; min-width: 0;
@@ -685,7 +688,7 @@
         <h2 id="notesColTitle">Všechny poznámky</h2>
         <div class="head-actions">
           <button class="icon-btn small" id="exportPdfBtn" title="Export do PDF" aria-label="Export do PDF">🖨</button>
-          <button class="icon-btn small" id="newsletterBtn" title="Newsletter Hláška" aria-label="Newsletter Hláška">🖼</button>
+          <button class="icon-btn small" id="newsletterBtn" title="Export obrázku Hláška" aria-label="Export obrázku Hláška">🖼</button>
           <button class="icon-btn small" id="newNoteBtn" title="Nová poznámka" aria-label="Nová poznámka">＋</button>
           <button class="icon-btn small" id="emptyTrashBtn" type="button" title="Vysypat koš" aria-label="Vysypat koš" style="display:none;">🗑✕</button>
         </div>
@@ -786,7 +789,7 @@
 
 <div class="modal-overlay" id="newsletterRangeModal">
   <div class="modal-card">
-    <h3>Newsletter Hláška</h3>
+    <h3>Export obrázku Hláška</h3>
     <p class="modal-sub">Vyber časové rozmezí. Zahrnou se jen poznámky ze složky Hláška s vyplněným obsahem.</p>
     <div class="field">
       <label for="nlFromDate">Od</label>
@@ -795,6 +798,13 @@
     <div class="field">
       <label for="nlToDate">Do</label>
       <input type="date" id="nlToDate">
+    </div>
+    <div class="field">
+      <label>Formát</label>
+      <div class="nl-format-row">
+        <label class="nl-format-option"><input type="radio" name="nlFormat" value="wa" id="nlFormatWa" checked> Obrázek pro WA</label>
+        <label class="nl-format-option"><input type="radio" name="nlFormat" value="a4" id="nlFormatA4"> Obrázek A4</label>
+      </div>
     </div>
     <div class="row-btns">
       <button class="btn btn-secondary" id="nlCancelBtn" type="button">Zrušit</button>
@@ -823,7 +833,7 @@
   // nahrání nové verze na GitHub pozná (i přes zpoždění nasazení), jestli
   // se jí už načetla nejnovější verze, nebo pořád vidí tu starou z cache.
   // Při KAŽDÉ příští úpravě index.html je potřeba tohle číslo zvýšit o 1.
-  const APP_VERSION = "2";
+  const APP_VERSION = "3";
   document.querySelectorAll(".app-version-badge").forEach(el => {
     el.textContent = "v" + APP_VERSION;
   });
@@ -1012,6 +1022,14 @@
     return str.replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
   }
 
+  // ---------- Hledání bez ohledu na diakritiku ----------
+  // "ockovani" v hledacím poli tak najde i poznámky s "očkování" v názvu,
+  // popisu nebo štítku - text se pro porovnání převede na malá písmena BEZ
+  // diakritiky (NFD rozklad + odstranění kombinovaných diakritických znaků).
+  function normalizeSearchText(str) {
+    return (str || "").toString().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  }
+
   // ---------- Hodnocení poznámky ----------
   // Jedna barva (appka už používá modrou jako svou hlavní), pět odstínů -
   // 1 je nejtmavší (nejlepší, jako ve škole), 5 nejsvětlejší.
@@ -1115,10 +1133,7 @@
   }
 
   // Barva kategorie "rozředěná" bílou na PLNĚ NEPRŮHLEDNÝ pastelový odstín -
-  // pouziva se pro podbarveni "sticky" karticek na Dashboardu. Na rozdíl od
-  // hexToRgba() (průhledné) je tohle schválně neprůhledné, aby jemný
-  // květinový vzor pozadí Dashboardu nikdy neprosvítal skrz kartičku a
-  // nepůsobil, že pozadí "překrývá" stickies.
+  // pouziva se pro podbarveni "sticky" karticek na Dashboardu.
   function mixWithWhite(hex, ratio) {
     let h = (hex || "#999999").replace("#", "");
     if (h.length === 3) h = h.split("").map(c => c + c).join("");
@@ -1189,21 +1204,11 @@
       }
     });
 
-    // Viz CSS pravidlo vyse - na mobilu po zaklepnuti do Popisu se
-    // editor-wrap odscrolluje tak, aby Popis zacinal na vrsku obrazovky
-    // (mimo klavesnici). Nic se neschovava, jen se to tam posune scrollem -
-    // zpatky nahoru na Datum/Nazev/Stitky se da kdykoliv normalne
-    // doscrollovat.
     function scrollPopisToTop() {
       document.getElementById("quillContainer").scrollIntoView({ block: "start", behavior: "smooth" });
     }
     quill.root.addEventListener("focus", () => {
       if (window.innerWidth > 900) return;
-      // Volat scroll HNED po fokusu nestaci - klavesnice se v tu chvili
-      // teprve zacina otevirat a jeji pozdejsi animace by scroll stejne
-      // zase prekryla/posunula. Pockej radsi na skutecnou zmenu viditelne
-      // vysky (visualViewport resize = klavesnice uz je otevrena), a jen
-      // pro jistotu (kdyby event neprisel) i na pojistny timeout.
       if (window.visualViewport) {
         const onViewportResize = () => {
           scrollPopisToTop();
@@ -1219,9 +1224,6 @@
       }
     });
 
-    // Klik na odkaz v poznámce ho rovnou otevře v nové záložce (místo Quillova
-    // výchozího "Edit/Remove" bublinového menu, které pro odkaz "co nefunguje"
-    // nemělo žádnou možnost odkaz skutečně otevřít).
     quill.root.addEventListener("click", (e) => {
       const a = e.target.closest("a");
       if (!a || !quill.root.contains(a)) return;
@@ -1262,13 +1264,7 @@
     quill.format("link", url, "user");
   }
 
-  // Opraví odkazy, které v poznámce chybně nemají protokol (např. vložené
-  // před touto opravou), a rovnou to uloží.
   function fixBrokenLinksInCurrentNote() {
-    // quill.root.innerHTML se přepisuje přímo (ne přes Quillovo API) a Quill
-    // si svůj interní model synchronizuje z DOM přes MutationObserver, který
-    // běží asynchronně - bez tohohle update() by getContents() níže mohl
-    // ještě číst obsah předchozí poznámky.
     quill.update("silent");
     const delta = quill.getContents();
     let index = 0;
@@ -1335,9 +1331,6 @@
       initQuill();
       subscribeFolders(user.uid);
       subscribeNotes(user.uid);
-      // Na mobilu appka po otevření rovnou ukáže Kalendář v týdenním pohledu
-      // místo menu se složkami (na desktopu, kde jsou vidět všechny sloupce
-      // najednou, se výchozí pohled nemění).
       if (window.innerWidth <= 900) {
         calendarViewMode = "week";
         localStorage.setItem("calendarViewMode", "week");
@@ -1393,12 +1386,6 @@
     });
   }
 
-  // Prive/aktualizuje ovladaci tlacitko pro vyber ikony slozky (soucast pasu
-  // tlacitek vedle barvy/prejmenovani/smazani) - klik rovnou otevre emoji
-  // picker a vybranou emoji ulozi jako "ikona" slozky do Firestore (stejne
-  // okamzite jako barva), nezavisle na tom, jestli se prave slozka
-  // prejmenovava. Zaroven pro okamzitou zpetnou vazbu aktualizuje i span s
-  // ikonou pred nazvem slozky v tomtez radku.
   function bindFolderIconBtn(btn, folderId) {
     guardFocus(btn);
     btn.addEventListener("click", (e) => {
@@ -1449,8 +1436,6 @@
     folders.forEach(f => {
       const count = notesForCounts.filter(n => n.druh === f.nazev).length;
       const isActive = view.type === "folder" && view.id === f.id;
-      // Aktivni radek ma bilý text (deda se z .folder-row.active), takze barvu
-      // pisme jen kdyz radek NENI aktivni - inline styl by jinak bilou prebil.
       const nameStyle = isActive ? "" : ` style="color:${f.barva}"`;
       html += `<div class="folder-row ${isActive ? "active" : ""}" data-view="folder" data-id="${f.id}">
         <span class="folder-icon">${f.ikona ? escapeHtml(f.ikona) : ""}</span>
@@ -1546,15 +1531,10 @@
     input.value = f.nazev;
     span.replaceWith(input);
 
-    // Kurzor se umístí na konec názvu (ne "select all"), takže jde normálně
-    // dopsat nebo opravit jedno písmenko bez nutnosti přepisovat celý název.
     input.focus();
     const endPos = input.value.length;
     input.setSelectionRange(endPos, endPos);
 
-    // Cely pas tlacitek (ikona/barva/prejmenovat/smazat) zustava behem
-    // prejmenovavani viditelny a funkcni - jen se vynuti jeho zobrazeni
-    // (jinak by .folder-tools zmizel, jakmile mys opusti radek behem psani).
     if (tools) tools.classList.add("force-visible");
 
     const finish = async () => {
@@ -1587,9 +1567,6 @@
   async function deleteFolder(id) {
     const f = folders.find(x => x.id === id);
     if (!f) return;
-    // Počítat jen viditelné (nesmazané) poznámky - stejně jako badge u
-    // složky v levém menu. Poznámky, které už jsou v koši (smazano: true),
-    // nemají blokovat smazání prázdně vypadající složky.
     const count = visibleNotes().filter(n => n.druh === f.nazev).length;
     if (count > 0) {
       showToast(`Nejprve přesuň nebo smaž ${count} poznámek v této složce`);
@@ -1600,8 +1577,6 @@
     if (view.type === "folder" && view.id === id) selectView({ type: "all" });
   }
 
-  // Ikona nove slozky (vybrana pres emoji tlacitko) - neuklada se do textu
-  // nazvu, drzi se zvlast a uklada az spolu s ulozenim slozky.
   let newFolderIcon = "";
   function resetNewFolderIcon() {
     newFolderIcon = "";
@@ -1644,9 +1619,6 @@
     searchInput.value = "";
     updateSearchClearBtn();
     columnsEl.classList.toggle("dashboard-mode", v.type === "dashboard" || v.type === "termin" || v.type === "calendar");
-    // Pastelové podbarvení (s jemným květinovým vzorem) - každý z těchto tří
-    // přehledů má svou vlastní barvu (viz CSS .columns.view-*), ať jsou od
-    // sebe na první pohled odlišitelné.
     columnsEl.classList.remove("view-termin", "view-calendar", "view-dashboard");
     if (v.type === "termin") columnsEl.classList.add("view-termin");
     else if (v.type === "calendar") columnsEl.classList.add("view-calendar");
@@ -1667,8 +1639,6 @@
     unsubNotes = onSnapshot(q, (snapshot) => {
       allNotes = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
       if (isTerminPickerOpen()) {
-        // Nekresli pod prave otevrenym nativnim date pickerem (zmena terminu
-        // v Kalendari Den/Tyden) - viz komentar u pendingRenderAfterPicker.
         pendingRenderAfterPicker = true;
       } else {
         renderFolders();
@@ -1686,9 +1656,6 @@
   }
 
   // ---------- Ranní dialog (termíny) ----------
-  // Čistě informační dialog - appka si při prvním otevření daný den (jednou
-  // denně, hlídáno přes localStorage) sama všimne dnešních termínů. Zobrazuje
-  // se jen po 6:00 (ranní souhrn).
   function tryShowTerminSummaryModal() {
     const now = new Date();
     if (now.getHours() < 6) return false;
@@ -1711,10 +1678,6 @@
     return true;
   }
 
-  // Samostatný dialog se "vzpomínkou" byl zrušen - vzpomínka se teď ukazuje
-  // rovnou jako sticky karta na Dashboardu a při každém jeho vykreslení se
-  // může vybrat jiná (viz pickDailyMemory), takže samostatné denní
-  // upozornění by na to jen zbytečně upozorňovalo dvakrát.
   function runDailyDialogs() {
     tryShowTerminSummaryModal();
   }
@@ -1723,6 +1686,9 @@
     terminSummaryModal.classList.remove("visible");
   });
 
+  // Hledání je necitlivé na diakritiku (viz normalizeSearchText) - hledaný
+  // výraz i porovnávaný text (název, popis, štítky) se před porovnáním
+  // zbaví diakritiky, takže "ockovani" najde i "očkování".
   function currentViewNotes() {
     let list;
     const base = visibleNotes();
@@ -1732,22 +1698,19 @@
     else if (view.type === "all") list = base;
     else list = base.filter(n => n.druh === view.nazev);
 
-    const term = searchInput.value.trim().toLowerCase();
+    const term = normalizeSearchText(searchInput.value.trim());
     if (term) {
       list = list.filter(n => {
-        const t = (n.nazev || "").toLowerCase();
-        const c = stripHtml(n.popis || "").toLowerCase();
+        const t = normalizeSearchText(n.nazev || "");
+        const c = normalizeSearchText(stripHtml(n.popis || ""));
         const tags = Array.isArray(n.stitky) ? n.stitky : [];
-        const tagMatch = tags.some(tag => tag.toLowerCase().includes(term));
+        const tagMatch = tags.some(tag => normalizeSearchText(tag).includes(term));
         return t.includes(term) || c.includes(term) || tagMatch;
       });
     }
     return list;
   }
 
-  // new Date().toISOString() je v UTC, ne v místním čase - v ČR by appka
-  // kolem půlnoci "myslela", že je ještě včera. Tohle vrátí dnešní datum
-  // podle místního času uživatele.
   function localTodayStr() {
     const d = new Date();
     const tzOffsetMs = d.getTimezoneOffset() * 60000;
@@ -1762,7 +1725,7 @@
 
   function mondayOfIsoWeek(isoDate) {
     const d = new Date(isoDate + "T00:00:00Z");
-    const day = d.getUTCDay(); // 0 = neděle .. 6 = sobota
+    const day = d.getUTCDay();
     const diff = day === 0 ? -6 : (1 - day);
     d.setUTCDate(d.getUTCDate() + diff);
     return d.toISOString().slice(0, 10);
@@ -1776,8 +1739,6 @@
     return "";
   }
 
-  // Sdílená šablona dlaždice poznámky - používá renderNotes(), renderDashboardView()
-  // a terminSectionHtml(), aby se HTML nezdvojovalo na třech místech.
   function noteTileHtml(n, opts = {}) {
     const {
       extraClasses = "",
@@ -1834,8 +1795,6 @@
     }
 
     const list = currentViewNotes();
-    // Poznámky s termínem napřed (prošlé/aktuální/budoucí vzestupně), pak
-    // teprve poznámky bez termínu - ty podle data zadání, od nejnovější.
     list.sort((a, b) => {
       const aHas = !!a.termin;
       const bHas = !!b.termin;
@@ -1879,20 +1838,14 @@
     "Červenec", "Srpen", "Září", "Říjen", "Listopad", "Prosinec"];
   const CZ_DAY_ABBR = ["Po", "Út", "St", "Čt", "Pá", "So", "Ne"];
   const CZ_DAY_NAMES_FULL = ["Pondělí", "Úterý", "Středa", "Čtvrtek", "Pátek", "Sobota", "Neděle"];
-  let calendarRefDate = null; // ISO "YYYY-MM-DD" - referenční den pro aktuální režim
-  let calendarViewMode = localStorage.getItem("calendarViewMode") || "month"; // "day" | "week" | "month"
+  let calendarRefDate = null;
+  let calendarViewMode = localStorage.getItem("calendarViewMode") || "month";
 
   function calendarNoteChipHtml(n, maxLen, compact) {
     const folder = folderByName(n.druh);
     const color = folder ? folder.barva : "#999";
     const title = noteTitle(n);
     const truncated = title.length > maxLen ? title.slice(0, maxLen) + "…" : title;
-    // Tlačítko na změnu termínu je přímo <label> obalující skutečný nativní
-    // <input type="date"> (průhledný, přes celou plochu ikony). Tap na ikonu
-    // tak je fyzicky tap na nativní date input - prohlížeč / mobil pak vždy
-    // spolehlivě otevře svůj datumový picker sám, appka se nemusí spoléhat
-    // na programové .showPicker() volání z JS, které se na některých mobilech
-    // (potvrzeno na Androidu) nedalo vůbec rozkliknout.
     const actionsHtml = compact ? "" : `<div class="calendar-note-chip-actions">
       <label class="calendar-note-action-btn calendar-note-retermin-label" title="Změnit termín" aria-label="Změnit termín">
         📅<input type="date" class="calendar-note-retermin-input" data-id="${n.id}" value="${n.termin || ""}">
@@ -1923,7 +1876,7 @@
 
   function buildCalendarMonthHtml(year, month, notesByDate) {
     const firstOfMonth = new Date(Date.UTC(year, month, 1));
-    const firstWeekday = (firstOfMonth.getUTCDay() + 6) % 7; // 0 = pondělí
+    const firstWeekday = (firstOfMonth.getUTCDay() + 6) % 7;
     const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
     const cells = [];
     for (let i = 0; i < firstWeekday; i++) cells.push(null);
@@ -1943,8 +1896,6 @@
   }
 
   function buildCalendarWeekHtml(monday, notesByDate) {
-    // Dny pod sebou (ne vedle sebe) - u každého dne rovnou celý název dne a
-    // datum, ať dává smysl i bez samostatného záhlaví se zkratkami dnů.
     let html = `<div class="calendar-week-list">`;
     for (let i = 0; i < 7; i++) {
       const dateStr = addDaysToIsoDate(monday, i);
@@ -2048,22 +1999,11 @@
       });
     });
     notesList.querySelectorAll(".calendar-note-retermin-label").forEach(label => {
-      // Zabránit probublání kliknutí na chip (jinak by tap na ikonu zároveň
-      // otevřel poznámku v editoru) - samotné otevření date pickeru řeší
-      // prohlížeč sám, protože je to skutečný nativní <input type="date">.
       label.addEventListener("click", (e) => e.stopPropagation());
     });
     notesList.querySelectorAll(".calendar-note-retermin-input").forEach(input => {
       input.addEventListener("click", (e) => e.stopPropagation());
       input.addEventListener("change", () => changeTerminForNote(input.dataset.id, input.value));
-      // Dokud je tenhle nativní date picker otevřený (input má focus), appka
-      // si prekresleni seznamu jen "poznamena" (viz pendingRenderAfterPicker)
-      // misto aby ho hned provedla - jinak by na desktopu prekresleni
-      // vyvolane treba jen potvrzenim driveji zmeneneho terminu ze serveru
-      // vytrhlo tenhle prave otevreny picker z DOM a prohlizec by ho tise
-      // zavrel, aniz by se zmena projevila ("nic se nestane" pri kliku na
-      // dalsi poznamku). Jakmile picker zavre (blur - ať už vybranim data,
-      // nebo Escape/kliknutim mimo), dluzne prekresleni se hned dozene.
       input.addEventListener("blur", () => {
         if (pendingRenderAfterPicker) {
           pendingRenderAfterPicker = false;
@@ -2079,10 +2019,6 @@
     });
   }
 
-  // Rychlá změna termínu přímo z Kalendáře (denní/týdenní pohled) - bez
-  // nutnosti otevírat celou poznámku v editoru. Ikona je skutečný nativní
-  // <input type="date"> (viz calendarNoteChipHtml) - appka jen zapíše
-  // vybranou hodnotu do Firestore po jeho "change" události.
   async function changeTerminForNote(id, newDate) {
     if (!newDate) return;
     try {
@@ -2096,10 +2032,6 @@
     }
   }
 
-  // Klik na prázdné místo v den v Kalendáři rovnou založí novou poznámku
-  // s termínem podle kliknutého data a kategorií ToDo (poslední složka v
-  // seznamu) - klik na existující poznámku (chip) tohle svým
-  // stopPropagation() přeskočí a otevře jen tu poznámku.
   async function createNoteForCalendarDay(dateStr) {
     const targetFolder = folders.length ? folders[folders.length - 1].nazev : null;
     if (!targetFolder) { showToast("Nejprve vytvoř složku"); return; }
@@ -2137,6 +2069,8 @@
     setTimeout(() => editorTitle.focus(), 150);
   }
 
+  // Hledání v koši je taky necitlivé na diakritiku, stejná normalizace jako
+  // v currentViewNotes().
   function renderTrashView() {
     notesColTitle.textContent = "🗑 Koš";
     let items = trashNotes().slice().sort((a, b) => {
@@ -2144,13 +2078,13 @@
       const bt = (b.smazanoKdy && b.smazanoKdy.toMillis) ? b.smazanoKdy.toMillis() : 0;
       return bt - at;
     });
-    const term = searchInput.value.trim().toLowerCase();
+    const term = normalizeSearchText(searchInput.value.trim());
     if (term) {
       items = items.filter(n => {
-        const t = (n.nazev || "").toLowerCase();
-        const c = stripHtml(n.popis || "").toLowerCase();
+        const t = normalizeSearchText(n.nazev || "");
+        const c = normalizeSearchText(stripHtml(n.popis || ""));
         const tags = Array.isArray(n.stitky) ? n.stitky : [];
-        const tagMatch = tags.some(tag => tag.toLowerCase().includes(term));
+        const tagMatch = tags.some(tag => normalizeSearchText(tag).includes(term));
         return t.includes(term) || c.includes(term) || tagMatch;
       });
     }
@@ -2185,9 +2119,6 @@
     });
   }
 
-  // Vzpomínka ze složky Hlášky - vybírá se náhodně při KAŽDÉM vykreslení
-  // Dashboardu (ne jednou za den), takže se může změnit i v rámci téhož dne
-  // při pouhém znovunačtení stránky.
   function pickDailyMemory() {
     const hlaskyNotes = visibleNotes().filter(n => isHlaskaFolder(n.druh));
     if (hlaskyNotes.length === 0) return null;
@@ -2195,10 +2126,6 @@
     return hlaskyNotes[idx];
   }
 
-  // Vzpomínka se na Dashboardu zobrazuje jako obyčejná sticky karta na celou
-  // šířku (stejná komponenta jako u ostatních poznámek, jen s vlastní
-  // broskvovou barvou) - bez samostatného nadpisu skupiny a bez omezení
-  // výšky, ať je vidět celý obsah.
   function memorySectionHtml() {
     const memory = pickDailyMemory();
     if (!memory) return "";
@@ -2207,11 +2134,6 @@
     </div>`;
   }
 
-  // Sticky karticka poznamky na Dashboardu - narozdil od noteTileHtml()
-  // ukazuje CELY obsah poznamky (ne jen zkraceny snippet), vysku si
-  // prizpusobuje obsahu (zadna pevna vyska), a je jemne podbarvena barvou
-  // vlastni kategorie (misto jen barevneho pruhu vlevo). Poznamky z
-  // kategorie Hláška se navic zobrazuji na celou sirku (viz caller).
   function stickyTileHtml(n, opts = {}) {
     const { wide = false, forceBg = null, forceBorder = null, badgeExtra = "" } = opts;
     const folder = folderByName(n.druh);
@@ -2222,11 +2144,6 @@
     const tagsHtml = tags.length
       ? `<div class="note-row-tags">${tags.map(t => `<span class="tag-pill">#${escapeHtml(t)}</span>`).join("")}</div>`
       : "";
-    // Neprůhledný pastelový odstín (ne hexToRgba) - musí plně zakrýt jemný
-    // květinový vzor pozadí Dashboardu pod sebou, jinak by jím prosvítal.
-    // forceBg/forceBorder umožňují přebít barvu odvozenou od kategorie -
-    // využívá karta se "vzpomínkou", která má vždy vlastní broskvový odstín
-    // bez ohledu na kategorii zdrojové poznámky.
     const bg = forceBg || mixWithWhite(color, 0.16);
     const border = forceBorder || hexToRgba(color, 0.45);
     return `<div class="dashboard-sticky ${wide ? "dashboard-sticky-wide" : ""}" style="background:${bg};border-color:${border}" data-id="${n.id}">
@@ -2250,9 +2167,6 @@
       return;
     }
 
-    // Řazení podle data vzniku poznámky (ne podle data v poli Datum) -
-    // nejnovější nahoře, nejstarší dole. Starší poznámky bez pole
-    // "vytvoreno" (z doby před jeho zavedením) spadnou na konec dle Datumu.
     const byCreatedDesc = (a, b) => {
       const at = (a.vytvoreno && a.vytvoreno.toMillis) ? a.vytvoreno.toMillis() : 0;
       const bt = (b.vytvoreno && b.vytvoreno.toMillis) ? b.vytvoreno.toMillis() : 0;
@@ -2261,9 +2175,6 @@
       return 0;
     };
 
-    // Poznámky z kategorie Hláška se zobrazují zvlášť, na celou šířku,
-    // nahoře nad ostatními oblíbenými poznámkami (viz zadání) - bez názvů
-    // kategorií, jen jako obarvené "sticky" kartičky.
     const hlaskaFavs = favs.filter(n => isHlaskaFolder(n.druh)).sort(byCreatedDesc);
     const otherFavs = favs.filter(n => !isHlaskaFolder(n.druh)).sort(byCreatedDesc);
 
@@ -2378,10 +2289,6 @@
 
   searchInput.addEventListener("input", () => {
     updateSearchClearBtn();
-    // Dashboard/Termín/Kalendář mají vlastní vykreslování, které hledaný
-    // výraz vůbec nekontroluje. Jakmile se do hledání něco napíše v jednom
-    // z těchto pohledů, appka radši přepne na Všechny poznámky, kde
-    // vyhledávání skutečně funguje, ať psaní do políčka není zbytečné.
     if (searchInput.value.trim() && ["dashboard", "termin", "calendar"].includes(view.type)) {
       view = { type: "all" };
       columnsEl.classList.remove("dashboard-mode");
@@ -2391,10 +2298,6 @@
       newsletterBtn.style.display = "";
       emptyTrashBtn.style.display = "none";
       renderFolders();
-      // Na mobilu je vidět jen jeden sloupec najednou - po přepnutí na
-      // Všechny poznámky se musí explicitně ukázat sloupec s poznámkami
-      // (jinak by uživatel mohl zůstat koukat na sloupec, který se
-      // mezitím schoval).
       if (window.innerWidth <= 900) columnsEl.dataset.view = "notes";
     }
     renderNotes();
@@ -2412,8 +2315,6 @@
     if (!n) return;
     const newVal = !n.oblibene;
 
-    // Optimisticky aktualizuj lokální stav, ať se hvězdička projeví okamžitě
-    // a nečeká se na doručení onSnapshot listeneru.
     allNotes = allNotes.map(x => x.id === id ? { ...x, oblibene: newVal } : x);
     renderFolders();
     renderNotes();
@@ -2422,7 +2323,6 @@
     try {
       await updateDoc(doc(db, NOTES_COL, id), { oblibene: newVal });
     } catch (err) {
-      // Rollback při chybě zápisu
       allNotes = allNotes.map(x => x.id === id ? { ...x, oblibene: !newVal } : x);
       renderFolders();
       renderNotes();
@@ -2431,10 +2331,6 @@
     }
   }
 
-  // Smazání poznámky ji přesune do koše (pole smazano/smazanoKdy), odkud
-  // se dá kdykoliv do 30 dní obnovit. Prvních 5 sekund je akce ještě čistě
-  // lokální (viz pendingDeletes), takže "Zpět" v toastu funguje okamžitě
-  // bez zápisu do Firestore.
   const TRASH_RETENTION_DAYS = 30;
 
   async function deleteNoteRow(id) {
@@ -2502,9 +2398,6 @@
     }
   }
 
-  // Poznámky smazané před více než 30 dny se potichu smažou natrvalo -
-  // spouští se po každém načtení poznámek, žádný server/cron k tomu není
-  // potřeba.
   function autoPurgeOldTrash() {
     const cutoff = Date.now() - TRASH_RETENTION_DAYS * 24 * 60 * 60 * 1000;
     const toPurge = allNotes.filter(n => {
@@ -2551,8 +2444,6 @@
       return;
     }
 
-    // Optimisticky přidej poznámku do lokálního stavu hned, ať se editor
-    // otevře okamžitě a nečeká se na doručení onSnapshot listeneru.
     if (!allNotes.some(n => n.id === ref.id)) {
       allNotes = [{ id: ref.id, ...newNoteData }, ...allNotes];
     }
@@ -2666,8 +2557,6 @@
   });
   editorTitle.addEventListener("input", () => scheduleSave());
 
-  // Zaregistruje libovolný text input (název poznámky, název složky...) jako
-  // možný cíl pro vkládání emoji a průběžně mu sleduje pozici kurzoru.
   function registerEmojiTarget(el) {
     const update = () => {
       lastFocusIsQuill = false;
@@ -2706,9 +2595,6 @@
   }
   buildEmojiPicker();
 
-  // Otevře/zavře panel u konkrétního tlačítka (může jich být víc - v editoru
-  // poznámky, u nové složky, u kterékoli existující složky v levém menu) a
-  // umístí ho hned pod něj.
   function toggleEmojiPicker(triggerEl) {
     const isOpenForThis = emojiPickerPanel.classList.contains("visible") && emojiPickerCurrentTrigger === triggerEl;
     if (isOpenForThis) {
@@ -2729,9 +2615,6 @@
     emojiPickerCurrentTrigger = triggerEl;
   }
 
-  // mousedown s preventDefault na spouštěcích tlačítkách i na samotných emoji
-  // zabrání prohlížeči přebrat focus z pole, kam se právě píše (jinak by se
-  // třeba přejmenování složky předčasně uložilo/ukončilo).
   function guardFocus(el) {
     el.addEventListener("mousedown", (e) => e.preventDefault());
   }
@@ -2748,7 +2631,6 @@
   });
   newFolderEmojiBtn.addEventListener("click", (e) => {
     e.stopPropagation();
-    // Vybrana emoji se ulozi jako ikona nove slozky, ne do textu nazvu.
     emojiIconTarget = {
       setIcon: (emoji) => {
         newFolderIcon = emoji;
@@ -2838,9 +2720,6 @@
     const bodyText = htmlToShareText(n.popis || "", { markdown: true });
     const shareText = bodyText ? `${title}\n\n${bodyText}` : title;
 
-    // Na mobilu (typicky Android/Chrome) nabídne systémové sdílení, kde je
-    // WhatsApp přímo na výběr spolu s ostatními appkami. Když Web Share API
-    // není k dispozici (desktop prohlížeče), otevře se rovnou WhatsApp Web.
     if (navigator.share) {
       try {
         await navigator.share({ title, text: shareText });
@@ -2858,9 +2737,6 @@
     const n = allNotes.find(x => x.id === selectedNoteId);
     if (!n) return;
     const title = noteTitle(n);
-    // Bez WhatsApp markdown symbolů - v obyčejném e-mailu by jen zbytečně
-    // rušily. Odřádkování (\n -> %0A) ale e-mailoví klienti v mailto:
-    // odkazu respektují.
     const bodyText = htmlToShareText(n.popis || "", { markdown: false });
     const url = `mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(bodyText)}`;
     window.open(url, "_self");
@@ -2924,6 +2800,9 @@
     runPdfExport(from, to);
   });
 
+  // Export do PDF - u každé poznámky se teď kromě názvu/data/kategorie
+  // vypisují i všechny její štítky (viz .print-tags/.print-tag-pill v CSS,
+  // platné jen v @media print).
   function runPdfExport(from, to) {
     let list = [...currentViewNotes()];
     if (from) list = list.filter(n => n.datum >= from);
@@ -2935,9 +2814,14 @@
     list.forEach(n => {
       const title = (n.nazev && n.nazev.trim()) ? n.nazev.trim() : "Bez názvu";
       const folder = folderByName(n.druh);
+      const tags = Array.isArray(n.stitky) ? n.stitky : [];
+      const tagsHtml = tags.length
+        ? `<div class="print-tags">${tags.map(t => `<span class="print-tag-pill">#${escapeHtml(t)}</span>`).join("")}</div>`
+        : "";
       html += `<div class="print-note">
         <div class="print-title">${escapeHtml(title)}</div>
         <div class="print-meta">${formatDate(n.datum)} · ${folderIconPrefix(folder)}${escapeHtml(n.druh || "")}</div>
+        ${tagsHtml}
         <div class="print-content">${n.popis || ""}</div>
       </div>`;
     });
@@ -2997,6 +2881,8 @@
   newsletterBtn.addEventListener("click", () => {
     nlFromDate.value = "";
     nlToDate.value = "";
+    const waRadio = document.getElementById("nlFormatWa");
+    if (waRadio) waRadio.checked = true;
     newsletterRangeModal.classList.add("visible");
     setTimeout(() => nlFromDate.focus(), 50);
   });
@@ -3011,21 +2897,20 @@
     }
   });
 
+  // Dialog teď nabízí dva formáty (viz radio #nlFormatWa/#nlFormatA4 v HTML) -
+  // "Obrázek pro WA" spouští původní export (runNewsletterExport), "Obrázek
+  // A4" nový export pro fotoknihu (runNewsletterExportA4).
   nlConfirmBtn.addEventListener("click", () => {
     const from = nlFromDate.value;
     const to = nlToDate.value;
     if (from && to && from > to) { showToast("Datum „Od“ je později než „Do“"); return; }
+    const formatEl = document.querySelector('input[name="nlFormat"]:checked');
+    const format = formatEl ? formatEl.value : "wa";
     newsletterRangeModal.classList.remove("visible");
-    runNewsletterExport(from, to);
+    if (format === "a4") runNewsletterExportA4(from, to);
+    else runNewsletterExport(from, to);
   });
 
-  // Export "Hláška" - když je v rozsahu moc hlášek najednou, výsledný obrázek
-  // vychází extrémně vysoký (jeden dlouhý sloupec karet) a na spoustě
-  // telefonů/WhatsAppu se pak sdílení spolehlivě nepodaří (WhatsApp takový
-  // "obrázek" v praxi odmítne přijmout - přijde jeho vlastní hláška
-  // "Sdílení se nepodařilo"). Appka proto hlášky rozdělí po menších dávkách
-  // do víc samostatných obrázků (každý rozumně vysoký) a všechny nabídne
-  // ke sdílení najednou.
   const NL_MAX_PER_IMAGE = 8;
 
   function chunkArray(arr, size) {
@@ -3042,7 +2927,7 @@
     let list = visibleNotes().filter(n => isHlaskaFolder(n.druh) && htmlToPlainText(n.popis).length > 0);
     if (from) list = list.filter(n => n.datum >= from);
     if (to) list = list.filter(n => n.datum <= to);
-    list.sort((a, b) => (a.datum > b.datum ? 1 : -1)); // od nejstarší po nejnovější
+    list.sort((a, b) => (a.datum > b.datum ? 1 : -1));
     if (list.length === 0) { showToast("V daném rozsahu nejsou žádné hlášky"); return; }
 
     const pages = chunkArray(list, NL_MAX_PER_IMAGE);
@@ -3101,14 +2986,6 @@
       }
       newsletterStage.innerHTML = "";
 
-      // WhatsApp na některých telefonech obrázek předaný přes systémové
-      // sdílení tiše odmítne přijmout, i když je malý - jde o chybu na
-      // straně Androidu/WhatsAppu, appka to nedokáže poznat ani ovlivnit
-      // (navigator.share() se v tu chvíli tváří, že proběhlo v pořádku).
-      // Proto appka obrázek vždy i stáhne do telefonu jako zálohu - pokud
-      // by sdílení do WhatsAppu selhalo, jde ho poslat ručně přes přílohu
-      // (Galerie). Výjimka: pokud uživatel nabídku sdílení sám zavřel
-      // (zrušil), appka respektuje jeho volbu a nic nestahuje.
       let shareSucceeded = false;
       let userCancelled = false;
       if (navigator.canShare && navigator.canShare({ files })) {
@@ -3142,6 +3019,135 @@
     }
   }
 
+  // ---------- Export A4 (pro fotoknihu) ----------
+  // Na rozdíl od exportu pro WhatsApp (pevný počet hlášek na obrázek) je
+  // tady stránka pevné velikosti A4 (poměr stran 210:297) a appka místo
+  // toho odhaduje, KOLIK hlášek se na jednu stránku vejde - zkusmo je do
+  // stránky (dvousloupcové "masonry" rozložení, viz .a4-cards v CSS)
+  // postupně přidává a po každé reálně změří vykreslenou výšku (mimo
+  // obrazovku, v #newsletterStage) - jakmile by další hláška stránku
+  // přetekla, uzavře ji a začne novou. Karty mají navíc mírnou náhodnou
+  // (ale deterministickou, podle id poznámky) rotaci pro neformální,
+  // "naskládaný" vzhled.
+  const A4_PAGE_W = 1240;
+  const A4_PAGE_H = 1754;
+  const A4_HEIGHT_BUFFER = 26;
+
+  function cardRotationDeg(id) {
+    let h = 0;
+    const s = String(id || "");
+    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 1000;
+    return ((h / 1000) * 4.4 - 2.2).toFixed(2);
+  }
+
+  function buildA4PageHtml(pageNotes, from, to, pageNum, pageCount, fixedHeight) {
+    const cardsHtml = pageNotes.map(n => {
+      const tags = Array.isArray(n.stitky) ? n.stitky : [];
+      const color = tagColor(tags[0] || n.id);
+      const badgesHtml = tags.length
+        ? tags.map(t => `<span class="a4-badge" style="--nl-badge-color:${tagColor(t)}">${escapeHtml(t.toUpperCase())}</span>`).join(" ")
+        : "<span></span>";
+      const title = (n.nazev && n.nazev.trim()) ? n.nazev.trim() : "";
+      const text = htmlToPlainText(n.popis);
+      const rot = cardRotationDeg(n.id);
+      return `
+        <div class="a4-card" style="--nl-color:${color};transform:rotate(${rot}deg);">
+          <div class="a4-card-top">
+            <span class="a4-badges">${badgesHtml}</span>
+            <span class="a4-date">${formatNlDate(n.datum)}</span>
+          </div>
+          ${title ? `<div class="a4-title">${escapeHtml(title)}</div>` : ""}
+          <div class="a4-text">${escapeHtml(text)}</div>
+        </div>`;
+    }).join("");
+
+    const pageNumHtml = (pageCount && pageCount > 1) ? `<div class="a4-header-pagenum">${pageNum}/${pageCount}</div>` : "";
+
+    return `
+      <div class="a4-page ${fixedHeight ? "a4-page-fixed" : ""}">
+        <div class="a4-header">
+          <h1>😂 Rodinné hlášky</h1>
+          <div class="a4-header-range">${escapeHtml(formatNlRange(from, to))}</div>
+          ${pageNumHtml}
+        </div>
+        <div class="a4-content"><div class="a4-cards">${cardsHtml}</div></div>
+        <div class="a4-footer">✎ Zaznamenáno v appce Vtipníci</div>
+      </div>`;
+  }
+
+  async function paginateA4Notes(list, from, to) {
+    const pages = [];
+    let idx = 0;
+    while (idx < list.length) {
+      let pageNotes = [list[idx]];
+      idx++;
+      while (idx < list.length) {
+        const candidate = [...pageNotes, list[idx]];
+        newsletterStage.innerHTML = buildA4PageHtml(candidate, from, to, pages.length + 1, null, false);
+        await new Promise(r => requestAnimationFrame(r));
+        const pageEl = newsletterStage.firstElementChild;
+        const height = pageEl.getBoundingClientRect().height;
+        if (height <= A4_PAGE_H - A4_HEIGHT_BUFFER) {
+          pageNotes = candidate;
+          idx++;
+        } else {
+          break;
+        }
+      }
+      pages.push(pageNotes);
+    }
+    return pages;
+  }
+
+  async function runNewsletterExportA4(from, to) {
+    if (typeof html2canvas === "undefined") {
+      showToast("Nepodařilo se načíst knihovnu pro export obrázku");
+      return;
+    }
+    let list = visibleNotes().filter(n => isHlaskaFolder(n.druh) && htmlToPlainText(n.popis).length > 0);
+    if (from) list = list.filter(n => n.datum >= from);
+    if (to) list = list.filter(n => n.datum <= to);
+    list.sort((a, b) => (a.datum > b.datum ? 1 : -1));
+    if (list.length === 0) { showToast("V daném rozsahu nejsou žádné hlášky"); return; }
+
+    showToast("Připravuji obrázek A4…");
+    try {
+      const pages = await paginateA4Notes(list, from, to);
+      showToast(pages.length > 1 ? `Generuji ${pages.length} obrázky A4…` : "Generuji obrázek A4…");
+      const files = [];
+      for (let i = 0; i < pages.length; i++) {
+        newsletterStage.innerHTML = buildA4PageHtml(pages[i], from, to, i + 1, pages.length, true);
+        await new Promise(r => setTimeout(r, 60));
+        const target = newsletterStage.firstElementChild;
+        const canvas = await html2canvas(target, {
+          backgroundColor: "#fffaf0", scale: 2, useCORS: true, width: A4_PAGE_W, height: A4_PAGE_H
+        });
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/png"));
+        const suffix = pages.length > 1 ? `-${i + 1}z${pages.length}` : "";
+        const fileName = `hlasky-A4-${from || "vse"}_${to || "vse"}${suffix}.png`;
+        files.push(new File([blob], fileName, { type: "image/png" }));
+      }
+      newsletterStage.innerHTML = "";
+
+      files.forEach((file, i) => {
+        setTimeout(() => {
+          const url = URL.createObjectURL(file);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = file.name;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 4000);
+        }, i * 300);
+      });
+      showToast(pages.length > 1 ? `${pages.length} obrázky A4 staženy` : "Obrázek A4 stažen");
+    } catch (err) {
+      newsletterStage.innerHTML = "";
+      showToast("Export obrázku A4 selhal: " + err.message);
+    }
+  }
+
   // ---------- JSON backup export ----------
   jsonExportBtn.addEventListener("click", () => {
     if (allNotes.length === 0) { showToast("Není co exportovat"); return; }
@@ -3161,9 +3167,6 @@
   });
 
   // ---------- Import textu z webu (typicky recepty) ----------
-  // Prohlížeč blokuje cross-origin fetch cizích stránek (CORS), appka nemá vlastní server,
-  // takže se musí jít přes veřejné proxy služby. Zkouší se jich víc po sobě, protože
-  // jednotlivé veřejné proxy bývají nespolehlivé/nedostupné.
   const HTML_PROXIES = [
     (u) => "https://api.allorigins.win/raw?url=" + encodeURIComponent(u),
     (u) => "https://corsproxy.io/?url=" + encodeURIComponent(u),
@@ -3239,8 +3242,6 @@
         htmlErr = err;
       }
 
-      // Pokud se z HTML nepodařilo najít recept ani text, zkus ještě čitelný
-      // text stránky přes čtečkovou proxy (funguje i na weby, co blokují ty první).
       const htmlGaveNothing = !extracted || (!extracted.isRecipe && !extracted.text) ||
         (extracted.isRecipe && !extracted.ingredients.length && !extracted.instructions.length);
       if (htmlGaveNothing) {
