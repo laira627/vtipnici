@@ -452,23 +452,32 @@
   .nl-footer .nl-f1 { font-size: 26px; font-weight: 700; color: #78412d; margin: 0 0 12px; }
   .nl-footer .nl-f2 { font-size: 24px; color: #965f4b; margin: 0; }
 
-  /* ---------- Export A4 (fotokniha) ---------- */
+  /* ---------- Export A4 (fotokniha) ----------
+     Okraje stránky: nahoře/dole 1 cm, vlevo/vpravo 2 cm (na 1240x1754px
+     plátně = cca 59.05 px/cm, tedy 59px svisle a 118px vodorovně) -
+     řešeno jako padding přímo na .a4-page (box-sizing: border-box, takže
+     se do 1240x1754 vejde i s paddingem). Hlavička/obsah/patička už nemají
+     vlastní vodorovný padding, ten teď zajišťuje výhradně okraj stránky. */
   .a4-page {
     width: 1240px; background: #fffaf0; box-sizing: border-box;
+    padding: 59px 118px;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   }
   .a4-page-fixed { height: 1754px; overflow: hidden; }
   .a4-header {
     background: linear-gradient(180deg, #ffd6a5 0%, #ff9a9e 100%);
-    padding: 46px 60px 30px; text-align: center;
+    padding: 20px 0 26px; text-align: center;
   }
   .a4-header h1 { font-size: 46px; font-weight: 800; color: #46161e; margin: 0 0 8px; letter-spacing: .5px; }
   .a4-header-range { font-size: 21px; color: #5a2d2d; }
   .a4-header-pagenum { font-size: 15px; color: #783f3f; margin-top: 6px; }
-  .a4-content { padding: 28px 46px 6px; }
-  .a4-cards { column-count: 2; column-gap: 20px; }
+  .a4-content { padding: 26px 0 0; }
+  /* Boxy s hláškami nejsou rotované (na přání Iri) - mezery mezi nimi jsou
+     naopak dost velké, ať se obsah stránky pěkně rozloží po celé ploše;
+     počet hlášek na stránce si Iri hlídá sama při generování. */
+  .a4-cards { column-count: 2; column-gap: 48px; }
   .a4-card {
-    background: #fff; border-radius: 14px; padding: 16px 18px; margin: 8px 0 18px;
+    background: #fff; border-radius: 14px; padding: 20px 22px; margin: 10px 0 36px;
     box-shadow: 4px 5px 0 #e1cdc3; border-left: 7px solid var(--nl-color, #999);
     break-inside: avoid; -webkit-column-break-inside: avoid;
   }
@@ -481,7 +490,7 @@
   .a4-date { font-size: 11px; color: #786464; }
   .a4-title { font-size: 15px; font-weight: 700; color: #3c2d32; margin: 0 0 8px; }
   .a4-text { font-size: 13.5px; line-height: 1.42; color: #373237; white-space: pre-wrap; }
-  .a4-footer { text-align: center; padding: 10px 20px 26px; font-size: 15px; font-weight: 700; color: #965f4b; }
+  .a4-footer { text-align: center; padding: 16px 0 0; font-size: 15px; font-weight: 700; color: #965f4b; }
 
   /* ---------- Print ---------- */
   #printArea { display: none; }
@@ -833,7 +842,7 @@
   // nahrání nové verze na GitHub pozná (i přes zpoždění nasazení), jestli
   // se jí už načetla nejnovější verze, nebo pořád vidí tu starou z cache.
   // Při KAŽDÉ příští úpravě index.html je potřeba tohle číslo zvýšit o 1.
-  const APP_VERSION = "3";
+  const APP_VERSION = "4";
   document.querySelectorAll(".app-version-badge").forEach(el => {
     el.textContent = "v" + APP_VERSION;
   });
@@ -3021,24 +3030,19 @@
 
   // ---------- Export A4 (pro fotoknihu) ----------
   // Na rozdíl od exportu pro WhatsApp (pevný počet hlášek na obrázek) je
-  // tady stránka pevné velikosti A4 (poměr stran 210:297) a appka místo
-  // toho odhaduje, KOLIK hlášek se na jednu stránku vejde - zkusmo je do
-  // stránky (dvousloupcové "masonry" rozložení, viz .a4-cards v CSS)
-  // postupně přidává a po každé reálně změří vykreslenou výšku (mimo
-  // obrazovku, v #newsletterStage) - jakmile by další hláška stránku
-  // přetekla, uzavře ji a začne novou. Karty mají navíc mírnou náhodnou
-  // (ale deterministickou, podle id poznámky) rotaci pro neformální,
-  // "naskládaný" vzhled.
+  // tady stránka pevné velikosti A4 (poměr stran 210:297, okraje nahoře/dole
+  // 1 cm a vlevo/vpravo 2 cm - viz padding na .a4-page v CSS) a appka místo
+  // pevného počtu odhaduje, KOLIK hlášek se na jednu stránku vejde - zkusmo
+  // je do stránky (dvousloupcové "masonry" rozložení se širšími mezerami,
+  // viz .a4-cards v CSS) postupně přidává a po každé reálně změří vykreslenou
+  // výšku (mimo obrazovku, v #newsletterStage) - jakmile by další hláška
+  // stránku přetekla, uzavře ji a začne novou. Karty NEJSOU rotované (Iri to
+  // vyzkoušela a nechtěla) - jen mají mezi sebou dost velké mezery, ať se
+  // obsah rozloží po celé ploše stránky; kolik hlášek na stránku zahrnout,
+  // si Iri hlídá sama při generování.
   const A4_PAGE_W = 1240;
   const A4_PAGE_H = 1754;
   const A4_HEIGHT_BUFFER = 26;
-
-  function cardRotationDeg(id) {
-    let h = 0;
-    const s = String(id || "");
-    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 1000;
-    return ((h / 1000) * 4.4 - 2.2).toFixed(2);
-  }
 
   function buildA4PageHtml(pageNotes, from, to, pageNum, pageCount, fixedHeight) {
     const cardsHtml = pageNotes.map(n => {
@@ -3049,9 +3053,8 @@
         : "<span></span>";
       const title = (n.nazev && n.nazev.trim()) ? n.nazev.trim() : "";
       const text = htmlToPlainText(n.popis);
-      const rot = cardRotationDeg(n.id);
       return `
-        <div class="a4-card" style="--nl-color:${color};transform:rotate(${rot}deg);">
+        <div class="a4-card" style="--nl-color:${color};">
           <div class="a4-card-top">
             <span class="a4-badges">${badgesHtml}</span>
             <span class="a4-date">${formatNlDate(n.datum)}</span>
