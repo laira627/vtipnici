@@ -11,9 +11,10 @@
 <meta name="theme-color" content="#dceefb" id="themeColorMeta">
 <link rel="manifest" href="manifest-quick.json" id="manifestLink">
 <script>
-  // Nastavit tmavý/světlý režim co nejdřív, stejná logika a stejný
-  // localStorage klíč jako v plné appce (index.html), aby volba platila
-  // napříč oběma stránkami.
+  // Nastavit tmavý/světlý režim co nejdřív (ještě před vykreslením stránky),
+  // ať appka na chvilku nebliká světlým vzhledem. Volba: uložená preference
+  // uživatele (localStorage, sdílená s hlavní appkou) > systémové nastavení
+  // telefonu (prefers-color-scheme).
   (function () {
     try {
       const saved = localStorage.getItem("vtipnici-theme");
@@ -21,6 +22,8 @@
       document.documentElement.setAttribute("data-theme", theme);
     } catch (e) {}
   })();
+</script>
+<script>
   // Kdyz je stranka otevrena jako quick.html?termin=1 (druha ikona na
   // plose pro rezim "Termin na zitra"), musi se pouzit JINY manifest -
   // ten s vlastnim start_url vcetne "?termin=1". Android totiz pri
@@ -48,11 +51,12 @@
     --accent-dark: #2c527f;
     --accent-soft: #e5eefa;
     --shadow: 0 1px 3px rgba(43,38,32,0.06), 0 4px 16px rgba(43,38,32,0.05);
-    --danger: #b3261e;
-    --recording-bg: #f6cdc6;
+    --toast-bg: #2b2620;
+    --toast-ink: #ffffff;
   }
-  /* Tmavý režim - stejná paleta jako v plné appce (index.html), aby obě
-     stránky ladily. Přepíná se stejně, přes data-theme na <html>. */
+  /* ---------- Tmavý režim ----------
+     Přepíná se atributem data-theme="dark" na <html> (viz applyTheme() v JS).
+     Sdílí preferenci (localStorage klíč "vtipnici-theme") s hlavní appkou. */
   html[data-theme="dark"] {
     --bg: #0f0c09;
     --paper: #241e17;
@@ -63,12 +67,12 @@
     --accent-dark: #a9cbf3;
     --accent-soft: #223347;
     --shadow: 0 1px 3px rgba(0,0,0,0.45), 0 6px 24px rgba(0,0,0,0.4);
-    --danger: #e2776a;
-    --recording-bg: #4a251f;
+    --toast-bg: #100d0a;
+    --toast-ink: #f2e9db;
   }
+  * { box-sizing: border-box; }
   html { color-scheme: light; }
   html[data-theme="dark"] { color-scheme: dark; }
-  * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -101,16 +105,7 @@
     background: var(--accent-soft); border: 1.5px solid var(--accent); color: var(--accent-dark);
     border-radius: 8px; padding: 4px 9px; font-size: 14px; cursor: pointer; line-height: 1.4;
   }
-  .mic-btn.recording { background: var(--recording-bg); border-color: var(--danger); color: var(--danger); }
-  .card-header-row { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 4px; }
-  .card-header-row h1 { margin: 0; }
-  .theme-toggle-btn {
-    background: var(--accent-soft); border: 1.5px solid var(--line); color: var(--ink-soft);
-    border-radius: 9px; width: 34px; height: 34px; font-size: 16px; cursor: pointer;
-    display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
-    position: absolute; right: 22px; top: 18px;
-  }
-  .card { position: relative; }
+  .mic-btn.recording { background: #f6cdc6; border-color: #b3261e; color: #b3261e; }
   .mic-interim {
     font-size: 13px; font-style: italic; color: var(--ink-soft);
     min-height: 16px; margin-top: 4px; padding: 0 2px;
@@ -148,15 +143,23 @@
   .link-row a { color: var(--ink-soft); font-size: 13px; text-decoration: none; }
   .link-row a:hover { color: var(--accent-dark); }
 
-  #loginError { color: var(--danger); font-size: 13px; margin-top: 10px; min-height: 18px; text-align: center; }
+  #loginError { color: #b3261e; font-size: 13px; margin-top: 10px; min-height: 18px; text-align: center; }
 
   .toast {
     position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
-    background: var(--ink); color: #fff; padding: 12px 22px; border-radius: 10px;
+    background: var(--toast-bg); color: var(--toast-ink); padding: 12px 22px; border-radius: 10px;
     font-size: 14.5px; font-weight: 600; opacity: 0; pointer-events: none;
     transition: opacity .2s, transform .2s; z-index: 200;
   }
   .toast.visible { opacity: 1; transform: translateX(-50%) translateY(-6px); }
+
+  .theme-toggle-btn {
+    position: fixed; top: 14px; right: 14px;
+    width: 36px; height: 36px; border-radius: 50%;
+    background: var(--paper); border: 1.5px solid var(--line); color: var(--ink);
+    font-size: 16px; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; box-shadow: var(--shadow); z-index: 100;
+  }
 
   #entryScreen { display: none; }
   @media (max-width: 700px) {
@@ -179,9 +182,10 @@
 </head>
 <body>
 
+<button class="theme-toggle-btn" id="themeToggleBtn" type="button" title="Přepnout tmavý/světlý režim" aria-label="Přepnout tmavý/světlý režim">🌙</button>
+
 <!-- LOGIN -->
 <div class="card" id="loginScreen">
-  <button type="button" class="theme-toggle-btn" id="themeToggleBtn1" title="Přepnout tmavý/světlý režim" aria-label="Přepnout tmavý/světlý režim">🌙</button>
   <h1>📓 Rychlý zápis</h1>
   <p class="sub">Přihlaš se jednou, appka si tě pak pamatuje</p>
   <form id="loginForm">
@@ -200,7 +204,6 @@
 
 <!-- QUICK ENTRY -->
 <div class="card" id="entryScreen">
-  <button type="button" class="theme-toggle-btn" id="themeToggleBtn2" title="Přepnout tmavý/světlý režim" aria-label="Přepnout tmavý/světlý režim">🌙</button>
   <h1>📓 Rychlý zápis</h1>
   <p class="sub">Zadej poznámku a ulož jedním klepnutím</p>
   <form id="entryForm">
@@ -276,36 +279,26 @@
   const loginForm = document.getElementById("loginForm");
   const loginError = document.getElementById("loginError");
   const entryForm = document.getElementById("entryForm");
+  const themeToggleBtn = document.getElementById("themeToggleBtn");
+  const themeColorMeta = document.getElementById("themeColorMeta");
 
   // ---------- Tmavý / světlý režim ----------
-  // Stejný localStorage klíč jako v plné appce (index.html), aby volba
-  // platila napříč oběma stránkami. Tlačítko je na obou kartách (přihlášení
-  // i samotný zápis), obě ovládají stejný stav.
-  const themeColorMeta = document.getElementById("themeColorMeta");
-  const themeToggleBtns = [
-    document.getElementById("themeToggleBtn1"),
-    document.getElementById("themeToggleBtn2")
-  ];
+  // Preference (localStorage klíč "vtipnici-theme") je sdílená s hlavní
+  // appkou (index.html), takže přepnutí na jednom místě platí všude.
   function applyTheme(theme) {
     document.documentElement.setAttribute("data-theme", theme);
     themeColorMeta.setAttribute("content", theme === "dark" ? "#0f0c09" : "#dceefb");
-    themeToggleBtns.forEach(btn => {
-      if (!btn) return;
-      btn.textContent = theme === "dark" ? "☀️" : "🌙";
-      btn.title = theme === "dark" ? "Přepnout na světlý režim" : "Přepnout na tmavý režim";
-    });
+    themeToggleBtn.textContent = theme === "dark" ? "☀️" : "🌙";
+    themeToggleBtn.title = theme === "dark" ? "Přepnout na světlý režim" : "Přepnout na tmavý režim";
   }
   function getCurrentTheme() {
     return document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
   }
   applyTheme(getCurrentTheme());
-  themeToggleBtns.forEach(btn => {
-    if (!btn) return;
-    btn.addEventListener("click", () => {
-      const next = getCurrentTheme() === "dark" ? "light" : "dark";
-      localStorage.setItem("vtipnici-theme", next);
-      applyTheme(next);
-    });
+  themeToggleBtn.addEventListener("click", () => {
+    const next = getCurrentTheme() === "dark" ? "light" : "dark";
+    localStorage.setItem("vtipnici-theme", next);
+    applyTheme(next);
   });
   if (window.matchMedia) {
     window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (e) => {

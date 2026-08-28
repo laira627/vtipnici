@@ -10,9 +10,6 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#dceefb" id="themeColorMeta">
 <link rel="manifest" href="manifest-app.json">
-<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
-<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ctext%20y%3D%22.9em%22%20font-size%3D%2290%22%3E%F0%9F%93%8C%3C/text%3E%3C/svg%3E">
 <script>
   // Nastavit tmavý/světlý režim co nejdřív (ještě před vykreslením stránky),
   // ať appka na chvilku nebliká světlým vzhledem, než se stihne načíst
@@ -26,6 +23,9 @@
     } catch (e) {}
   })();
 </script>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ctext%20y%3D%22.9em%22%20font-size%3D%2290%22%3E%F0%9F%93%8C%3C/text%3E%3C/svg%3E">
 <link href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" rel="stylesheet">
 <style>
   :root {
@@ -259,8 +259,8 @@
   .note-row-badge {
     font-size: 10.5px; font-weight: 700; text-transform: uppercase; padding: 2px 7px; border-radius: 999px; flex-shrink: 0;
   }
-  .note-row-star { background: transparent; border: none; cursor: pointer; font-size: 14px; color: var(--ink-soft); opacity: 0.45; flex-shrink: 0; }
-  .note-row-star.active { color: #e0a733; opacity: 1; }
+  .note-row-star { background: transparent; border: none; cursor: pointer; font-size: 14px; color: #d8cfc2; flex-shrink: 0; }
+  .note-row-star.active { color: #e0a733; }
   .note-row-del {
     position: absolute; top: 8px; right: 8px; background: transparent; border: none; color: var(--ink-soft);
     cursor: pointer; display: none; font-size: 13px; padding: 3px 6px; border-radius: 6px;
@@ -362,7 +362,7 @@
     flex: 1; min-width: 0; border: none; outline: none; font-size: 24px; font-weight: 700;
     color: var(--ink); background: transparent; padding: 0 0 12px;
   }
-  #editorTitle::placeholder { color: var(--ink-soft); opacity: 0.7; }
+  #editorTitle::placeholder { color: #c8bfae; }
   .rating-badge {
     display: inline-flex; align-items: center; justify-content: center; border-radius: 50%;
     font-size: 11px; font-weight: 700; flex-shrink: 0; vertical-align: middle;
@@ -391,12 +391,12 @@
   }
 
   #quillContainer { flex: 1; overflow-y: auto; border: none !important; }
-  .ql-toolbar.ql-snow { border: none !important; border-bottom: 1px solid var(--line) !important; padding: 8px 20px !important; background: var(--paper); }
+  .ql-toolbar.ql-snow { border: none !important; border-bottom: 1px solid var(--line) !important; padding: 8px 20px !important; }
   .ql-container.ql-snow { border: none !important; font-size: 15px; }
-  .ql-editor { padding: 16px 20px 40px; min-height: 200px; background: var(--paper); color: var(--ink); }
-  .ql-editor.ql-blank::before { color: var(--ink-soft); font-style: normal; opacity: 0.7; }
-  /* Quillova výchozí "snow" šablona (z CDN) počítá se světlým pozadím -
-     ikony v liště i rámečky rozbalovacích menu (velikost/barva písma atd.)
+  .ql-editor { padding: 16px 20px 40px; min-height: 200px; }
+  .ql-editor.ql-blank::before { color: #c8bfae; font-style: normal; }
+
+  /* Quill vykresluje ikony toolbaru přes inline SVG, jejichž obrysy/výplně
      mají natvrdo tmavé obrysy/text. V tmavém režimu je potřeba je přebarvit
      na barvy podle appky, jinak by byly na tmavém pozadí špatně vidět. */
   html[data-theme="dark"] .ql-snow .ql-stroke { stroke: var(--ink-soft); }
@@ -471,6 +471,9 @@
   .modal-card .modal-sub { color: var(--ink-soft); font-size: 13px; margin: 0 0 16px; }
   .modal-card .row-btns { display: flex; gap: 8px; margin-top: 6px; }
   .modal-card .row-btns .btn { padding: 10px; font-size: 14px; }
+  .nl-format-row { display: flex; gap: 14px; flex-wrap: wrap; }
+  .nl-format-option { display: flex; align-items: center; gap: 6px; font-size: 13.5px; font-weight: 600; color: var(--ink-soft); cursor: pointer; }
+  .nl-format-option input { width: auto; margin: 0; }
 
   .toast {
     position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
@@ -481,18 +484,10 @@
   }
   .toast.visible { opacity: 1; transform: translateX(-50%) translateY(-6px); pointer-events: auto; }
 
-  /* ---------- Ranní dialogy (termíny, vzpomínka) ---------- */
+  /* ---------- Ranní dialog (termíny) ---------- */
   .modal-card.termin-summary-card { background: var(--cream-card-bg2); border: 2px solid var(--cream-card-border2); max-width: 400px; }
-  .modal-card.memory-summary-card { background: var(--cream-card-bg); border: 2px solid var(--cream-card-border); max-width: 480px; }
-  .memory-modal-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
-  .memory-modal-date { font-size: 12px; color: var(--ink-soft); }
-  .memory-modal-content {
-    max-height: 45vh; overflow-y: auto; font-size: 14px; line-height: 1.5;
-    padding: 12px; background: var(--paper); border-radius: 10px; border: 1px solid var(--line);
-  }
-  .memory-modal-content img { max-width: 100%; }
   .toast-undo-btn {
-    background: transparent; border: 1.5px solid rgba(255,255,255,0.5); color: #fff;
+    background: transparent; border: 1.5px solid rgba(255,255,255,0.5); color: var(--toast-ink);
     border-radius: 7px; padding: 4px 11px; font-size: 12.5px; font-weight: 700; cursor: pointer;
     white-space: nowrap;
   }
@@ -500,10 +495,10 @@
 
   /* ---------- Newsletter (Hláška) ---------- */
   #newsletterStage {
-    position: fixed; left: -99999px; top: 0; width: 1080px;
+    position: fixed; left: -99999px; top: 0;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   }
-  .nl-root { background: #fffaf0; }
+  .nl-root { background: #fffaf0; width: 1080px; }
   .nl-header {
     background: linear-gradient(180deg, #ffd6a5 0%, #ff9a9e 100%);
     padding: 70px 60px 45px; text-align: center; position: relative; overflow: hidden;
@@ -536,6 +531,46 @@
   .nl-footer .nl-f1 { font-size: 26px; font-weight: 700; color: #78412d; margin: 0 0 12px; }
   .nl-footer .nl-f2 { font-size: 24px; color: #965f4b; margin: 0; }
 
+  /* ---------- Export A4 (fotokniha) ----------
+     Okraje stránky: nahoře/dole 1 cm, vlevo/vpravo 2 cm (na 1240x1754px
+     plátně = cca 59.05 px/cm, tedy 59px svisle a 118px vodorovně) -
+     řešeno jako padding přímo na .a4-page (box-sizing: border-box, takže
+     se do 1240x1754 vejde i s paddingem). Hlavička/obsah/patička už nemají
+     vlastní vodorovný padding, ten teď zajišťuje výhradně okraj stránky. */
+  .a4-page {
+    width: 1240px; background: #fffaf0; box-sizing: border-box;
+    padding: 59px 118px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  .a4-page-fixed { height: 1754px; overflow: hidden; }
+  .a4-header {
+    background: linear-gradient(180deg, #ffd6a5 0%, #ff9a9e 100%);
+    padding: 20px 0 26px; text-align: center;
+  }
+  .a4-header h1 { font-size: 46px; font-weight: 800; color: #46161e; margin: 0 0 8px; letter-spacing: .5px; }
+  .a4-header-range { font-size: 21px; color: #5a2d2d; }
+  .a4-header-pagenum { font-size: 15px; color: #783f3f; margin-top: 6px; }
+  .a4-content { padding: 26px 0 0; }
+  /* Boxy s hláškami nejsou rotované (na přání Iri) - mezery mezi nimi jsou
+     naopak dost velké, ať se obsah stránky pěkně rozloží po celé ploše;
+     počet hlášek na stránce si Iri hlídá sama při generování. */
+  .a4-cards { column-count: 2; column-gap: 48px; }
+  .a4-card {
+    background: #fff; border-radius: 14px; padding: 20px 22px; margin: 10px 0 36px;
+    box-shadow: 4px 5px 0 #e1cdc3; border-left: 7px solid var(--nl-color, #999);
+    break-inside: avoid; -webkit-column-break-inside: avoid;
+  }
+  .a4-card-top { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 8px; }
+  .a4-badges { display: flex; flex-wrap: wrap; gap: 5px; }
+  .a4-badge {
+    display: inline-block; background: var(--nl-badge-color, var(--nl-color, #999)); color: #fff;
+    font-weight: 700; font-size: 10.5px; padding: 3px 9px; border-radius: 999px;
+  }
+  .a4-date { font-size: 11px; color: #786464; }
+  .a4-title { font-size: 15px; font-weight: 700; color: #3c2d32; margin: 0 0 8px; }
+  .a4-text { font-size: 13.5px; line-height: 1.42; color: #373237; white-space: pre-wrap; }
+  .a4-footer { text-align: center; padding: 16px 0 0; font-size: 15px; font-weight: 700; color: #965f4b; }
+
   /* ---------- Print ---------- */
   #printArea { display: none; }
   @media print {
@@ -544,6 +579,11 @@
     .print-note { page-break-inside: avoid; margin-bottom: 26px; }
     .print-title { font-size: 20px; font-weight: 700; margin: 0 0 2px; }
     .print-meta { font-size: 12px; color: #555; margin-bottom: 10px; }
+    .print-tags { margin: 0 0 10px; }
+    .print-tag-pill {
+      display: inline-block; font-size: 11px; font-weight: 600; background: #eef3f8; color: #2c527f;
+      padding: 2px 8px; border-radius: 999px; margin: 0 4px 4px 0;
+    }
     .print-folder-title { font-size: 26px; margin-bottom: 20px; }
     .print-content img { max-width: 100%; }
   }
@@ -560,7 +600,6 @@
   .dashboard-row { display: flex; flex-wrap: wrap; gap: 8px; }
   .dashboard-tile { flex: 1 1 180px; max-width: 280px; margin-bottom: 0; }
   .dashboard-tile.termin-dash-tile { flex: 0 0 280px; width: 280px; }
-  .dashboard-tile.memory-tile { flex: 1 1 100%; width: auto; max-width: none; background: var(--cream-card-bg); border-color: var(--cream-card-border); }
 
   /* ---------- Mobile ---------- */
   .back-btn { display: none; }
@@ -574,7 +613,6 @@
     .back-btn { display: inline-flex; }
     .dashboard-tile { flex: 1 1 100%; max-width: 100%; }
     .dashboard-tile.termin-dash-tile { flex: 1 1 100%; width: auto; }
-    .dashboard-tile.memory-tile { flex: 1 1 100%; width: auto; }
     .calendar-grid { gap: 3px; }
     .calendar-day { min-height: 56px; max-height: 100px; padding: 3px; }
     .calendar-day-num { font-size: 10px; }
@@ -601,6 +639,81 @@
     .editor-wrap { overflow-y: auto; -webkit-overflow-scrolling: touch; }
     .editor-wrap #quillContainer { flex: none; overflow-y: visible; }
   }
+
+  /* ---------- Verze appky ---------- */
+  .app-version-badge {
+    color: #b7afa1; font-size: 11px; font-weight: 600; margin-left: 6px;
+    vertical-align: middle; letter-spacing: .02em;
+  }
+
+  /* ---------- Pastelové pozadí přehledů (Termín / Kalendář / Dashboard) ---------- */
+  .columns.view-termin .col-notes,
+  .columns.view-calendar .col-notes,
+  .columns.view-dashboard .col-notes {
+    position: relative;
+    z-index: 0;
+  }
+  .columns.view-termin .col-notes::before,
+  .columns.view-calendar .col-notes::before,
+  .columns.view-dashboard .col-notes::before {
+    content: "";
+    position: absolute; left: 0; right: 0; top: 0; height: 190px;
+    pointer-events: none; z-index: -1;
+    background-repeat: repeat-x; background-position: top left; background-size: 340px 150px;
+    -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 30%, transparent 90%);
+    mask-image: linear-gradient(to bottom, #000 0%, #000 30%, transparent 90%);
+  }
+  .columns.view-termin .col-notes { background-color: #fffaf2; }
+  .columns.view-termin .col-notes::before {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='340' height='150' viewBox='0 0 340 150'%3E%3Cpath d='M-10,16 C 30,30 55,4 95,18 C 135,32 155,6 195,20 C 235,34 255,6 295,18 C 315,24 325,14 350,20' stroke='%23c9a24a' stroke-width='1.4' fill='none' opacity='0.5'/%3E%3Cellipse cx='60' cy='30' rx='9' ry='4' fill='%23f0c98a' opacity='0.6'/%3E%3Cellipse cx='120' cy='34' rx='9' ry='4' fill='%23e0a733' opacity='0.55'/%3E%3Cellipse cx='180' cy='30' rx='9' ry='4' fill='%23f0c98a' opacity='0.55'/%3E%3Cellipse cx='240' cy='34' rx='9' ry='4' fill='%23e0a733' opacity='0.55'/%3E%3Cellipse cx='300' cy='30' rx='9' ry='4' fill='%23f0c98a' opacity='0.6'/%3E%3C/svg%3E");
+  }
+  .columns.view-calendar .col-notes { background-color: #f6faf7; }
+  .columns.view-calendar .col-notes::before {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='340' height='150' viewBox='0 0 340 150'%3E%3Cpath d='M-10,16 C 30,30 55,4 95,18 C 135,32 155,6 195,20 C 235,34 255,6 295,18 C 315,24 325,14 350,20' stroke='%238aab8a' stroke-width='1.4' fill='none' opacity='0.5'/%3E%3Cellipse cx='60' cy='36' rx='9' ry='4' fill='%23b6d9bd' opacity='0.6'/%3E%3Cellipse cx='120' cy='40' rx='9' ry='4' fill='%238fbf9f' opacity='0.55'/%3E%3Cellipse cx='180' cy='34' rx='9' ry='4' fill='%23b6d9bd' opacity='0.55'/%3E%3Cellipse cx='240' cy='38' rx='9' ry='4' fill='%238fbf9f' opacity='0.55'/%3E%3Cellipse cx='300' cy='34' rx='9' ry='4' fill='%23b6d9bd' opacity='0.6'/%3E%3C/svg%3E");
+  }
+  .columns.view-dashboard .col-notes { background-color: #fbf7fa; }
+  .columns.view-dashboard .col-notes::before {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='340' height='150' viewBox='0 0 340 150'%3E%3Cpath d='M-10,16 C 30,30 55,4 95,18 C 135,32 155,6 195,20 C 235,34 255,6 295,18 C 315,24 325,14 350,20' stroke='%23b599c9' stroke-width='1.4' fill='none' opacity='0.5'/%3E%3Cellipse cx='60' cy='34' rx='9' ry='4' fill='%23cbb8d9' opacity='0.6'/%3E%3Cellipse cx='120' cy='38' rx='9' ry='4' fill='%23b7c9a8' opacity='0.55'/%3E%3Cellipse cx='180' cy='34' rx='9' ry='4' fill='%23e8a6d0' opacity='0.55'/%3E%3Cellipse cx='240' cy='40' rx='9' ry='4' fill='%23cbb8d9' opacity='0.55'/%3E%3Cellipse cx='300' cy='34' rx='9' ry='4' fill='%23b7c9a8' opacity='0.6'/%3E%3C/svg%3E");
+  }
+
+  /* ---------- Kalendář Den/Týden - box poznámek se výšce nepřizpůsobuje ---------- */
+  .calendar-week-list .calendar-day,
+  .calendar-day-single .calendar-day {
+    max-height: none !important;
+    overflow-y: visible !important;
+  }
+
+  /* ---------- Dashboard - poznámky jako stickies ---------- */
+  .dashboard-stickies {
+    column-width: 250px; column-gap: 12px; margin-bottom: 18px;
+  }
+  .dashboard-stickies-wide {
+    column-width: auto; column-count: 1;
+    display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px;
+  }
+  .dashboard-sticky {
+    width: 100%; max-width: 100%; border-radius: 14px; padding: 12px 14px 14px;
+    box-shadow: var(--shadow); position: relative; cursor: pointer;
+    display: flex; flex-direction: column; gap: 6px; border: 1.5px solid transparent;
+    min-width: 0; overflow: hidden;
+    break-inside: avoid; -webkit-column-break-inside: avoid; margin: 0 0 12px;
+  }
+  .dashboard-sticky-wide { margin-bottom: 0; }
+  .dashboard-sticky:hover .note-row-del { display: block; }
+  .dashboard-sticky-top { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+  .dashboard-sticky .note-row-title {
+    white-space: normal; overflow: visible; text-overflow: clip;
+    overflow-wrap: anywhere; word-break: break-word;
+  }
+  .dashboard-sticky-content {
+    font-size: 13.5px; line-height: 1.45; color: var(--ink);
+    overflow-wrap: anywhere; word-break: break-word; min-width: 0;
+  }
+  .dashboard-sticky-content * { max-width: 100%; overflow-wrap: anywhere; word-break: break-word; }
+  .dashboard-sticky-content p { margin: 0 0 8px; }
+  .dashboard-sticky-content p:last-child { margin-bottom: 0; }
+  .dashboard-sticky-content img { max-width: 100%; border-radius: 8px; }
+  .dashboard-sticky-content pre { white-space: pre-wrap; overflow-x: auto; }
 </style>
 </head>
 <body>
@@ -608,7 +721,7 @@
 <!-- LOGIN SCREEN -->
 <div id="loginScreen">
   <div class="login-card">
-    <h1>📓 Vtipníci</h1>
+    <h1>📓 Vtipníci <span class="app-version-badge" id="loginVersionBadge"></span></h1>
     <p class="sub">Osobní zápisník hlášek, filmů, knih a myšlenek</p>
     <form id="loginForm">
       <div class="field">
@@ -632,7 +745,7 @@
     <!-- FOLDERS COLUMN -->
     <div class="col col-folders">
       <div class="col-head">
-        <div class="brand">📓 Vtipníci</div>
+        <div class="brand">📓 Vtipníci <span class="app-version-badge" id="brandVersionBadge"></span></div>
         <div class="head-actions">
           <button class="icon-btn small" id="themeToggleBtn" type="button" title="Přepnout tmavý/světlý režim" aria-label="Přepnout tmavý/světlý režim">🌙</button>
           <button class="icon-btn small" id="jsonExportBtn" title="Záloha JSON" aria-label="Záloha JSON">⬇</button>
@@ -664,7 +777,7 @@
         <h2 id="notesColTitle">Všechny poznámky</h2>
         <div class="head-actions">
           <button class="icon-btn small" id="exportPdfBtn" title="Export do PDF" aria-label="Export do PDF">🖨</button>
-          <button class="icon-btn small" id="newsletterBtn" title="Newsletter Hláška" aria-label="Newsletter Hláška">🖼</button>
+          <button class="icon-btn small" id="newsletterBtn" title="Export obrázku Hláška" aria-label="Export obrázku Hláška">🖼</button>
           <button class="icon-btn small" id="newNoteBtn" title="Nová poznámka" aria-label="Nová poznámka">＋</button>
           <button class="icon-btn small" id="emptyTrashBtn" type="button" title="Vysypat koš" aria-label="Vysypat koš" style="display:none;">🗑✕</button>
         </div>
@@ -742,18 +855,6 @@
   </div>
 </div>
 
-<div class="modal-overlay" id="memoryModal">
-  <div class="modal-card memory-summary-card">
-    <h3>💭 Vzpomínka</h3>
-    <div class="memory-modal-meta" id="memoryModalMeta"></div>
-    <div class="memory-modal-content" id="memoryModalContent"></div>
-    <div class="row-btns">
-      <button class="btn btn-secondary" id="memoryModalOpenBtn" type="button">Otevřít poznámku</button>
-      <button class="btn" id="memoryModalCloseBtn" type="button">Zavřít</button>
-    </div>
-  </div>
-</div>
-
 <div class="toast" id="toast"></div>
 
 <div class="modal-overlay" id="pdfRangeModal">
@@ -777,7 +878,7 @@
 
 <div class="modal-overlay" id="newsletterRangeModal">
   <div class="modal-card">
-    <h3>Newsletter Hláška</h3>
+    <h3>Export obrázku Hláška</h3>
     <p class="modal-sub">Vyber časové rozmezí. Zahrnou se jen poznámky ze složky Hláška s vyplněným obsahem.</p>
     <div class="field">
       <label for="nlFromDate">Od</label>
@@ -786,6 +887,13 @@
     <div class="field">
       <label for="nlToDate">Do</label>
       <input type="date" id="nlToDate">
+    </div>
+    <div class="field">
+      <label>Formát</label>
+      <div class="nl-format-row">
+        <label class="nl-format-option"><input type="radio" name="nlFormat" value="wa" id="nlFormatWa" checked> Obrázek pro WA</label>
+        <label class="nl-format-option"><input type="radio" name="nlFormat" value="a4" id="nlFormatA4"> Obrázek A4</label>
+      </div>
     </div>
     <div class="row-btns">
       <button class="btn btn-secondary" id="nlCancelBtn" type="button">Zrušit</button>
@@ -808,6 +916,16 @@
     collection, addDoc, updateDoc, deleteDoc, doc,
     query, where, orderBy, onSnapshot, serverTimestamp, writeBatch, getDocs
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  // Číslo verze appky - zobrazuje se malým světle šedým písmem hned vedle
+  // názvu "Vtipníci" (na přihlašovací obrazovce i v appce), ať Iri po
+  // nahrání nové verze na GitHub pozná (i přes zpoždění nasazení), jestli
+  // se jí už načetla nejnovější verze, nebo pořád vidí tu starou z cache.
+  // Při KAŽDÉ příští úpravě index.html je potřeba tohle číslo zvýšit o 1.
+  const APP_VERSION = "5";
+  document.querySelectorAll(".app-version-badge").forEach(el => {
+    el.textContent = "v" + APP_VERSION;
+  });
 
   const firebaseConfig = {
     apiKey: "AIzaSyCeOsvSECUhxjCQ7y2fFv3ybkxw2vsHwEo",
@@ -850,11 +968,6 @@
   const terminSummaryModal = document.getElementById("terminSummaryModal");
   const terminSummaryModalText = document.getElementById("terminSummaryModalText");
   const terminSummaryModalCloseBtn = document.getElementById("terminSummaryModalCloseBtn");
-  const memoryModal = document.getElementById("memoryModal");
-  const memoryModalMeta = document.getElementById("memoryModalMeta");
-  const memoryModalContent = document.getElementById("memoryModalContent");
-  const memoryModalOpenBtn = document.getElementById("memoryModalOpenBtn");
-  const memoryModalCloseBtn = document.getElementById("memoryModalCloseBtn");
   const columnsEl = document.getElementById("columns");
 
   const foldersList = document.getElementById("foldersList");
@@ -941,6 +1054,22 @@
   // ale zavola tuto funkci - pouziva se pro ikony kategorii (misto vkladani do
   // nazvu slozky primo v textu) a pro ikonu nove slozky.
   let emojiIconTarget = null;
+  // Kdyz je true, prekresleni seznamu poznamek vyvolane prichozim snapshotem
+  // z Firestore se AZ DO ODVOLANI presklakuje - pouziva se, dokud ma
+  // uzivatel na desktopu otevreny nativni <input type="date"> picker pro
+  // zmenu terminu v Kalendari (Den/Tyden). Bez tohohle by prekresleni
+  // (notesList.innerHTML = ...) v nepredvidatelnem okamziku - typicky kdyz
+  // Firestore potvrdi drivejsi zapis serverem - vyhodilo z DOM prave
+  // otevreny picker jine poznamky, coz na desktopu picker tise zavre bez
+  // udalosti change (uzivatel pak marne klika, "nic se nestane"). Na
+  // mobilu je datumovy picker OS-level modal nezavisly na zivotnim cyklu
+  // DOM elementu, proto se tam bug neprojevoval.
+  let pendingRenderAfterPicker = false;
+
+  function isTerminPickerOpen() {
+    return !!(document.activeElement && document.activeElement.classList &&
+      document.activeElement.classList.contains("calendar-note-retermin-input"));
+  }
 
   function showToast(msg) {
     clearTimeout(undoToastTimer);
@@ -982,6 +1111,14 @@
   function escapeHtml(str) {
     if (!str) return "";
     return str.replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+  }
+
+  // ---------- Hledání bez ohledu na diakritiku ----------
+  // "ockovani" v hledacím poli tak najde i poznámky s "očkování" v názvu,
+  // popisu nebo štítku - text se pro porovnání převede na malá písmena BEZ
+  // diakritiky (NFD rozklad + odstranění kombinovaných diakritických znaků).
+  function normalizeSearchText(str) {
+    return (str || "").toString().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
   }
 
   // ---------- Hodnocení poznámky ----------
@@ -1077,6 +1214,26 @@
     return (folder && folder.ikona) ? escapeHtml(folder.ikona) + " " : "";
   }
 
+  // Barva kategorie prevedena na rgba s nizkou pruhlednosti.
+  function hexToRgba(hex, alpha) {
+    let h = (hex || "#999999").replace("#", "");
+    if (h.length === 3) h = h.split("").map(c => c + c).join("");
+    const num = parseInt(h, 16) || 0x999999;
+    const r = (num >> 16) & 255, g = (num >> 8) & 255, b = num & 255;
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  }
+
+  // Barva kategorie "rozředěná" bílou na PLNĚ NEPRŮHLEDNÝ pastelový odstín -
+  // pouziva se pro podbarveni "sticky" karticek na Dashboardu.
+  function mixWithWhite(hex, ratio) {
+    let h = (hex || "#999999").replace("#", "");
+    if (h.length === 3) h = h.split("").map(c => c + c).join("");
+    const num = parseInt(h, 16) || 0x999999;
+    const r = (num >> 16) & 255, g = (num >> 8) & 255, b = num & 255;
+    const mix = (c) => Math.round(c * ratio + 255 * (1 - ratio));
+    return `rgb(${mix(r)}, ${mix(g)}, ${mix(b)})`;
+  }
+
   // ---------- Quill init ----------
   function initQuill() {
     if (quill) return;
@@ -1138,21 +1295,11 @@
       }
     });
 
-    // Viz CSS pravidlo vyse - na mobilu po zaklepnuti do Popisu se
-    // editor-wrap odscrolluje tak, aby Popis zacinal na vrsku obrazovky
-    // (mimo klavesnici). Nic se neschovava, jen se to tam posune scrollem -
-    // zpatky nahoru na Datum/Nazev/Stitky se da kdykoliv normalne
-    // doscrollovat.
     function scrollPopisToTop() {
       document.getElementById("quillContainer").scrollIntoView({ block: "start", behavior: "smooth" });
     }
     quill.root.addEventListener("focus", () => {
       if (window.innerWidth > 900) return;
-      // Volat scroll HNED po fokusu nestaci - klavesnice se v tu chvili
-      // teprve zacina otevirat a jeji pozdejsi animace by scroll stejne
-      // zase prekryla/posunula. Pockej radsi na skutecnou zmenu viditelne
-      // vysky (visualViewport resize = klavesnice uz je otevrena), a jen
-      // pro jistotu (kdyby event neprisel) i na pojistny timeout.
       if (window.visualViewport) {
         const onViewportResize = () => {
           scrollPopisToTop();
@@ -1168,9 +1315,6 @@
       }
     });
 
-    // Klik na odkaz v poznámce ho rovnou otevře v nové záložce (místo Quillova
-    // výchozího "Edit/Remove" bublinového menu, které pro odkaz "co nefunguje"
-    // nemělo žádnou možnost odkaz skutečně otevřít).
     quill.root.addEventListener("click", (e) => {
       const a = e.target.closest("a");
       if (!a || !quill.root.contains(a)) return;
@@ -1211,13 +1355,7 @@
     quill.format("link", url, "user");
   }
 
-  // Opraví odkazy, které v poznámce chybně nemají protokol (např. vložené
-  // před touto opravou), a rovnou to uloží.
   function fixBrokenLinksInCurrentNote() {
-    // quill.root.innerHTML se přepisuje přímo (ne přes Quillovo API) a Quill
-    // si svůj interní model synchronizuje z DOM přes MutationObserver, který
-    // běží asynchronně - bez tohohle update() by getContents() níže mohl
-    // ještě číst obsah předchozí poznámky.
     quill.update("silent");
     const delta = quill.getContents();
     let index = 0;
@@ -1284,9 +1422,6 @@
       initQuill();
       subscribeFolders(user.uid);
       subscribeNotes(user.uid);
-      // Na mobilu appka po otevření rovnou ukáže Kalendář v týdenním pohledu
-      // místo menu se složkami (na desktopu, kde jsou vidět všechny sloupce
-      // najednou, se výchozí pohled nemění).
       if (window.innerWidth <= 900) {
         calendarViewMode = "week";
         localStorage.setItem("calendarViewMode", "week");
@@ -1368,12 +1503,6 @@
     });
   }
 
-  // Prive/aktualizuje ovladaci tlacitko pro vyber ikony slozky (soucast pasu
-  // tlacitek vedle barvy/prejmenovani/smazani) - klik rovnou otevre emoji
-  // picker a vybranou emoji ulozi jako "ikona" slozky do Firestore (stejne
-  // okamzite jako barva), nezavisle na tom, jestli se prave slozka
-  // prejmenovava. Zaroven pro okamzitou zpetnou vazbu aktualizuje i span s
-  // ikonou pred nazvem slozky v tomtez radku.
   function bindFolderIconBtn(btn, folderId) {
     guardFocus(btn);
     btn.addEventListener("click", (e) => {
@@ -1424,8 +1553,6 @@
     folders.forEach(f => {
       const count = notesForCounts.filter(n => n.druh === f.nazev).length;
       const isActive = view.type === "folder" && view.id === f.id;
-      // Aktivni radek ma bilý text (deda se z .folder-row.active), takze barvu
-      // pisme jen kdyz radek NENI aktivni - inline styl by jinak bilou prebil.
       const nameStyle = isActive ? "" : ` style="color:${f.barva}"`;
       html += `<div class="folder-row ${isActive ? "active" : ""}" data-view="folder" data-id="${f.id}">
         <span class="folder-icon">${f.ikona ? escapeHtml(f.ikona) : ""}</span>
@@ -1521,15 +1648,10 @@
     input.value = f.nazev;
     span.replaceWith(input);
 
-    // Kurzor se umístí na konec názvu (ne "select all"), takže jde normálně
-    // dopsat nebo opravit jedno písmenko bez nutnosti přepisovat celý název.
     input.focus();
     const endPos = input.value.length;
     input.setSelectionRange(endPos, endPos);
 
-    // Cely pas tlacitek (ikona/barva/prejmenovat/smazat) zustava behem
-    // prejmenovavani viditelny a funkcni - jen se vynuti jeho zobrazeni
-    // (jinak by .folder-tools zmizel, jakmile mys opusti radek behem psani).
     if (tools) tools.classList.add("force-visible");
 
     const finish = async () => {
@@ -1562,9 +1684,6 @@
   async function deleteFolder(id) {
     const f = folders.find(x => x.id === id);
     if (!f) return;
-    // Počítat jen viditelné (nesmazané) poznámky - stejně jako badge u
-    // složky v levém menu. Poznámky, které už jsou v koši (smazano: true),
-    // nemají blokovat smazání prázdně vypadající složky.
     const count = visibleNotes().filter(n => n.druh === f.nazev).length;
     if (count > 0) {
       showToast(`Nejprve přesuň nebo smaž ${count} poznámek v této složce`);
@@ -1575,8 +1694,6 @@
     if (view.type === "folder" && view.id === id) selectView({ type: "all" });
   }
 
-  // Ikona nove slozky (vybrana pres emoji tlacitko) - neuklada se do textu
-  // nazvu, drzi se zvlast a uklada az spolu s ulozenim slozky.
   let newFolderIcon = "";
   function resetNewFolderIcon() {
     newFolderIcon = "";
@@ -1619,6 +1736,10 @@
     searchInput.value = "";
     updateSearchClearBtn();
     columnsEl.classList.toggle("dashboard-mode", v.type === "dashboard" || v.type === "termin" || v.type === "calendar");
+    columnsEl.classList.remove("view-termin", "view-calendar", "view-dashboard");
+    if (v.type === "termin") columnsEl.classList.add("view-termin");
+    else if (v.type === "calendar") columnsEl.classList.add("view-calendar");
+    else if (v.type === "dashboard") columnsEl.classList.add("view-dashboard");
     if (v.type === "dashboard" || v.type === "termin" || v.type === "trash" || v.type === "calendar") closeEditor();
     newNoteBtn.style.display = v.type === "trash" ? "none" : "";
     exportPdfBtn.style.display = v.type === "trash" ? "none" : "";
@@ -1634,8 +1755,12 @@
     const q = query(collection(db, NOTES_COL), where("uid", "==", uid), orderBy("datum", "desc"));
     unsubNotes = onSnapshot(q, (snapshot) => {
       allNotes = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-      renderFolders();
-      renderNotes();
+      if (isTerminPickerOpen()) {
+        pendingRenderAfterPicker = true;
+      } else {
+        renderFolders();
+        renderNotes();
+      }
       if (selectedNoteId) {
         const still = allNotes.find(n => n.id === selectedNoteId);
         if (!still) closeEditor();
@@ -1647,15 +1772,7 @@
     });
   }
 
-  // ---------- Ranní dialogy (termíny, vzpomínka) ----------
-  // Čistě informační dialogy - appka si při prvním otevření daný den (jednou
-  // denně, hlídáno přes localStorage) sama všimne dnešních termínů a denní
-  // vzpomínky. Dialog s termíny se navíc zobrazuje jen po 6:00 (ranní
-  // souhrn), dialog se vzpomínkou žádné časové omezení nemá. Pokud by měly
-  // platit oba zároveň, zobrazí se nejdřív termíny a po jejich zavření
-  // vzpomínka, ať appka nezobrazuje dva dialogy najednou přes sebe.
-  let currentMemoryNoteId = null;
-
+  // ---------- Ranní dialog (termíny) ----------
   function tryShowTerminSummaryModal() {
     const now = new Date();
     if (now.getHours() < 6) return false;
@@ -1678,40 +1795,17 @@
     return true;
   }
 
-  function tryShowMemoryModal() {
-    const todayStr = localTodayStr();
-    if (localStorage.getItem("memoryShownDate") === todayStr) return false;
-    const memory = pickDailyMemory();
-    if (!memory) return false;
-    localStorage.setItem("memoryShownDate", todayStr);
-    currentMemoryNoteId = memory.id;
-    const folder = folderByName(memory.druh);
-    const color = folder ? folder.barva : "#999";
-    memoryModalMeta.innerHTML = `<span class="note-row-badge" style="background:${color}22;color:${color}">${folderIconPrefix(folder)}${escapeHtml(memory.druh || "")}</span> <strong>${escapeHtml(noteTitle(memory))}</strong> <span class="memory-modal-date">${formatDate(memory.datum)}</span>`;
-    memoryModalContent.innerHTML = memory.popis || "<em>Prázdná poznámka</em>";
-    memoryModal.classList.add("visible");
-    return true;
-  }
-
   function runDailyDialogs() {
-    const shownTermin = tryShowTerminSummaryModal();
-    if (!shownTermin) tryShowMemoryModal();
+    tryShowTerminSummaryModal();
   }
 
   terminSummaryModalCloseBtn.addEventListener("click", () => {
     terminSummaryModal.classList.remove("visible");
-    tryShowMemoryModal();
   });
 
-  memoryModalCloseBtn.addEventListener("click", () => {
-    memoryModal.classList.remove("visible");
-  });
-
-  memoryModalOpenBtn.addEventListener("click", () => {
-    memoryModal.classList.remove("visible");
-    if (currentMemoryNoteId) goToNoteInFolder(currentMemoryNoteId);
-  });
-
+  // Hledání je necitlivé na diakritiku (viz normalizeSearchText) - hledaný
+  // výraz i porovnávaný text (název, popis, štítky) se před porovnáním
+  // zbaví diakritiky, takže "ockovani" najde i "očkování".
   function currentViewNotes() {
     let list;
     const base = visibleNotes();
@@ -1721,22 +1815,19 @@
     else if (view.type === "all") list = base;
     else list = base.filter(n => n.druh === view.nazev);
 
-    const term = searchInput.value.trim().toLowerCase();
+    const term = normalizeSearchText(searchInput.value.trim());
     if (term) {
       list = list.filter(n => {
-        const t = (n.nazev || "").toLowerCase();
-        const c = stripHtml(n.popis || "").toLowerCase();
+        const t = normalizeSearchText(n.nazev || "");
+        const c = normalizeSearchText(stripHtml(n.popis || ""));
         const tags = Array.isArray(n.stitky) ? n.stitky : [];
-        const tagMatch = tags.some(tag => tag.toLowerCase().includes(term));
+        const tagMatch = tags.some(tag => normalizeSearchText(tag).includes(term));
         return t.includes(term) || c.includes(term) || tagMatch;
       });
     }
     return list;
   }
 
-  // new Date().toISOString() je v UTC, ne v místním čase - v ČR by appka
-  // kolem půlnoci "myslela", že je ještě včera. Tohle vrátí dnešní datum
-  // podle místního času uživatele.
   function localTodayStr() {
     const d = new Date();
     const tzOffsetMs = d.getTimezoneOffset() * 60000;
@@ -1751,7 +1842,7 @@
 
   function mondayOfIsoWeek(isoDate) {
     const d = new Date(isoDate + "T00:00:00Z");
-    const day = d.getUTCDay(); // 0 = neděle .. 6 = sobota
+    const day = d.getUTCDay();
     const diff = day === 0 ? -6 : (1 - day);
     d.setUTCDate(d.getUTCDate() + diff);
     return d.toISOString().slice(0, 10);
@@ -1765,8 +1856,6 @@
     return "";
   }
 
-  // Sdílená šablona dlaždice poznámky - používá renderNotes(), renderDashboardView()
-  // a terminSectionHtml(), aby se HTML nezdvojovalo na třech místech.
   function noteTileHtml(n, opts = {}) {
     const {
       extraClasses = "",
@@ -1823,8 +1912,6 @@
     }
 
     const list = currentViewNotes();
-    // Poznámky s termínem napřed (prošlé/aktuální/budoucí vzestupně), pak
-    // teprve poznámky bez termínu - ty podle data zadání, od nejnovější.
     list.sort((a, b) => {
       const aHas = !!a.termin;
       const bHas = !!b.termin;
@@ -1868,20 +1955,14 @@
     "Červenec", "Srpen", "Září", "Říjen", "Listopad", "Prosinec"];
   const CZ_DAY_ABBR = ["Po", "Út", "St", "Čt", "Pá", "So", "Ne"];
   const CZ_DAY_NAMES_FULL = ["Pondělí", "Úterý", "Středa", "Čtvrtek", "Pátek", "Sobota", "Neděle"];
-  let calendarRefDate = null; // ISO "YYYY-MM-DD" - referenční den pro aktuální režim
-  let calendarViewMode = localStorage.getItem("calendarViewMode") || "month"; // "day" | "week" | "month"
+  let calendarRefDate = null;
+  let calendarViewMode = localStorage.getItem("calendarViewMode") || "month";
 
   function calendarNoteChipHtml(n, maxLen, compact) {
     const folder = folderByName(n.druh);
     const color = folder ? folder.barva : "#999";
     const title = noteTitle(n);
     const truncated = title.length > maxLen ? title.slice(0, maxLen) + "…" : title;
-    // Tlačítko na změnu termínu je přímo <label> obalující skutečný nativní
-    // <input type="date"> (průhledný, přes celou plochu ikony). Tap na ikonu
-    // tak je fyzicky tap na nativní date input - prohlížeč / mobil pak vždy
-    // spolehlivě otevře svůj datumový picker sám, appka se nemusí spoléhat
-    // na programové .showPicker() volání z JS, které se na některých mobilech
-    // (potvrzeno na Androidu) nedalo vůbec rozkliknout.
     const actionsHtml = compact ? "" : `<div class="calendar-note-chip-actions">
       <label class="calendar-note-action-btn calendar-note-retermin-label" title="Změnit termín" aria-label="Změnit termín">
         📅<input type="date" class="calendar-note-retermin-input" data-id="${n.id}" value="${n.termin || ""}">
@@ -1912,7 +1993,7 @@
 
   function buildCalendarMonthHtml(year, month, notesByDate) {
     const firstOfMonth = new Date(Date.UTC(year, month, 1));
-    const firstWeekday = (firstOfMonth.getUTCDay() + 6) % 7; // 0 = pondělí
+    const firstWeekday = (firstOfMonth.getUTCDay() + 6) % 7;
     const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
     const cells = [];
     for (let i = 0; i < firstWeekday; i++) cells.push(null);
@@ -1932,8 +2013,6 @@
   }
 
   function buildCalendarWeekHtml(monday, notesByDate) {
-    // Dny pod sebou (ne vedle sebe) - u každého dne rovnou celý název dne a
-    // datum, ať dává smysl i bez samostatného záhlaví se zkratkami dnů.
     let html = `<div class="calendar-week-list">`;
     for (let i = 0; i < 7; i++) {
       const dateStr = addDaysToIsoDate(monday, i);
@@ -2037,14 +2116,18 @@
       });
     });
     notesList.querySelectorAll(".calendar-note-retermin-label").forEach(label => {
-      // Zabránit probublání kliknutí na chip (jinak by tap na ikonu zároveň
-      // otevřel poznámku v editoru) - samotné otevření date pickeru řeší
-      // prohlížeč sám, protože je to skutečný nativní <input type="date">.
       label.addEventListener("click", (e) => e.stopPropagation());
     });
     notesList.querySelectorAll(".calendar-note-retermin-input").forEach(input => {
       input.addEventListener("click", (e) => e.stopPropagation());
       input.addEventListener("change", () => changeTerminForNote(input.dataset.id, input.value));
+      input.addEventListener("blur", () => {
+        if (pendingRenderAfterPicker) {
+          pendingRenderAfterPicker = false;
+          renderFolders();
+          renderNotes();
+        }
+      });
     });
     notesList.querySelectorAll(".calendar-day[data-date]").forEach(dayEl => {
       dayEl.addEventListener("click", () => {
@@ -2053,15 +2136,12 @@
     });
   }
 
-  // Rychlá změna termínu přímo z Kalendáře (denní/týdenní pohled) - bez
-  // nutnosti otevírat celou poznámku v editoru. Ikona je skutečný nativní
-  // <input type="date"> (viz calendarNoteChipHtml) - appka jen zapíše
-  // vybranou hodnotu do Firestore po jeho "change" události.
   async function changeTerminForNote(id, newDate) {
     if (!newDate) return;
     try {
       await updateDoc(doc(db, NOTES_COL, id), { termin: newDate, upraveno: serverTimestamp() });
       allNotes = allNotes.map(x => x.id === id ? { ...x, termin: newDate } : x);
+      pendingRenderAfterPicker = false;
       renderNotes();
       showToast("Termín změněn");
     } catch (err) {
@@ -2069,10 +2149,6 @@
     }
   }
 
-  // Klik na prázdné místo v den v Kalendáři rovnou založí novou poznámku
-  // s termínem podle kliknutého data a kategorií ToDo (poslední složka v
-  // seznamu) - klik na existující poznámku (chip) tohle svým
-  // stopPropagation() přeskočí a otevře jen tu poznámku.
   async function createNoteForCalendarDay(dateStr) {
     const targetFolder = folders.length ? folders[folders.length - 1].nazev : null;
     if (!targetFolder) { showToast("Nejprve vytvoř složku"); return; }
@@ -2110,6 +2186,8 @@
     setTimeout(() => editorTitle.focus(), 150);
   }
 
+  // Hledání v koši je taky necitlivé na diakritiku, stejná normalizace jako
+  // v currentViewNotes().
   function renderTrashView() {
     notesColTitle.textContent = "🗑 Koš";
     let items = trashNotes().slice().sort((a, b) => {
@@ -2117,13 +2195,13 @@
       const bt = (b.smazanoKdy && b.smazanoKdy.toMillis) ? b.smazanoKdy.toMillis() : 0;
       return bt - at;
     });
-    const term = searchInput.value.trim().toLowerCase();
+    const term = normalizeSearchText(searchInput.value.trim());
     if (term) {
       items = items.filter(n => {
-        const t = (n.nazev || "").toLowerCase();
-        const c = stripHtml(n.popis || "").toLowerCase();
+        const t = normalizeSearchText(n.nazev || "");
+        const c = normalizeSearchText(stripHtml(n.popis || ""));
         const tags = Array.isArray(n.stitky) ? n.stitky : [];
-        const tagMatch = tags.some(tag => tag.toLowerCase().includes(term));
+        const tagMatch = tags.some(tag => normalizeSearchText(tag).includes(term));
         return t.includes(term) || c.includes(term) || tagMatch;
       });
     }
@@ -2158,38 +2236,42 @@
     });
   }
 
-  // Denně jiná vzpomínka ze složky Hlášky - deterministicky podle dnešního
-  // data, ať appka na stejném zařízení i po znovunačtení ukazuje ten samý
-  // den pořád stejnou vzpomínku. Řazeno od nejstarší po nejnovější a pak
-  // znovu od začátku (kolotoč).
   function pickDailyMemory() {
-    const hlaskyNotes = visibleNotes()
-      .filter(n => isHlaskaFolder(n.druh))
-      .slice()
-      .sort((a, b) => (a.datum < b.datum ? -1 : a.datum > b.datum ? 1 : 0));
+    const hlaskyNotes = visibleNotes().filter(n => isHlaskaFolder(n.druh));
     if (hlaskyNotes.length === 0) return null;
-    const todayStr = localTodayStr();
-    const [y, m, d] = todayStr.split("-").map(Number);
-    const dayIndex = Math.floor(Date.UTC(y, m - 1, d) / 86400000);
-    const idx = ((dayIndex % hlaskyNotes.length) + hlaskyNotes.length) % hlaskyNotes.length;
+    const idx = Math.floor(Math.random() * hlaskyNotes.length);
     return hlaskyNotes[idx];
   }
 
   function memorySectionHtml() {
     const memory = pickDailyMemory();
     if (!memory) return "";
-    return `<div class="dashboard-group memory-group">
-      <div class="dashboard-group-label">
-        <span class="folder-dot" style="background:#c9772e"></span>💭 Vzpomínka
+    return `<div class="dashboard-stickies dashboard-stickies-wide">
+      ${stickyTileHtml(memory, { wide: true, forceBg: "var(--cream-card-bg)", forceBorder: "var(--cream-card-border)", badgeExtra: "💭 " })}
+    </div>`;
+  }
+
+  function stickyTileHtml(n, opts = {}) {
+    const { wide = false, forceBg = null, forceBorder = null, badgeExtra = "" } = opts;
+    const folder = folderByName(n.druh);
+    const color = folder ? folder.barva : "#999";
+    const title = (n.nazev && n.nazev.trim()) ? n.nazev.trim() : "";
+    const contentHtml = (n.popis && n.popis.trim()) ? n.popis : "<p><em>Prázdná poznámka</em></p>";
+    const tags = Array.isArray(n.stitky) ? n.stitky : [];
+    const tagsHtml = tags.length
+      ? `<div class="note-row-tags">${tags.map(t => `<span class="tag-pill">#${escapeHtml(t)}</span>`).join("")}</div>`
+      : "";
+    const bg = forceBg || mixWithWhite(color, 0.16);
+    const border = forceBorder || hexToRgba(color, 0.45);
+    return `<div class="dashboard-sticky ${wide ? "dashboard-sticky-wide" : ""}" style="background:${bg};border-color:${border}" data-id="${n.id}">
+      <button class="note-row-del" data-id="${n.id}" title="Smazat poznámku" aria-label="Smazat poznámku">🗑</button>
+      <div class="dashboard-sticky-top">
+        <span class="note-row-badge" style="background:${color}33;color:${color}">${badgeExtra}${folderIconPrefix(folder)}${escapeHtml(n.druh || "")}</span>
+        <button class="note-row-star ${n.oblibene ? "active" : ""}" data-id="${n.id}" title="Oblíbené" aria-label="Oblíbené">★</button>
       </div>
-      <div class="dashboard-row">
-        ${noteTileHtml(memory, {
-          extraClasses: "dashboard-tile memory-tile",
-          showDatum: true,
-          showTermin: false,
-          tooltipText: htmlToShareText(memory.popis || "", { markdown: false })
-        })}
-      </div>
+      ${title ? `<div class="note-row-title">${ratingBadgeHtml(n.hodnoceni)}${escapeHtml(title)}</div>` : ""}
+      <div class="dashboard-sticky-content">${contentHtml}</div>
+      ${tagsHtml}
     </div>`;
   }
 
@@ -2202,37 +2284,37 @@
       return;
     }
 
-    const groups = new Map();
-    favs.forEach(n => {
-      const key = n.druh || "";
-      if (!groups.has(key)) groups.set(key, []);
-      groups.get(key).push(n);
-    });
-    const groupNames = [...groups.keys()].sort((a, b) => a.localeCompare(b, "cs"));
+    const byCreatedDesc = (a, b) => {
+      const at = (a.vytvoreno && a.vytvoreno.toMillis) ? a.vytvoreno.toMillis() : 0;
+      const bt = (b.vytvoreno && b.vytvoreno.toMillis) ? b.vytvoreno.toMillis() : 0;
+      if (at !== bt) return bt - at;
+      if (a.datum !== b.datum) return a.datum < b.datum ? 1 : -1;
+      return 0;
+    };
+
+    const hlaskaFavs = favs.filter(n => isHlaskaFolder(n.druh)).sort(byCreatedDesc);
+    const otherFavs = favs.filter(n => !isHlaskaFolder(n.druh)).sort(byCreatedDesc);
 
     let html = memoryHtml;
     if (favs.length === 0) {
       html += `<div class="empty-state">Zatím žádné oblíbené poznámky.</div>`;
     }
-    groupNames.forEach(name => {
-      const notesInGroup = groups.get(name).slice().sort((a, b) => {
-        if (a.datum === b.datum) return 0;
-        return a.datum < b.datum ? 1 : -1;
-      });
-      const folder = folderByName(name);
-      const color = folder ? folder.barva : "#999";
-      html += `<div class="dashboard-group">
-        <div class="dashboard-group-label">
-          <span class="folder-dot" style="background:${color}"></span>${folderIconPrefix(folder)}${escapeHtml(name || "Bez složky")}
-        </div>
-        <div class="dashboard-row">`;
-      notesInGroup.forEach(n => {
-        html += noteTileHtml(n, { extraClasses: "dashboard-tile", starForceActive: true, showDatum: true, showTermin: false });
-      });
-      html += `</div></div>`;
-    });
+    if (hlaskaFavs.length > 0) {
+      html += `<div class="dashboard-stickies dashboard-stickies-wide">` +
+        hlaskaFavs.map(n => stickyTileHtml(n, { wide: true })).join("") + `</div>`;
+    }
+    if (otherFavs.length > 0) {
+      html += `<div class="dashboard-stickies">` +
+        otherFavs.map(n => stickyTileHtml(n)).join("") + `</div>`;
+    }
     notesList.innerHTML = html;
 
+    notesList.querySelectorAll(".dashboard-sticky").forEach(tile => {
+      tile.addEventListener("click", (e) => {
+        if (e.target.closest(".note-row-del") || e.target.closest(".note-row-star")) return;
+        goToNoteInFolder(tile.dataset.id);
+      });
+    });
     notesList.querySelectorAll(".dashboard-tile").forEach(tile => {
       tile.addEventListener("click", (e) => {
         if (e.target.closest(".note-row-del") || e.target.closest(".note-row-star")) return;
@@ -2324,22 +2406,15 @@
 
   searchInput.addEventListener("input", () => {
     updateSearchClearBtn();
-    // Dashboard/Termín/Kalendář mají vlastní vykreslování, které hledaný
-    // výraz vůbec nekontroluje. Jakmile se do hledání něco napíše v jednom
-    // z těchto pohledů, appka radši přepne na Všechny poznámky, kde
-    // vyhledávání skutečně funguje, ať psaní do políčka není zbytečné.
     if (searchInput.value.trim() && ["dashboard", "termin", "calendar"].includes(view.type)) {
       view = { type: "all" };
       columnsEl.classList.remove("dashboard-mode");
+      columnsEl.classList.remove("view-termin", "view-calendar", "view-dashboard");
       newNoteBtn.style.display = "";
       exportPdfBtn.style.display = "";
       newsletterBtn.style.display = "";
       emptyTrashBtn.style.display = "none";
       renderFolders();
-      // Na mobilu je vidět jen jeden sloupec najednou - po přepnutí na
-      // Všechny poznámky se musí explicitně ukázat sloupec s poznámkami
-      // (jinak by uživatel mohl zůstat koukat na sloupec, který se
-      // mezitím schoval).
       if (window.innerWidth <= 900) columnsEl.dataset.view = "notes";
     }
     renderNotes();
@@ -2357,8 +2432,6 @@
     if (!n) return;
     const newVal = !n.oblibene;
 
-    // Optimisticky aktualizuj lokální stav, ať se hvězdička projeví okamžitě
-    // a nečeká se na doručení onSnapshot listeneru.
     allNotes = allNotes.map(x => x.id === id ? { ...x, oblibene: newVal } : x);
     renderFolders();
     renderNotes();
@@ -2367,7 +2440,6 @@
     try {
       await updateDoc(doc(db, NOTES_COL, id), { oblibene: newVal });
     } catch (err) {
-      // Rollback při chybě zápisu
       allNotes = allNotes.map(x => x.id === id ? { ...x, oblibene: !newVal } : x);
       renderFolders();
       renderNotes();
@@ -2376,10 +2448,6 @@
     }
   }
 
-  // Smazání poznámky ji přesune do koše (pole smazano/smazanoKdy), odkud
-  // se dá kdykoliv do 30 dní obnovit. Prvních 5 sekund je akce ještě čistě
-  // lokální (viz pendingDeletes), takže "Zpět" v toastu funguje okamžitě
-  // bez zápisu do Firestore.
   const TRASH_RETENTION_DAYS = 30;
 
   async function deleteNoteRow(id) {
@@ -2447,9 +2515,6 @@
     }
   }
 
-  // Poznámky smazané před více než 30 dny se potichu smažou natrvalo -
-  // spouští se po každém načtení poznámek, žádný server/cron k tomu není
-  // potřeba.
   function autoPurgeOldTrash() {
     const cutoff = Date.now() - TRASH_RETENTION_DAYS * 24 * 60 * 60 * 1000;
     const toPurge = allNotes.filter(n => {
@@ -2496,8 +2561,6 @@
       return;
     }
 
-    // Optimisticky přidej poznámku do lokálního stavu hned, ať se editor
-    // otevře okamžitě a nečeká se na doručení onSnapshot listeneru.
     if (!allNotes.some(n => n.id === ref.id)) {
       allNotes = [{ id: ref.id, ...newNoteData }, ...allNotes];
     }
@@ -2611,8 +2674,6 @@
   });
   editorTitle.addEventListener("input", () => scheduleSave());
 
-  // Zaregistruje libovolný text input (název poznámky, název složky...) jako
-  // možný cíl pro vkládání emoji a průběžně mu sleduje pozici kurzoru.
   function registerEmojiTarget(el) {
     const update = () => {
       lastFocusIsQuill = false;
@@ -2651,9 +2712,6 @@
   }
   buildEmojiPicker();
 
-  // Otevře/zavře panel u konkrétního tlačítka (může jich být víc - v editoru
-  // poznámky, u nové složky, u kterékoli existující složky v levém menu) a
-  // umístí ho hned pod něj.
   function toggleEmojiPicker(triggerEl) {
     const isOpenForThis = emojiPickerPanel.classList.contains("visible") && emojiPickerCurrentTrigger === triggerEl;
     if (isOpenForThis) {
@@ -2674,9 +2732,6 @@
     emojiPickerCurrentTrigger = triggerEl;
   }
 
-  // mousedown s preventDefault na spouštěcích tlačítkách i na samotných emoji
-  // zabrání prohlížeči přebrat focus z pole, kam se právě píše (jinak by se
-  // třeba přejmenování složky předčasně uložilo/ukončilo).
   function guardFocus(el) {
     el.addEventListener("mousedown", (e) => e.preventDefault());
   }
@@ -2693,7 +2748,6 @@
   });
   newFolderEmojiBtn.addEventListener("click", (e) => {
     e.stopPropagation();
-    // Vybrana emoji se ulozi jako ikona nove slozky, ne do textu nazvu.
     emojiIconTarget = {
       setIcon: (emoji) => {
         newFolderIcon = emoji;
@@ -2783,9 +2837,6 @@
     const bodyText = htmlToShareText(n.popis || "", { markdown: true });
     const shareText = bodyText ? `${title}\n\n${bodyText}` : title;
 
-    // Na mobilu (typicky Android/Chrome) nabídne systémové sdílení, kde je
-    // WhatsApp přímo na výběr spolu s ostatními appkami. Když Web Share API
-    // není k dispozici (desktop prohlížeče), otevře se rovnou WhatsApp Web.
     if (navigator.share) {
       try {
         await navigator.share({ title, text: shareText });
@@ -2803,9 +2854,6 @@
     const n = allNotes.find(x => x.id === selectedNoteId);
     if (!n) return;
     const title = noteTitle(n);
-    // Bez WhatsApp markdown symbolů - v obyčejném e-mailu by jen zbytečně
-    // rušily. Odřádkování (\n -> %0A) ale e-mailoví klienti v mailto:
-    // odkazu respektují.
     const bodyText = htmlToShareText(n.popis || "", { markdown: false });
     const url = `mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(bodyText)}`;
     window.open(url, "_self");
@@ -2869,6 +2917,9 @@
     runPdfExport(from, to);
   });
 
+  // Export do PDF - u každé poznámky se teď kromě názvu/data/kategorie
+  // vypisují i všechny její štítky (viz .print-tags/.print-tag-pill v CSS,
+  // platné jen v @media print).
   function runPdfExport(from, to) {
     let list = [...currentViewNotes()];
     if (from) list = list.filter(n => n.datum >= from);
@@ -2880,9 +2931,14 @@
     list.forEach(n => {
       const title = (n.nazev && n.nazev.trim()) ? n.nazev.trim() : "Bez názvu";
       const folder = folderByName(n.druh);
+      const tags = Array.isArray(n.stitky) ? n.stitky : [];
+      const tagsHtml = tags.length
+        ? `<div class="print-tags">${tags.map(t => `<span class="print-tag-pill">#${escapeHtml(t)}</span>`).join("")}</div>`
+        : "";
       html += `<div class="print-note">
         <div class="print-title">${escapeHtml(title)}</div>
         <div class="print-meta">${formatDate(n.datum)} · ${folderIconPrefix(folder)}${escapeHtml(n.druh || "")}</div>
+        ${tagsHtml}
         <div class="print-content">${n.popis || ""}</div>
       </div>`;
     });
@@ -2942,6 +2998,8 @@
   newsletterBtn.addEventListener("click", () => {
     nlFromDate.value = "";
     nlToDate.value = "";
+    const waRadio = document.getElementById("nlFormatWa");
+    if (waRadio) waRadio.checked = true;
     newsletterRangeModal.classList.add("visible");
     setTimeout(() => nlFromDate.focus(), 50);
   });
@@ -2956,21 +3014,20 @@
     }
   });
 
+  // Dialog teď nabízí dva formáty (viz radio #nlFormatWa/#nlFormatA4 v HTML) -
+  // "Obrázek pro WA" spouští původní export (runNewsletterExport), "Obrázek
+  // A4" nový export pro fotoknihu (runNewsletterExportA4).
   nlConfirmBtn.addEventListener("click", () => {
     const from = nlFromDate.value;
     const to = nlToDate.value;
     if (from && to && from > to) { showToast("Datum „Od“ je později než „Do“"); return; }
+    const formatEl = document.querySelector('input[name="nlFormat"]:checked');
+    const format = formatEl ? formatEl.value : "wa";
     newsletterRangeModal.classList.remove("visible");
-    runNewsletterExport(from, to);
+    if (format === "a4") runNewsletterExportA4(from, to);
+    else runNewsletterExport(from, to);
   });
 
-  // Export "Hláška" - když je v rozsahu moc hlášek najednou, výsledný obrázek
-  // vychází extrémně vysoký (jeden dlouhý sloupec karet) a na spoustě
-  // telefonů/WhatsAppu se pak sdílení spolehlivě nepodaří (WhatsApp takový
-  // "obrázek" v praxi odmítne přijmout - přijde jeho vlastní hláška
-  // "Sdílení se nepodařilo"). Appka proto hlášky rozdělí po menších dávkách
-  // do víc samostatných obrázků (každý rozumně vysoký) a všechny nabídne
-  // ke sdílení najednou.
   const NL_MAX_PER_IMAGE = 8;
 
   function chunkArray(arr, size) {
@@ -2987,7 +3044,7 @@
     let list = visibleNotes().filter(n => isHlaskaFolder(n.druh) && htmlToPlainText(n.popis).length > 0);
     if (from) list = list.filter(n => n.datum >= from);
     if (to) list = list.filter(n => n.datum <= to);
-    list.sort((a, b) => (a.datum > b.datum ? 1 : -1)); // od nejstarší po nejnovější
+    list.sort((a, b) => (a.datum > b.datum ? 1 : -1));
     if (list.length === 0) { showToast("V daném rozsahu nejsou žádné hlášky"); return; }
 
     const pages = chunkArray(list, NL_MAX_PER_IMAGE);
@@ -3046,14 +3103,6 @@
       }
       newsletterStage.innerHTML = "";
 
-      // WhatsApp na některých telefonech obrázek předaný přes systémové
-      // sdílení tiše odmítne přijmout, i když je malý - jde o chybu na
-      // straně Androidu/WhatsAppu, appka to nedokáže poznat ani ovlivnit
-      // (navigator.share() se v tu chvíli tváří, že proběhlo v pořádku).
-      // Proto appka obrázek vždy i stáhne do telefonu jako zálohu - pokud
-      // by sdílení do WhatsAppu selhalo, jde ho poslat ručně přes přílohu
-      // (Galerie). Výjimka: pokud uživatel nabídku sdílení sám zavřel
-      // (zrušil), appka respektuje jeho volbu a nic nestahuje.
       let shareSucceeded = false;
       let userCancelled = false;
       if (navigator.canShare && navigator.canShare({ files })) {
@@ -3087,6 +3136,129 @@
     }
   }
 
+  // ---------- Export A4 (pro fotoknihu) ----------
+  // Na rozdíl od exportu pro WhatsApp (pevný počet hlášek na obrázek) je
+  // tady stránka pevné velikosti A4 (poměr stran 210:297, okraje nahoře/dole
+  // 1 cm a vlevo/vpravo 2 cm - viz padding na .a4-page v CSS) a appka místo
+  // pevného počtu odhaduje, KOLIK hlášek se na jednu stránku vejde - zkusmo
+  // je do stránky (dvousloupcové "masonry" rozložení se širšími mezerami,
+  // viz .a4-cards v CSS) postupně přidává a po každé reálně změří vykreslenou
+  // výšku (mimo obrazovku, v #newsletterStage) - jakmile by další hláška
+  // stránku přetekla, uzavře ji a začne novou. Karty NEJSOU rotované (Iri to
+  // vyzkoušela a nechtěla) - jen mají mezi sebou dost velké mezery, ať se
+  // obsah rozloží po celé ploše stránky; kolik hlášek na stránku zahrnout,
+  // si Iri hlídá sama při generování.
+  const A4_PAGE_W = 1240;
+  const A4_PAGE_H = 1754;
+  const A4_HEIGHT_BUFFER = 26;
+
+  function buildA4PageHtml(pageNotes, from, to, pageNum, pageCount, fixedHeight) {
+    const cardsHtml = pageNotes.map(n => {
+      const tags = Array.isArray(n.stitky) ? n.stitky : [];
+      const color = tagColor(tags[0] || n.id);
+      const badgesHtml = tags.length
+        ? tags.map(t => `<span class="a4-badge" style="--nl-badge-color:${tagColor(t)}">${escapeHtml(t.toUpperCase())}</span>`).join(" ")
+        : "<span></span>";
+      const title = (n.nazev && n.nazev.trim()) ? n.nazev.trim() : "";
+      const text = htmlToPlainText(n.popis);
+      return `
+        <div class="a4-card" style="--nl-color:${color};">
+          <div class="a4-card-top">
+            <span class="a4-badges">${badgesHtml}</span>
+            <span class="a4-date">${formatNlDate(n.datum)}</span>
+          </div>
+          ${title ? `<div class="a4-title">${escapeHtml(title)}</div>` : ""}
+          <div class="a4-text">${escapeHtml(text)}</div>
+        </div>`;
+    }).join("");
+
+    const pageNumHtml = (pageCount && pageCount > 1) ? `<div class="a4-header-pagenum">${pageNum}/${pageCount}</div>` : "";
+
+    return `
+      <div class="a4-page ${fixedHeight ? "a4-page-fixed" : ""}">
+        <div class="a4-header">
+          <h1>😂 Rodinné hlášky</h1>
+          <div class="a4-header-range">${escapeHtml(formatNlRange(from, to))}</div>
+          ${pageNumHtml}
+        </div>
+        <div class="a4-content"><div class="a4-cards">${cardsHtml}</div></div>
+        <div class="a4-footer">✎ Zaznamenáno v appce Vtipníci</div>
+      </div>`;
+  }
+
+  async function paginateA4Notes(list, from, to) {
+    const pages = [];
+    let idx = 0;
+    while (idx < list.length) {
+      let pageNotes = [list[idx]];
+      idx++;
+      while (idx < list.length) {
+        const candidate = [...pageNotes, list[idx]];
+        newsletterStage.innerHTML = buildA4PageHtml(candidate, from, to, pages.length + 1, null, false);
+        await new Promise(r => requestAnimationFrame(r));
+        const pageEl = newsletterStage.firstElementChild;
+        const height = pageEl.getBoundingClientRect().height;
+        if (height <= A4_PAGE_H - A4_HEIGHT_BUFFER) {
+          pageNotes = candidate;
+          idx++;
+        } else {
+          break;
+        }
+      }
+      pages.push(pageNotes);
+    }
+    return pages;
+  }
+
+  async function runNewsletterExportA4(from, to) {
+    if (typeof html2canvas === "undefined") {
+      showToast("Nepodařilo se načíst knihovnu pro export obrázku");
+      return;
+    }
+    let list = visibleNotes().filter(n => isHlaskaFolder(n.druh) && htmlToPlainText(n.popis).length > 0);
+    if (from) list = list.filter(n => n.datum >= from);
+    if (to) list = list.filter(n => n.datum <= to);
+    list.sort((a, b) => (a.datum > b.datum ? 1 : -1));
+    if (list.length === 0) { showToast("V daném rozsahu nejsou žádné hlášky"); return; }
+
+    showToast("Připravuji obrázek A4…");
+    try {
+      const pages = await paginateA4Notes(list, from, to);
+      showToast(pages.length > 1 ? `Generuji ${pages.length} obrázky A4…` : "Generuji obrázek A4…");
+      const files = [];
+      for (let i = 0; i < pages.length; i++) {
+        newsletterStage.innerHTML = buildA4PageHtml(pages[i], from, to, i + 1, pages.length, true);
+        await new Promise(r => setTimeout(r, 60));
+        const target = newsletterStage.firstElementChild;
+        const canvas = await html2canvas(target, {
+          backgroundColor: "#fffaf0", scale: 2, useCORS: true, width: A4_PAGE_W, height: A4_PAGE_H
+        });
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/png"));
+        const suffix = pages.length > 1 ? `-${i + 1}z${pages.length}` : "";
+        const fileName = `hlasky-A4-${from || "vse"}_${to || "vse"}${suffix}.png`;
+        files.push(new File([blob], fileName, { type: "image/png" }));
+      }
+      newsletterStage.innerHTML = "";
+
+      files.forEach((file, i) => {
+        setTimeout(() => {
+          const url = URL.createObjectURL(file);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = file.name;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 4000);
+        }, i * 300);
+      });
+      showToast(pages.length > 1 ? `${pages.length} obrázky A4 staženy` : "Obrázek A4 stažen");
+    } catch (err) {
+      newsletterStage.innerHTML = "";
+      showToast("Export obrázku A4 selhal: " + err.message);
+    }
+  }
+
   // ---------- JSON backup export ----------
   jsonExportBtn.addEventListener("click", () => {
     if (allNotes.length === 0) { showToast("Není co exportovat"); return; }
@@ -3106,9 +3278,6 @@
   });
 
   // ---------- Import textu z webu (typicky recepty) ----------
-  // Prohlížeč blokuje cross-origin fetch cizích stránek (CORS), appka nemá vlastní server,
-  // takže se musí jít přes veřejné proxy služby. Zkouší se jich víc po sobě, protože
-  // jednotlivé veřejné proxy bývají nespolehlivé/nedostupné.
   const HTML_PROXIES = [
     (u) => "https://api.allorigins.win/raw?url=" + encodeURIComponent(u),
     (u) => "https://corsproxy.io/?url=" + encodeURIComponent(u),
@@ -3184,8 +3353,6 @@
         htmlErr = err;
       }
 
-      // Pokud se z HTML nepodařilo najít recept ani text, zkus ještě čitelný
-      // text stránky přes čtečkovou proxy (funguje i na weby, co blokují ty první).
       const htmlGaveNothing = !extracted || (!extracted.isRecipe && !extracted.text) ||
         (extracted.isRecipe && !extracted.ingredients.length && !extracted.instructions.length);
       if (htmlGaveNothing) {
