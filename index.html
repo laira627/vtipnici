@@ -922,7 +922,7 @@
   // nahrání nové verze na GitHub pozná (i přes zpoždění nasazení), jestli
   // se jí už načetla nejnovější verze, nebo pořád vidí tu starou z cache.
   // Při KAŽDÉ příští úpravě index.html je potřeba tohle číslo zvýšit o 1.
-  const APP_VERSION = "5";
+  const APP_VERSION = "6";
   document.querySelectorAll(".app-version-badge").forEach(el => {
     el.textContent = "v" + APP_VERSION;
   });
@@ -1223,15 +1223,21 @@
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
   }
 
-  // Barva kategorie "rozředěná" bílou na PLNĚ NEPRŮHLEDNÝ pastelový odstín -
-  // pouziva se pro podbarveni "sticky" karticek na Dashboardu.
+  // Barva kategorie "rozředěná" bílou (světlý režim) nebo tmavou podkladovou
+  // barvou appky (tmavý režim) na PLNĚ NEPRŮHLEDNÝ odstín - pouziva se pro
+  // podbarveni "sticky" karticek na Dashboardu. V tmavém režimu se mísí s
+  // tmavou barvou papíru místo bílé (a s vyšším poměrem), jinak by kartička
+  // zůstala světle pastelová a světlý text appky by na ní nebyl čitelný.
   function mixWithWhite(hex, ratio) {
     let h = (hex || "#999999").replace("#", "");
     if (h.length === 3) h = h.split("").map(c => c + c).join("");
     const num = parseInt(h, 16) || 0x999999;
     const r = (num >> 16) & 255, g = (num >> 8) & 255, b = num & 255;
-    const mix = (c) => Math.round(c * ratio + 255 * (1 - ratio));
-    return `rgb(${mix(r)}, ${mix(g)}, ${mix(b)})`;
+    const dark = getCurrentTheme() === "dark";
+    const baseR = dark ? 36 : 255, baseG = dark ? 30 : 255, baseB = dark ? 23 : 255;
+    const mixRatio = dark ? Math.min(ratio * 2.5, 0.5) : ratio;
+    const mix = (c, base) => Math.round(c * mixRatio + base * (1 - mixRatio));
+    return `rgb(${mix(r, baseR)}, ${mix(g, baseG)}, ${mix(b, baseB)})`;
   }
 
   // ---------- Quill init ----------
@@ -1465,12 +1471,19 @@
     const next = getCurrentTheme() === "dark" ? "light" : "dark";
     localStorage.setItem("vtipnici-theme", next);
     applyTheme(next);
+    // Barvy "sticky" karticek na Dashboardu se počítají podle aktuálního
+    // režimu (viz mixWithWhite) - po přepnutí je potřeba je překreslit,
+    // jinak by zůstaly obarvené podle předchozího režimu.
+    if (appEl.classList.contains("visible")) renderNotes();
   });
   // Pokud si uživatel režim nikdy sám nepřepnul (nic uloženo), appka dál
   // sleduje systémové nastavení telefonu a přepne se spolu s ním.
   if (window.matchMedia) {
     window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (e) => {
-      if (!localStorage.getItem("vtipnici-theme")) applyTheme(e.matches ? "dark" : "light");
+      if (!localStorage.getItem("vtipnici-theme")) {
+        applyTheme(e.matches ? "dark" : "light");
+        if (appEl.classList.contains("visible")) renderNotes();
+      }
     });
   }
 
