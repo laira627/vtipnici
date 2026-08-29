@@ -675,6 +675,20 @@
   .columns.view-dashboard .col-notes::before {
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='340' height='150' viewBox='0 0 340 150'%3E%3Cpath d='M-10,16 C 30,30 55,4 95,18 C 135,32 155,6 195,20 C 235,34 255,6 295,18 C 315,24 325,14 350,20' stroke='%23b599c9' stroke-width='1.4' fill='none' opacity='0.5'/%3E%3Cellipse cx='60' cy='34' rx='9' ry='4' fill='%23cbb8d9' opacity='0.6'/%3E%3Cellipse cx='120' cy='38' rx='9' ry='4' fill='%23b7c9a8' opacity='0.55'/%3E%3Cellipse cx='180' cy='34' rx='9' ry='4' fill='%23e8a6d0' opacity='0.55'/%3E%3Cellipse cx='240' cy='40' rx='9' ry='4' fill='%23cbb8d9' opacity='0.55'/%3E%3Cellipse cx='300' cy='34' rx='9' ry='4' fill='%23b7c9a8' opacity='0.6'/%3E%3C/svg%3E");
   }
+  /* Pastelové vlnky/pozadí jsou navrženy jen pro světlý režim - v tmavém by
+     zůstaly svítit jako světlé skvrny na tmavém podkladu. V tmavém režimu
+     proto zůstane pozadí stejně tmavé jako všude jinde v appce a dekorace
+     se schová. */
+  html[data-theme="dark"] .columns.view-termin .col-notes,
+  html[data-theme="dark"] .columns.view-calendar .col-notes,
+  html[data-theme="dark"] .columns.view-dashboard .col-notes {
+    background-color: var(--paper);
+  }
+  html[data-theme="dark"] .columns.view-termin .col-notes::before,
+  html[data-theme="dark"] .columns.view-calendar .col-notes::before,
+  html[data-theme="dark"] .columns.view-dashboard .col-notes::before {
+    display: none;
+  }
 
   /* ---------- Kalendář Den/Týden - box poznámek se výšce nepřizpůsobuje ---------- */
   .calendar-week-list .calendar-day,
@@ -922,7 +936,7 @@
   // nahrání nové verze na GitHub pozná (i přes zpoždění nasazení), jestli
   // se jí už načetla nejnovější verze, nebo pořád vidí tu starou z cache.
   // Při KAŽDÉ příští úpravě index.html je potřeba tohle číslo zvýšit o 1.
-  const APP_VERSION = "7";
+  const APP_VERSION = "8";
   document.querySelectorAll(".app-version-badge").forEach(el => {
     el.textContent = "v" + APP_VERSION;
   });
