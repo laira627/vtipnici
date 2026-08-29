@@ -694,9 +694,9 @@
   .dashboard-sticky {
     width: 100%; max-width: 100%; border-radius: 14px; padding: 12px 14px 14px;
     box-shadow: var(--shadow); position: relative; cursor: pointer;
-    display: flex; flex-direction: column; gap: 6px; border: 1.5px solid transparent;
-    min-width: 0; overflow: hidden;
+    display: flex; flex-direction: column; gap: 6px; min-width: 0; overflow: hidden;
     break-inside: avoid; -webkit-column-break-inside: avoid; margin: 0 0 12px;
+    background: var(--paper); border: 1px solid var(--line); border-left-width: 4px;
   }
   .dashboard-sticky-wide { margin-bottom: 0; }
   .dashboard-sticky:hover .note-row-del { display: block; }
@@ -922,7 +922,7 @@
   // nahrání nové verze na GitHub pozná (i přes zpoždění nasazení), jestli
   // se jí už načetla nejnovější verze, nebo pořád vidí tu starou z cache.
   // Při KAŽDÉ příští úpravě index.html je potřeba tohle číslo zvýšit o 1.
-  const APP_VERSION = "6";
+  const APP_VERSION = "7";
   document.querySelectorAll(".app-version-badge").forEach(el => {
     el.textContent = "v" + APP_VERSION;
   });
@@ -1214,32 +1214,6 @@
     return (folder && folder.ikona) ? escapeHtml(folder.ikona) + " " : "";
   }
 
-  // Barva kategorie prevedena na rgba s nizkou pruhlednosti.
-  function hexToRgba(hex, alpha) {
-    let h = (hex || "#999999").replace("#", "");
-    if (h.length === 3) h = h.split("").map(c => c + c).join("");
-    const num = parseInt(h, 16) || 0x999999;
-    const r = (num >> 16) & 255, g = (num >> 8) & 255, b = num & 255;
-    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-  }
-
-  // Barva kategorie "rozředěná" bílou (světlý režim) nebo tmavou podkladovou
-  // barvou appky (tmavý režim) na PLNĚ NEPRŮHLEDNÝ odstín - pouziva se pro
-  // podbarveni "sticky" karticek na Dashboardu. V tmavém režimu se mísí s
-  // tmavou barvou papíru místo bílé (a s vyšším poměrem), jinak by kartička
-  // zůstala světle pastelová a světlý text appky by na ní nebyl čitelný.
-  function mixWithWhite(hex, ratio) {
-    let h = (hex || "#999999").replace("#", "");
-    if (h.length === 3) h = h.split("").map(c => c + c).join("");
-    const num = parseInt(h, 16) || 0x999999;
-    const r = (num >> 16) & 255, g = (num >> 8) & 255, b = num & 255;
-    const dark = getCurrentTheme() === "dark";
-    const baseR = dark ? 36 : 255, baseG = dark ? 30 : 255, baseB = dark ? 23 : 255;
-    const mixRatio = dark ? Math.min(ratio * 2.5, 0.5) : ratio;
-    const mix = (c, base) => Math.round(c * mixRatio + base * (1 - mixRatio));
-    return `rgb(${mix(r, baseR)}, ${mix(g, baseG)}, ${mix(b, baseB)})`;
-  }
-
   // ---------- Quill init ----------
   function initQuill() {
     if (quill) return;
@@ -1471,19 +1445,12 @@
     const next = getCurrentTheme() === "dark" ? "light" : "dark";
     localStorage.setItem("vtipnici-theme", next);
     applyTheme(next);
-    // Barvy "sticky" karticek na Dashboardu se počítají podle aktuálního
-    // režimu (viz mixWithWhite) - po přepnutí je potřeba je překreslit,
-    // jinak by zůstaly obarvené podle předchozího režimu.
-    if (appEl.classList.contains("visible")) renderNotes();
   });
   // Pokud si uživatel režim nikdy sám nepřepnul (nic uloženo), appka dál
   // sleduje systémové nastavení telefonu a přepne se spolu s ním.
   if (window.matchMedia) {
     window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (e) => {
-      if (!localStorage.getItem("vtipnici-theme")) {
-        applyTheme(e.matches ? "dark" : "light");
-        if (appEl.classList.contains("visible")) renderNotes();
-      }
+      if (!localStorage.getItem("vtipnici-theme")) applyTheme(e.matches ? "dark" : "light");
     });
   }
 
@@ -2274,9 +2241,9 @@
     const tagsHtml = tags.length
       ? `<div class="note-row-tags">${tags.map(t => `<span class="tag-pill">#${escapeHtml(t)}</span>`).join("")}</div>`
       : "";
-    const bg = forceBg || mixWithWhite(color, 0.16);
-    const border = forceBorder || hexToRgba(color, 0.45);
-    return `<div class="dashboard-sticky ${wide ? "dashboard-sticky-wide" : ""}" style="background:${bg};border-color:${border}" data-id="${n.id}">
+    const bg = forceBg || "var(--paper)";
+    const borderLeft = forceBorder || color;
+    return `<div class="dashboard-sticky ${wide ? "dashboard-sticky-wide" : ""}" style="background:${bg};border-left-color:${borderLeft}" data-id="${n.id}">
       <button class="note-row-del" data-id="${n.id}" title="Smazat poznámku" aria-label="Smazat poznámku">🗑</button>
       <div class="dashboard-sticky-top">
         <span class="note-row-badge" style="background:${color}33;color:${color}">${badgeExtra}${folderIconPrefix(folder)}${escapeHtml(n.druh || "")}</span>
