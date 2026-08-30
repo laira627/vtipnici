@@ -270,7 +270,7 @@
   .empty-state { text-align: center; color: var(--ink-soft); padding: 40px 20px; font-size: 13.5px; }
 
   /* ---------- Koš (trash) ---------- */
-  .trash-tile { cursor: default; }
+  .trash-tile { cursor: pointer; }
   .trash-tile-actions { display: flex; gap: 6px; margin-top: 8px; }
   .btn-mini {
     font-size: 11.5px; font-weight: 600; padding: 5px 9px; border-radius: 7px;
@@ -471,6 +471,19 @@
   .modal-card .modal-sub { color: var(--ink-soft); font-size: 13px; margin: 0 0 16px; }
   .modal-card .row-btns { display: flex; gap: 8px; margin-top: 6px; }
   .modal-card .row-btns .btn { padding: 10px; font-size: 14px; }
+
+  /* ---------- Náhled poznámky v koši (jen ke čtení) ---------- */
+  .modal-card.trash-preview-card { max-width: 480px; }
+  .trash-preview-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+  .trash-preview-date { font-size: 12px; color: var(--ink-soft); }
+  .trash-preview-content {
+    max-height: 45vh; overflow-y: auto; font-size: 14px; line-height: 1.5;
+    padding: 12px; background: var(--panel); border-radius: 10px; border: 1px solid var(--line);
+  }
+  .trash-preview-content img { max-width: 100%; }
+  .trash-preview-btns { flex-wrap: wrap; }
+  .trash-preview-btns .btn { flex: 1 1 auto; }
+  .trash-preview-purge-btn:hover { background: #fce8e6; color: var(--danger); border-color: #fce8e6; }
   .nl-format-row { display: flex; gap: 14px; flex-wrap: wrap; }
   .nl-format-option { display: flex; align-items: center; gap: 6px; font-size: 13.5px; font-weight: 600; color: var(--ink-soft); cursor: pointer; }
   .nl-format-option input { width: auto; margin: 0; }
@@ -600,6 +613,37 @@
   .dashboard-row { display: flex; flex-wrap: wrap; gap: 8px; }
   .dashboard-tile { flex: 1 1 180px; max-width: 280px; margin-bottom: 0; }
   .dashboard-tile.termin-dash-tile { flex: 0 0 280px; width: 280px; }
+
+  /* ---------- Statistika ---------- */
+  .stat-today-card {
+    background: var(--paper); border-radius: 14px; padding: 18px 20px; margin-bottom: 20px;
+    box-shadow: var(--shadow); text-align: center;
+  }
+  .stat-today-label {
+    font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+    color: var(--ink-soft); margin-bottom: 6px;
+  }
+  .stat-today-percent { font-size: 40px; font-weight: 800; line-height: 1.1; color: var(--ink); }
+  .stat-today-percent.stat-good { color: #3f8f5f; }
+  .stat-today-percent.stat-mid { color: #b8873a; }
+  .stat-today-percent.stat-low { color: #b5502f; }
+  .stat-today-frac { font-size: 13px; color: var(--ink-soft); margin-top: 4px; }
+  .stat-day-list {
+    background: var(--paper); border-radius: 14px; box-shadow: var(--shadow); overflow: hidden;
+  }
+  .stat-day-row {
+    display: flex; align-items: center; gap: 10px; padding: 9px 16px;
+    border-bottom: 1px solid var(--line); font-size: 13.5px;
+  }
+  .stat-day-list .stat-day-row:last-child { border-bottom: none; }
+  .stat-day-row.stat-day-today { font-weight: 700; background: var(--accent-soft); }
+  .stat-day-row.stat-day-empty { color: var(--ink-soft); }
+  .stat-day-date { flex: 1 1 auto; }
+  .stat-day-frac { color: var(--ink-soft); min-width: 46px; text-align: right; }
+  .stat-day-percent { min-width: 52px; text-align: right; font-weight: 700; }
+  .stat-day-percent.stat-good { color: #3f8f5f; }
+  .stat-day-percent.stat-mid { color: #b8873a; }
+  .stat-day-percent.stat-low { color: #b5502f; }
 
   /* ---------- Mobile ---------- */
   .back-btn { display: none; }
@@ -869,6 +913,19 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="trashPreviewModal">
+  <div class="modal-card trash-preview-card">
+    <h3 id="trashPreviewTitle"></h3>
+    <div class="trash-preview-meta" id="trashPreviewMeta"></div>
+    <div class="trash-preview-content" id="trashPreviewContent"></div>
+    <div class="row-btns trash-preview-btns">
+      <button class="btn btn-secondary" id="trashPreviewRestoreBtn" type="button">↩ Obnovit</button>
+      <button class="btn btn-secondary trash-preview-purge-btn" id="trashPreviewPurgeBtn" type="button">✕ Smazat natrvalo</button>
+      <button class="btn" id="trashPreviewCloseBtn" type="button">Zavřít</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <div class="modal-overlay" id="pdfRangeModal">
@@ -927,7 +984,7 @@
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
   import {
     initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
-    collection, addDoc, updateDoc, deleteDoc, doc,
+    collection, addDoc, updateDoc, deleteDoc, doc, setDoc,
     query, where, orderBy, onSnapshot, serverTimestamp, writeBatch, getDocs
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
@@ -936,7 +993,7 @@
   // nahrání nové verze na GitHub pozná (i přes zpoždění nasazení), jestli
   // se jí už načetla nejnovější verze, nebo pořád vidí tu starou z cache.
   // Při KAŽDÉ příští úpravě index.html je potřeba tohle číslo zvýšit o 1.
-  const APP_VERSION = "8";
+  const APP_VERSION = "10";
   document.querySelectorAll(".app-version-badge").forEach(el => {
     el.textContent = "v" + APP_VERSION;
   });
@@ -958,6 +1015,10 @@
 
   const NOTES_COL = "poznamky";
   const FOLDERS_COL = "slozky";
+  // Kolekce s trvale uloženými denními statistikami (poznámky s termínem
+  // splněné vs. celkem) - jeden dokument na den a uživatele, ID ve tvaru
+  // "<uid>_<datum>", ať přežije i vysypání koše (TRASH_RETENTION_DAYS).
+  const STATS_COL = "statistikaDny";
 
   const DEFAULT_FOLDERS = [
     { nazev: "Hláška", barva: "#b5502f", poradi: 0 },
@@ -982,6 +1043,13 @@
   const terminSummaryModal = document.getElementById("terminSummaryModal");
   const terminSummaryModalText = document.getElementById("terminSummaryModalText");
   const terminSummaryModalCloseBtn = document.getElementById("terminSummaryModalCloseBtn");
+  const trashPreviewModal = document.getElementById("trashPreviewModal");
+  const trashPreviewTitle = document.getElementById("trashPreviewTitle");
+  const trashPreviewMeta = document.getElementById("trashPreviewMeta");
+  const trashPreviewContent = document.getElementById("trashPreviewContent");
+  const trashPreviewRestoreBtn = document.getElementById("trashPreviewRestoreBtn");
+  const trashPreviewPurgeBtn = document.getElementById("trashPreviewPurgeBtn");
+  const trashPreviewCloseBtn = document.getElementById("trashPreviewCloseBtn");
   const columnsEl = document.getElementById("columns");
 
   const foldersList = document.getElementById("foldersList");
@@ -1044,6 +1112,10 @@
   let folders = [];           // [{id, nazev, barva, poradi}]
   let allNotes = [];          // all notes for user
   let unsubNotes = null, unsubFolders = null;
+  // ---------- Statistika: trvale uložené denní statistiky ----------
+  let statsDays = new Map();  // datum ("YYYY-MM-DD") -> { citatel, jmenovatel }
+  let unsubStats = null;
+  let notesLoaded = false, statsLoaded = false, statsFinalizing = false;
   let view = { type: "all" }; // {type:'all'} | {type:'fav'} | {type:'folder', id, nazev, barva}
   let selectedNoteId = null;
   let currentTags = [];
@@ -1416,6 +1488,7 @@
       initQuill();
       subscribeFolders(user.uid);
       subscribeNotes(user.uid);
+      subscribeStats(user.uid);
       if (window.innerWidth <= 900) {
         calendarViewMode = "week";
         localStorage.setItem("calendarViewMode", "week");
@@ -1427,6 +1500,10 @@
       appEl.classList.remove("visible");
       if (unsubNotes) { unsubNotes(); unsubNotes = null; }
       if (unsubFolders) { unsubFolders(); unsubFolders = null; }
+      if (unsubStats) { unsubStats(); unsubStats = null; }
+      statsDays = new Map();
+      notesLoaded = false;
+      statsLoaded = false;
     }
   });
 
@@ -1584,6 +1661,9 @@
 
     const trashCount = allNotes.filter(n => n.smazano && !pendingDeletes.has(n.id)).length;
     html += `<div class="folder-divider"></div>`;
+    html += `<div class="folder-row ${view.type === "statistika" ? "active" : ""}" data-view="statistika">
+      <span class="folder-name">📊 Statistika</span>
+    </div>`;
     html += `<div class="folder-row ${view.type === "trash" ? "active" : ""}" data-view="trash">
       <span class="folder-name">🗑 Koš</span>
       ${trashCount > 0 ? `<span class="folder-count">${trashCount}</span>` : ""}
@@ -1599,6 +1679,7 @@
         else if (type === "termin") selectView({ type: "termin" });
         else if (type === "all") selectView({ type: "all" });
         else if (type === "trash") selectView({ type: "trash" });
+        else if (type === "statistika") selectView({ type: "statistika" });
         else if (type === "rating") selectView({ type: "rating", value: row.dataset.value });
         else {
           const f = folders.find(x => x.id === row.dataset.id);
@@ -1734,10 +1815,10 @@
     if (v.type === "termin") columnsEl.classList.add("view-termin");
     else if (v.type === "calendar") columnsEl.classList.add("view-calendar");
     else if (v.type === "dashboard") columnsEl.classList.add("view-dashboard");
-    if (v.type === "dashboard" || v.type === "termin" || v.type === "trash" || v.type === "calendar") closeEditor();
-    newNoteBtn.style.display = v.type === "trash" ? "none" : "";
-    exportPdfBtn.style.display = v.type === "trash" ? "none" : "";
-    newsletterBtn.style.display = v.type === "trash" ? "none" : "";
+    if (v.type === "dashboard" || v.type === "termin" || v.type === "trash" || v.type === "calendar" || v.type === "statistika") closeEditor();
+    newNoteBtn.style.display = (v.type === "trash" || v.type === "statistika") ? "none" : "";
+    exportPdfBtn.style.display = (v.type === "trash" || v.type === "statistika") ? "none" : "";
+    newsletterBtn.style.display = (v.type === "trash" || v.type === "statistika") ? "none" : "";
     emptyTrashBtn.style.display = v.type === "trash" ? "" : "none";
     renderFolders();
     renderNotes();
@@ -1749,6 +1830,7 @@
     const q = query(collection(db, NOTES_COL), where("uid", "==", uid), orderBy("datum", "desc"));
     unsubNotes = onSnapshot(q, (snapshot) => {
       allNotes = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      notesLoaded = true;
       if (isTerminPickerOpen()) {
         pendingRenderAfterPicker = true;
       } else {
@@ -1759,11 +1841,90 @@
         const still = allNotes.find(n => n.id === selectedNoteId);
         if (!still) closeEditor();
       }
+      if (trashPreviewNoteId) {
+        const stillInTrash = allNotes.find(n => n.id === trashPreviewNoteId && n.smazano);
+        if (!stillInTrash) closeTrashPreview();
+      }
       autoPurgeOldTrash();
       runDailyDialogs();
+      maybeFinalizeStats();
+      if (view.type === "statistika") renderNotes();
     }, (err) => {
       notesList.innerHTML = `<div class="empty-state">Chyba při načítání: ${err.message}</div>`;
     });
+  }
+
+  // ---------- Statistika: subscribe + finalizace uplynulých dnů ----------
+  function subscribeStats(uid) {
+    const q = query(collection(db, STATS_COL), where("uid", "==", uid));
+    unsubStats = onSnapshot(q, (snapshot) => {
+      const fresh = new Map();
+      snapshot.docs.forEach(d => {
+        const data = d.data();
+        if (data.datum) fresh.set(data.datum, { citatel: data.citatel || 0, jmenovatel: data.jmenovatel || 0 });
+      });
+      statsDays = fresh;
+      statsLoaded = true;
+      maybeFinalizeStats();
+      if (view.type === "statistika") renderNotes();
+    }, (err) => {
+      console.error("Chyba při načítání statistiky:", err);
+    });
+  }
+
+  // Poznámka s termínem se do statistiky dne D počítá do jmenovatele, pokud
+  // její AKTUÁLNÍ termín je <= D (bez ohledu na to, jestli je v koši), a do
+  // čitatele, pokud byla smazána (přesunuta do koše) právě v den D.
+  function computeStatsForDay(dateStr, notes) {
+    const withTermin = notes.filter(n => n.termin);
+    const jmenovatel = withTermin.filter(n => n.termin <= dateStr).length;
+    const citatel = withTermin.filter(n => {
+      if (!n.smazano || !n.smazanoKdy || typeof n.smazanoKdy.toDate !== "function") return false;
+      return localDateStr(n.smazanoKdy.toDate()) === dateStr;
+    }).length;
+    return { citatel, jmenovatel };
+  }
+
+  function maybeFinalizeStats() {
+    if (!notesLoaded || !statsLoaded || !currentUid || statsFinalizing) return;
+    statsFinalizing = true;
+    finalizeMissingStatsDays().finally(() => { statsFinalizing = false; });
+  }
+
+  // Doplní (a trvale uloží) statistiku pro všechny dny mezi posledním již
+  // uloženým dnem a včerejškem - "dnešek" se nikdy neukládá, počítá se vždy
+  // živě. Pokud ještě žádný den uložen není (appka statistiku teprve
+  // začala sledovat), doplní historii nejvýš TRASH_RETENTION_DAYS dozadu -
+  // starší data by beztak nešlo spolehlivě rekonstruovat, protože poznámky
+  // v koši starší než TRASH_RETENTION_DAYS dnů už appka natrvalo smazala.
+  async function finalizeMissingStatsDays() {
+    const todayStr = localTodayStr();
+    const yesterdayStr = addDaysToIsoDate(todayStr, -1);
+    let lastPersisted = null;
+    statsDays.forEach((_, key) => {
+      if (!lastPersisted || key > lastPersisted) lastPersisted = key;
+    });
+    const startDay = lastPersisted ? addDaysToIsoDate(lastPersisted, 1) : addDaysToIsoDate(todayStr, -TRASH_RETENTION_DAYS);
+    if (startDay > yesterdayStr) return;
+
+    const batch = writeBatch(db);
+    let d = startDay;
+    let count = 0;
+    while (d <= yesterdayStr) {
+      const stats = computeStatsForDay(d, allNotes);
+      batch.set(doc(db, STATS_COL, `${currentUid}_${d}`), {
+        uid: currentUid, datum: d, citatel: stats.citatel, jmenovatel: stats.jmenovatel
+      });
+      d = addDaysToIsoDate(d, 1);
+      count++;
+      if (count >= 400) break; // pojistka proti příliš velké dávce
+    }
+    if (count === 0) return;
+    try {
+      await batch.commit();
+    } catch (err) {
+      console.error("Chyba při ukládání statistiky:", err);
+    }
   }
 
   // ---------- Ranní dialog (termíny) ----------
@@ -1822,10 +1983,13 @@
     return list;
   }
 
-  function localTodayStr() {
-    const d = new Date();
+  function localDateStr(d) {
     const tzOffsetMs = d.getTimezoneOffset() * 60000;
     return new Date(d.getTime() - tzOffsetMs).toISOString().slice(0, 10);
+  }
+
+  function localTodayStr() {
+    return localDateStr(new Date());
   }
 
   function addDaysToIsoDate(isoDate, days) {
@@ -1897,6 +2061,7 @@
     if (view.type === "termin") { renderTerminView(); return; }
     if (view.type === "trash") { renderTrashView(); return; }
     if (view.type === "calendar") { renderCalendarView(); return; }
+    if (view.type === "statistika") { renderStatistikaView(); return; }
 
     if (view.type === "all") notesColTitle.textContent = "Všechny poznámky";
     else if (view.type === "rating") notesColTitle.textContent = `Hodnocení ${view.value}`;
@@ -2222,6 +2387,12 @@
       </div>`;
     }).join("");
 
+    notesList.querySelectorAll(".trash-tile").forEach(row => {
+      row.addEventListener("click", (e) => {
+        if (e.target.closest(".trash-tile-actions")) return;
+        showTrashPreview(row.dataset.id);
+      });
+    });
     notesList.querySelectorAll(".trash-restore-btn").forEach(btn => {
       btn.addEventListener("click", (e) => { e.stopPropagation(); restoreNoteFromTrash(btn.dataset.id); });
     });
@@ -2384,6 +2555,92 @@
     });
   }
 
+  // ---------- Statistika ----------
+  function statPercentText(citatel, jmenovatel) {
+    if (!jmenovatel) return "—";
+    return Math.round((citatel / jmenovatel) * 100) + "%";
+  }
+
+  function statPercentClass(citatel, jmenovatel) {
+    if (!jmenovatel) return "";
+    const pct = (citatel / jmenovatel) * 100;
+    if (pct >= 100) return "stat-good";
+    if (pct >= 50) return "stat-mid";
+    return "stat-low";
+  }
+
+  function renderStatistikaView() {
+    notesColTitle.textContent = "📊 Statistika";
+    const todayStr = localTodayStr();
+    const todayStats = computeStatsForDay(todayStr, allNotes);
+
+    // Posledních 14 dní: dnešek (počítaný živě) + 13 předchozích, trvale
+    // uložených dnů.
+    const dailyDates = [];
+    for (let i = 0; i < 14; i++) dailyDates.push(addDaysToIsoDate(todayStr, -i));
+    const oldestDailyDate = dailyDates[dailyDates.length - 1];
+
+    const dailyRowHtml = (dateStr) => {
+      const isToday = dateStr === todayStr;
+      const stats = isToday ? todayStats : statsDays.get(dateStr);
+      if (!stats) {
+        return `<div class="stat-day-row stat-day-empty">
+          <span class="stat-day-date">${formatDate(dateStr)}</span>
+          <span class="stat-day-frac">–</span>
+          <span class="stat-day-percent">—</span>
+        </div>`;
+      }
+      return `<div class="stat-day-row ${isToday ? "stat-day-today" : ""}">
+        <span class="stat-day-date">${isToday ? "Dnes" : formatDate(dateStr)}</span>
+        <span class="stat-day-frac">${stats.citatel}/${stats.jmenovatel}</span>
+        <span class="stat-day-percent ${statPercentClass(stats.citatel, stats.jmenovatel)}">${statPercentText(stats.citatel, stats.jmenovatel)}</span>
+      </div>`;
+    };
+
+    let html = "";
+    html += `<div class="stat-today-card">
+      <div class="stat-today-label">Dnes splněno</div>
+      <div class="stat-today-percent ${statPercentClass(todayStats.citatel, todayStats.jmenovatel)}">${statPercentText(todayStats.citatel, todayStats.jmenovatel)}</div>
+      <div class="stat-today-frac">${todayStats.citatel} z ${todayStats.jmenovatel} termínovaných poznámek</div>
+    </div>`;
+
+    html += `<div class="dashboard-group">
+      <div class="dashboard-group-label"><span class="folder-dot" style="background:#4a90d9"></span>Posledních 14 dní</div>
+      <div class="stat-day-list">${dailyDates.map(dailyRowHtml).join("")}</div>
+    </div>`;
+
+    // Souhrn dřívějších (celých) týdnů - jen ty, které celé leží před
+    // oknem posledních 14 dní, ať se žádný den nepočítá dvakrát. Součet
+    // čitatelů/jmenovatelů za týden, ne průměr denních procent.
+    const weekBuckets = new Map(); // pondělí týdne (ISO) -> {citatel, jmenovatel}
+    statsDays.forEach((stats, dateStr) => {
+      if (dateStr >= oldestDailyDate) return;
+      const monday = mondayOfIsoWeek(dateStr);
+      const bucket = weekBuckets.get(monday) || { citatel: 0, jmenovatel: 0 };
+      bucket.citatel += stats.citatel;
+      bucket.jmenovatel += stats.jmenovatel;
+      weekBuckets.set(monday, bucket);
+    });
+    const weekKeys = Array.from(weekBuckets.keys()).sort((a, b) => (a < b ? 1 : a > b ? -1 : 0));
+    if (weekKeys.length > 0) {
+      const weekRows = weekKeys.map(monday => {
+        const sunday = addDaysToIsoDate(monday, 6);
+        const bucket = weekBuckets.get(monday);
+        return `<div class="stat-day-row">
+          <span class="stat-day-date">${formatDate(monday)} – ${formatDate(sunday)}</span>
+          <span class="stat-day-frac">${bucket.citatel}/${bucket.jmenovatel}</span>
+          <span class="stat-day-percent ${statPercentClass(bucket.citatel, bucket.jmenovatel)}">${statPercentText(bucket.citatel, bucket.jmenovatel)}</span>
+        </div>`;
+      }).join("");
+      html += `<div class="dashboard-group">
+        <div class="dashboard-group-label"><span class="folder-dot" style="background:#4a90d9"></span>Souhrn dřívějších týdnů</div>
+        <div class="stat-day-list">${weekRows}</div>
+      </div>`;
+    }
+
+    notesList.innerHTML = html;
+  }
+
   function goToNoteInFolder(id) {
     const n = allNotes.find(x => x.id === id);
     if (!n) return;
@@ -2400,7 +2657,7 @@
 
   searchInput.addEventListener("input", () => {
     updateSearchClearBtn();
-    if (searchInput.value.trim() && ["dashboard", "termin", "calendar"].includes(view.type)) {
+    if (searchInput.value.trim() && ["dashboard", "termin", "calendar", "statistika"].includes(view.type)) {
       view = { type: "all" };
       columnsEl.classList.remove("dashboard-mode");
       columnsEl.classList.remove("view-termin", "view-calendar", "view-dashboard");
@@ -2496,6 +2753,48 @@
       showToast("Chyba při mazání: " + err.message);
     }
   }
+
+  // ---------- Náhled poznámky v koši (jen ke čtení) ----------
+  // Poznámky v koši se neotevírají v editoru (šlo by je omylem upravit) -
+  // klik na dlaždici místo toho ukáže stejný obsah (název, štítky, datum,
+  // text) v jednoduchém náhledovém okně, ze kterého jde poznámku rovnou
+  // obnovit nebo smazat natrvalo, ale ne upravovat.
+  let trashPreviewNoteId = null;
+
+  function showTrashPreview(id) {
+    const n = allNotes.find(x => x.id === id);
+    if (!n) return;
+    trashPreviewNoteId = id;
+    const folder = folderByName(n.druh);
+    const color = folder ? folder.barva : "#999";
+    trashPreviewTitle.textContent = noteTitle(n);
+    const tags = Array.isArray(n.stitky) ? n.stitky : [];
+    const tagsHtml = tags.length
+      ? `<div class="tag-chips">${tags.map(t => `<span class="tag-pill">#${escapeHtml(t)}</span>`).join("")}</div>`
+      : "";
+    trashPreviewMeta.innerHTML = `<span class="note-row-badge" style="background:${color}22;color:${color}">${folderIconPrefix(folder)}${escapeHtml(n.druh || "")}</span><span class="trash-preview-date">${formatDate(n.datum)}</span>${tagsHtml}`;
+    trashPreviewContent.innerHTML = n.popis || "<em>Prázdná poznámka</em>";
+    trashPreviewModal.classList.add("visible");
+  }
+
+  function closeTrashPreview() {
+    trashPreviewNoteId = null;
+    trashPreviewModal.classList.remove("visible");
+  }
+
+  trashPreviewCloseBtn.addEventListener("click", () => closeTrashPreview());
+  trashPreviewModal.addEventListener("click", (e) => {
+    if (e.target === trashPreviewModal) closeTrashPreview();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && trashPreviewModal.classList.contains("visible")) closeTrashPreview();
+  });
+  trashPreviewRestoreBtn.addEventListener("click", () => {
+    if (trashPreviewNoteId) restoreNoteFromTrash(trashPreviewNoteId);
+  });
+  trashPreviewPurgeBtn.addEventListener("click", () => {
+    if (trashPreviewNoteId) permanentlyDeleteNote(trashPreviewNoteId);
+  });
 
   async function emptyTrash() {
     const items = trashNotes();
