@@ -993,7 +993,7 @@
   // nahrání nové verze na GitHub pozná (i přes zpoždění nasazení), jestli
   // se jí už načetla nejnovější verze, nebo pořád vidí tu starou z cache.
   // Při KAŽDÉ příští úpravě index.html je potřeba tohle číslo zvýšit o 1.
-  const APP_VERSION = "10";
+  const APP_VERSION = "11";
   document.querySelectorAll(".app-version-badge").forEach(el => {
     el.textContent = "v" + APP_VERSION;
   });
@@ -1116,6 +1116,7 @@
   let statsDays = new Map();  // datum ("YYYY-MM-DD") -> { citatel, jmenovatel }
   let unsubStats = null;
   let notesLoaded = false, statsLoaded = false, statsFinalizing = false;
+  let trackingStartDate = null; // od kterého dne appka statistiku doopravdy sleduje (viz finalizeMissingStatsDays)
   let view = { type: "all" }; // {type:'all'} | {type:'fav'} | {type:'folder', id, nazev, barva}
   let selectedNoteId = null;
   let currentTags = [];
@@ -1504,6 +1505,7 @@
       statsDays = new Map();
       notesLoaded = false;
       statsLoaded = false;
+      trackingStartDate = null;
     }
   });
 
@@ -1859,11 +1861,14 @@
     const q = query(collection(db, STATS_COL), where("uid", "==", uid));
     unsubStats = onSnapshot(q, (snapshot) => {
       const fresh = new Map();
+      let metaStart = null;
       snapshot.docs.forEach(d => {
         const data = d.data();
+        if (data.type === "meta") { metaStart = data.trackingStartDate || null; return; }
         if (data.datum) fresh.set(data.datum, { citatel: data.citatel || 0, jmenovatel: data.jmenovatel || 0 });
       });
       statsDays = fresh;
+      trackingStartDate = metaStart;
       statsLoaded = true;
       maybeFinalizeStats();
       if (view.type === "statistika") renderNotes();
@@ -1893,18 +1898,36 @@
 
   // Doplní (a trvale uloží) statistiku pro všechny dny mezi posledním již
   // uloženým dnem a včerejškem - "dnešek" se nikdy neukládá, počítá se vždy
-  // živě. Pokud ještě žádný den uložen není (appka statistiku teprve
-  // začala sledovat), doplní historii nejvýš TRASH_RETENTION_DAYS dozadu -
-  // starší data by beztak nešlo spolehlivě rekonstruovat, protože poznámky
-  // v koši starší než TRASH_RETENTION_DAYS dnů už appka natrvalo smazala.
+  // živě. Appka NIKDY zpětně nedopočítává statistiku pro dny předtím, než
+  // funkci začala sledovat (nešlo by spolehlivě rekonstruovat, jaký byl
+  // termín poznámky "tehdy" - jen jaký je teď) - první spuštění proto jen
+  // smaže případná dřívější zpětně dopočítaná data a nastaví začátek
+  // sledování na zítřek; live "Dnes" i historie se pak počítají jen z dat,
+  // která od té doby doopravdy vznikla.
   async function finalizeMissingStatsDays() {
     const todayStr = localTodayStr();
     const yesterdayStr = addDaysToIsoDate(todayStr, -1);
+
+    if (!trackingStartDate) {
+      const start = addDaysToIsoDate(todayStr, 1);
+      try {
+        const batch = writeBatch(db);
+        statsDays.forEach((_, dateStr) => {
+          batch.delete(doc(db, STATS_COL, `${currentUid}_${dateStr}`));
+        });
+        batch.set(doc(db, STATS_COL, `${currentUid}_meta`), { uid: currentUid, type: "meta", trackingStartDate: start });
+        await batch.commit();
+      } catch (err) {
+        console.error("Chyba při resetu statistiky:", err);
+      }
+      return;
+    }
+
     let lastPersisted = null;
     statsDays.forEach((_, key) => {
       if (!lastPersisted || key > lastPersisted) lastPersisted = key;
     });
-    const startDay = lastPersisted ? addDaysToIsoDate(lastPersisted, 1) : addDaysToIsoDate(todayStr, -TRASH_RETENTION_DAYS);
+    const startDay = lastPersisted ? addDaysToIsoDate(lastPersisted, 1) : trackingStartDate;
     if (startDay > yesterdayStr) return;
 
     const batch = writeBatch(db);
@@ -2572,7 +2595,11 @@
   function renderStatistikaView() {
     notesColTitle.textContent = "📊 Statistika";
     const todayStr = localTodayStr();
-    const todayStats = computeStatsForDay(todayStr, allNotes);
+    // Dokud appka nemá nastavený začátek sledování (trackingStartDate),
+    // nebo dokud sledování ještě nezačalo, se nic nepočítá ani nezobrazuje -
+    // ať se do statistiky nedostane nic zpětně dopočítaného.
+    const trackingStarted = trackingStartDate && todayStr >= trackingStartDate;
+    const todayStats = trackingStarted ? computeStatsForDay(todayStr, allNotes) : null;
 
     // Posledních 14 dní: dnešek (počítaný živě) + 13 předchozích, trvale
     // uložených dnů.
@@ -2582,10 +2609,11 @@
 
     const dailyRowHtml = (dateStr) => {
       const isToday = dateStr === todayStr;
-      const stats = isToday ? todayStats : statsDays.get(dateStr);
+      const beforeTracking = !trackingStartDate || dateStr < trackingStartDate;
+      const stats = beforeTracking ? null : (isToday ? todayStats : statsDays.get(dateStr));
       if (!stats) {
         return `<div class="stat-day-row stat-day-empty">
-          <span class="stat-day-date">${formatDate(dateStr)}</span>
+          <span class="stat-day-date">${isToday ? "Dnes" : formatDate(dateStr)}</span>
           <span class="stat-day-frac">–</span>
           <span class="stat-day-percent">—</span>
         </div>`;
@@ -2598,11 +2626,19 @@
     };
 
     let html = "";
-    html += `<div class="stat-today-card">
-      <div class="stat-today-label">Dnes splněno</div>
-      <div class="stat-today-percent ${statPercentClass(todayStats.citatel, todayStats.jmenovatel)}">${statPercentText(todayStats.citatel, todayStats.jmenovatel)}</div>
-      <div class="stat-today-frac">${todayStats.citatel} z ${todayStats.jmenovatel} termínovaných poznámek</div>
-    </div>`;
+    if (!trackingStarted) {
+      const startLabel = trackingStartDate ? formatDate(trackingStartDate) : "zítra";
+      html += `<div class="stat-today-card">
+        <div class="stat-today-label">Statistika</div>
+        <div class="stat-today-frac">Sledování začíná ${startLabel}. Do té doby appka nic zpětně nedopočítává.</div>
+      </div>`;
+    } else {
+      html += `<div class="stat-today-card">
+        <div class="stat-today-label">Dnes splněno</div>
+        <div class="stat-today-percent ${statPercentClass(todayStats.citatel, todayStats.jmenovatel)}">${statPercentText(todayStats.citatel, todayStats.jmenovatel)}</div>
+        <div class="stat-today-frac">${todayStats.citatel} z ${todayStats.jmenovatel} termínovaných poznámek</div>
+      </div>`;
+    }
 
     html += `<div class="dashboard-group">
       <div class="dashboard-group-label"><span class="folder-dot" style="background:#4a90d9"></span>Posledních 14 dní</div>
