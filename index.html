@@ -171,6 +171,29 @@
   .icon-btn.small { padding: 5px 8px; font-size: 15px; }
   #editorFavBtn.active { color: #e0a733; border-color: #e0a733; background: rgba(224,167,51,0.12); }
 
+  /* ---------- Výraznější tlačítka "plus" (přidat poznámku/složku) ---------- */
+  .icon-btn-plus {
+    background: #f6c445;
+    border-color: #f6c445;
+    color: #2b2620;
+    font-weight: 700;
+  }
+  .icon-btn-plus:hover {
+    background: #e8b52e;
+    border-color: #e8b52e;
+    color: #2b2620;
+  }
+  html[data-theme="dark"] .icon-btn-plus {
+    background: #caa53a;
+    border-color: #caa53a;
+    color: #1d1811;
+  }
+  html[data-theme="dark"] .icon-btn-plus:hover {
+    background: #e0bd52;
+    border-color: #e0bd52;
+    color: #1d1811;
+  }
+
   /* ---------- Folders column ---------- */
   .folders-list { flex: 1; overflow-y: auto; padding: 10px 8px; }
   .folder-divider { border-top: 1px solid var(--line); margin: 8px 8px 10px; }
@@ -231,11 +254,11 @@
 
   /* ---------- Notes column ---------- */
   .search-wrap { padding: 10px 14px; border-bottom: 1px solid var(--line); }
-  .search-wrap input {
+  .search-wrap input, .menu-search-wrap input {
     width: 100%; padding: 9px 12px; border-radius: 9px; border: 1.5px solid var(--line);
     font-size: 14px; background: var(--panel); outline: none;
   }
-  .search-wrap input:focus { border-color: var(--accent); background: var(--paper); }
+  .search-wrap input:focus, .menu-search-wrap input:focus { border-color: var(--accent); background: var(--paper); }
   .search-box { position: relative; }
   .search-box input { padding-right: 34px; }
   .search-clear-btn {
@@ -245,6 +268,16 @@
   }
   .search-clear-btn.visible { display: block; }
   .search-clear-btn:hover { background: var(--accent-soft); color: var(--accent-dark); }
+
+  /* ---------- Vyhledávání v hlavním menu (nad přehledem Termín) ---------- */
+  .menu-search-wrap {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .menu-search-wrap .search-box { flex: 1; min-width: 0; }
 
   .notes-list { flex: 1; overflow-y: auto; padding: 8px; }
   .note-row {
@@ -810,6 +843,13 @@
           <button class="icon-btn small" id="logoutBtn" title="Odhlásit" aria-label="Odhlásit">⏻</button>
         </div>
       </div>
+      <div class="menu-search-wrap">
+        <div class="search-box">
+          <input type="text" id="menuSearchInput" placeholder="Hledat ve všech poznámkách…">
+          <button class="search-clear-btn" id="menuSearchClearBtn" type="button" title="Vymazat hledání" aria-label="Vymazat hledání">×</button>
+        </div>
+        <button class="icon-btn small icon-btn-plus" id="menuQuickAddBtn" type="button" title="Nová poznámka do ToDo" aria-label="Nová poznámka do ToDo">＋</button>
+      </div>
       <div class="folders-list" id="foldersList"></div>
       <div class="add-folder-panel" id="addFolderPanel">
         <div class="row">
@@ -824,7 +864,7 @@
         </div>
       </div>
       <div class="col-footer">
-        <button class="icon-btn" id="addFolderBtn">＋ Nová složka</button>
+        <button class="icon-btn icon-btn-plus" id="addFolderBtn">＋ Nová složka</button>
       </div>
     </div>
 
@@ -836,7 +876,7 @@
         <div class="head-actions">
           <button class="icon-btn small" id="exportPdfBtn" title="Export do PDF" aria-label="Export do PDF">🖨</button>
           <button class="icon-btn small" id="newsletterBtn" title="Export obrázku Hláška" aria-label="Export obrázku Hláška">🖼</button>
-          <button class="icon-btn small" id="newNoteBtn" title="Nová poznámka" aria-label="Nová poznámka">＋</button>
+          <button class="icon-btn small icon-btn-plus" id="newNoteBtn" title="Nová poznámka" aria-label="Nová poznámka">＋</button>
           <button class="icon-btn small" id="emptyTrashBtn" type="button" title="Vysypat koš" aria-label="Vysypat koš" style="display:none;">🗑✕</button>
         </div>
       </div>
@@ -993,7 +1033,7 @@
   // nahrání nové verze na GitHub pozná (i přes zpoždění nasazení), jestli
   // se jí už načetla nejnovější verze, nebo pořád vidí tu starou z cache.
   // Při KAŽDÉ příští úpravě index.html je potřeba tohle číslo zvýšit o 1.
-  const APP_VERSION = "11";
+  const APP_VERSION = "12";
   document.querySelectorAll(".app-version-badge").forEach(el => {
     el.textContent = "v" + APP_VERSION;
   });
@@ -1060,6 +1100,9 @@
   const newFolderIconPreview = document.getElementById("newFolderIconPreview");
   const saveFolderBtn = document.getElementById("saveFolderBtn");
   const cancelFolderBtn = document.getElementById("cancelFolderBtn");
+  const menuSearchInput = document.getElementById("menuSearchInput");
+  const menuSearchClearBtn = document.getElementById("menuSearchClearBtn");
+  const menuQuickAddBtn = document.getElementById("menuQuickAddBtn");
 
   const notesColTitle = document.getElementById("notesColTitle");
   const notesList = document.getElementById("notesList");
@@ -1539,7 +1582,7 @@
     localStorage.setItem("vtipnici-theme", next);
     applyTheme(next);
   });
-  // Pokud si uživatel režim nikdy sám nepřepnul (nic uloženo), appka dál
+  // Pokud si uživatel sám nikdy nepřepnul (nic uloženo), appka dál
   // sleduje systémové nastavení telefonu a přepne se spolu s ním.
   if (window.matchMedia) {
     window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (e) => {
@@ -1811,6 +1854,7 @@
   function selectView(v) {
     view = v;
     searchInput.value = "";
+    menuSearchInput.value = "";
     updateSearchClearBtn();
     columnsEl.classList.toggle("dashboard-mode", v.type === "dashboard" || v.type === "termin" || v.type === "calendar");
     columnsEl.classList.remove("view-termin", "view-calendar", "view-dashboard");
@@ -2689,9 +2733,11 @@
 
   function updateSearchClearBtn() {
     searchClearBtn.classList.toggle("visible", !!searchInput.value);
+    menuSearchClearBtn.classList.toggle("visible", !!menuSearchInput.value);
   }
 
   searchInput.addEventListener("input", () => {
+    menuSearchInput.value = searchInput.value;
     updateSearchClearBtn();
     if (searchInput.value.trim() && ["dashboard", "termin", "calendar", "statistika"].includes(view.type)) {
       view = { type: "all" };
@@ -2709,9 +2755,81 @@
 
   searchClearBtn.addEventListener("click", () => {
     searchInput.value = "";
+    menuSearchInput.value = "";
     updateSearchClearBtn();
     renderNotes();
     searchInput.focus();
+  });
+
+  // ---------- Vyhledávání v hlavním menu (nad přehledem Termín) ----------
+  // Na rozdíl od vyhledávacího pole u seznamu poznámek (to hledá jen
+  // v aktuálně zobrazeném pohledu/složce) tohle nové pole VŽDY přepne na
+  // přehled "Všechny poznámky" a hledá napříč úplně všemi poznámkami. Obě
+  // pole jsou navzájem synchronizovaná (psaní v jednom se propíše do druhého).
+  menuSearchInput.addEventListener("input", () => {
+    searchInput.value = menuSearchInput.value;
+    updateSearchClearBtn();
+    if (searchInput.value.trim() && view.type !== "all") {
+      view = { type: "all" };
+      columnsEl.classList.remove("dashboard-mode");
+      columnsEl.classList.remove("view-termin", "view-calendar", "view-dashboard");
+      newNoteBtn.style.display = "";
+      exportPdfBtn.style.display = "";
+      newsletterBtn.style.display = "";
+      emptyTrashBtn.style.display = "none";
+      renderFolders();
+      if (window.innerWidth <= 900) columnsEl.dataset.view = "notes";
+    }
+    renderNotes();
+  });
+
+  menuSearchClearBtn.addEventListener("click", () => {
+    searchInput.value = "";
+    menuSearchInput.value = "";
+    updateSearchClearBtn();
+    renderNotes();
+    menuSearchInput.focus();
+  });
+
+  // ---------- Rychlé přidání poznámky z hlavního menu (do poslední kategorie) ----------
+  // Stejná logika jako "Nová poznámka" v pohledech Termín/Kalendář - nová
+  // poznámka se založí rovnou do poslední (abecedně) kategorie, která appce
+  // dlouhodobě slouží jako neformální seznam ToDo úkolů.
+  menuQuickAddBtn.addEventListener("click", async () => {
+    const targetFolder = folders.length ? folders[folders.length - 1].nazev : null;
+    if (!targetFolder) { showToast("Nejprve vytvoř složku"); return; }
+
+    const newNoteData = {
+      datum: localTodayStr(),
+      druh: targetFolder,
+      nazev: "",
+      popis: "",
+      termin: "",
+      hodnoceni: "",
+      oblibene: false,
+      stitky: [],
+      uid: currentUid,
+      vytvoreno: serverTimestamp(),
+      upraveno: serverTimestamp()
+    };
+
+    let ref;
+    try {
+      ref = await addDoc(collection(db, NOTES_COL), newNoteData);
+    } catch (err) {
+      showToast("Chyba při vytváření poznámky: " + err.message);
+      return;
+    }
+
+    if (!allNotes.some(n => n.id === ref.id)) {
+      allNotes = [{ id: ref.id, ...newNoteData }, ...allNotes];
+    }
+
+    const f = folderByName(targetFolder);
+    selectView({ type: "folder", id: f.id, nazev: f.nazev, barva: f.barva });
+    openNote(ref.id);
+    if (window.innerWidth <= 900) columnsEl.dataset.view = "editor";
+    setTimeout(() => editorTitle.focus(), 150);
   });
 
   async function toggleFavorite(id) {
