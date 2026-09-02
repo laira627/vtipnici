@@ -1033,7 +1033,7 @@
   // nahrání nové verze na GitHub pozná (i přes zpoždění nasazení), jestli
   // se jí už načetla nejnovější verze, nebo pořád vidí tu starou z cache.
   // Při KAŽDÉ příští úpravě index.html je potřeba tohle číslo zvýšit o 1.
-  const APP_VERSION = "13";
+  const APP_VERSION = "14";
   document.querySelectorAll(".app-version-badge").forEach(el => {
     el.textContent = "v" + APP_VERSION;
   });
@@ -3048,12 +3048,15 @@
     else targetFolder = folders[0] ? folders[0].nazev : null;
     if (!targetFolder) { showToast("Nejprve vytvoř složku"); return; }
 
+    // Na přehledu Kalendář se termín nové poznámky rovnou předvyplní na
+    // dnešní datum (klik na žlutou ikonu ＋ v hlavičce, ne na konkrétní
+    // den v mřížce - to už dřív řešila createNoteForCalendarDay()).
     const newNoteData = {
       datum: localTodayStr(),
       druh: targetFolder,
       nazev: "",
       popis: "",
-      termin: "",
+      termin: view.type === "calendar" ? localTodayStr() : "",
       hodnoceni: "",
       oblibene: false,
       stitky: [],
