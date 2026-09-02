@@ -1033,7 +1033,7 @@
   // nahrání nové verze na GitHub pozná (i přes zpoždění nasazení), jestli
   // se jí už načetla nejnovější verze, nebo pořád vidí tu starou z cache.
   // Při KAŽDÉ příští úpravě index.html je potřeba tohle číslo zvýšit o 1.
-  const APP_VERSION = "12";
+  const APP_VERSION = "13";
   document.querySelectorAll(".app-version-badge").forEach(el => {
     el.textContent = "v" + APP_VERSION;
   });
@@ -1059,6 +1059,16 @@
   // splněné vs. celkem) - jeden dokument na den a uživatele, ID ve tvaru
   // "<uid>_<datum>", ať přežije i vysypání koše (TRASH_RETENTION_DAYS).
   const STATS_COL = "statistikaDny";
+  // Verze vzorce pro výpočet denní statistiky (viz computeStatsForDay níže).
+  // Zvýšit VŽDY, když se změní VÝZNAM čitatele/jmenovatele - appka pak při
+  // příštím načtení sama přepočítá a přepíše všechny už uložené dny podle
+  // nového vzorce (viz "přepočet při změně vzorce" ve finalizeMissingStatsDays),
+  // ať staré dny neukazují čísla spočítaná jinak než ty nové.
+  // v1 -> v2 (2. 9. 2026): oprava jmenovatele - poznámka dokončená v některém
+  // z předchozích dnů se dřív do jmenovatele táhla i všechny další dny navždy
+  // (dokud nevypadla z appky po 30denním vysypání koše), takže "dnešní" počet
+  // byl uměle nafouklý o dávno vyřízené položky (Iri hlásila 27 místo cca 16-18).
+  const STATS_FORMULA_VERSION = 2;
 
   const DEFAULT_FOLDERS = [
     { nazev: "Hláška", barva: "#b5502f", poradi: 0 },
@@ -1160,6 +1170,7 @@
   let unsubStats = null;
   let notesLoaded = false, statsLoaded = false, statsFinalizing = false;
   let trackingStartDate = null; // od kterého dne appka statistiku doopravdy sleduje (viz finalizeMissingStatsDays)
+  let statsFormulaVersion = 1; // verze vzorce, podle které jsou uložené dny v statsDays spočítané (viz STATS_FORMULA_VERSION)
   let view = { type: "all" }; // {type:'all'} | {type:'fav'} | {type:'folder', id, nazev, barva}
   let selectedNoteId = null;
   let currentTags = [];
@@ -1906,13 +1917,19 @@
     unsubStats = onSnapshot(q, (snapshot) => {
       const fresh = new Map();
       let metaStart = null;
+      let metaFormulaVersion = 1;
       snapshot.docs.forEach(d => {
         const data = d.data();
-        if (data.type === "meta") { metaStart = data.trackingStartDate || null; return; }
+        if (data.type === "meta") {
+          metaStart = data.trackingStartDate || null;
+          metaFormulaVersion = data.formulaVersion || 1;
+          return;
+        }
         if (data.datum) fresh.set(data.datum, { citatel: data.citatel || 0, jmenovatel: data.jmenovatel || 0 });
       });
       statsDays = fresh;
       trackingStartDate = metaStart;
+      statsFormulaVersion = metaFormulaVersion;
       statsLoaded = true;
       maybeFinalizeStats();
       if (view.type === "statistika") renderNotes();
@@ -1922,11 +1939,24 @@
   }
 
   // Poznámka s termínem se do statistiky dne D počítá do jmenovatele, pokud
-  // její AKTUÁLNÍ termín je <= D (bez ohledu na to, jestli je v koši), a do
-  // čitatele, pokud byla smazána (přesunuta do koše) právě v den D.
+  // její AKTUÁLNÍ termín je <= D A poznámka byla ke dni D ještě OTEVŘENÁ -
+  // tedy buď pořád není v koši, nebo do koše putovala až V DEN D nebo později
+  // (== ten den D ještě "byla na stole"). Bez týhle druhé podmínky (oprava
+  // 2. 9. 2026, viz STATS_FORMULA_VERSION) by se poznámka dokončená kdykoliv
+  // v minulosti počítala do jmenovatele i všech NÁSLEDUJÍCÍCH dnů navždy -
+  // "dnešní" jmenovatel tak byl uměle nafouklý o dávno vyřízené položky
+  // (Iri hlásila 27 poznámek s termínem na dnešek místo cca 16-18, které
+  // appka opravdu měla v pohledu Termín, a 8 místo 5 za včerejšek).
+  // Čitatel beze změny: poznámka s termínem smazaná (přesunuta do koše)
+  // právě v den D.
   function computeStatsForDay(dateStr, notes) {
     const withTermin = notes.filter(n => n.termin);
-    const jmenovatel = withTermin.filter(n => n.termin <= dateStr).length;
+    const wasOpenOnDay = (n) => {
+      if (!n.smazano) return true;
+      if (!n.smazanoKdy || typeof n.smazanoKdy.toDate !== "function") return true;
+      return localDateStr(n.smazanoKdy.toDate()) >= dateStr;
+    };
+    const jmenovatel = withTermin.filter(n => n.termin <= dateStr && wasOpenOnDay(n)).length;
     const citatel = withTermin.filter(n => {
       if (!n.smazano || !n.smazanoKdy || typeof n.smazanoKdy.toDate !== "function") return false;
       return localDateStr(n.smazanoKdy.toDate()) === dateStr;
@@ -1965,6 +1995,38 @@
         console.error("Chyba při resetu statistiky:", err);
       }
       return;
+    }
+
+    // Pokud se od posledního uložení změnil VZOREC statistiky (viz
+    // STATS_FORMULA_VERSION výše), dřív uložené dny byly spočítané podle
+    // starého vzorce a je potřeba je přepočítat, ne jen doplnit chybějící -
+    // jinak by staré (třeba i dávno uzavřené) dny dál ukazovaly čísla podle
+    // starého, chybného výpočtu. Přepočítají a přepíšou se VŠECHNY dny od
+    // trackingStartDate do včerejška (appka statistiku sleduje jen pár dní,
+    // takže tohle není objemná operace), a do meta dokumentu se uloží nová
+    // verze vzorce, ať se přepočet příště už neopakuje.
+    if (statsFormulaVersion < STATS_FORMULA_VERSION) {
+      try {
+        const batch = writeBatch(db);
+        let d = trackingStartDate;
+        let count = 0;
+        while (d <= yesterdayStr) {
+          const stats = computeStatsForDay(d, allNotes);
+          batch.set(doc(db, STATS_COL, `${currentUid}_${d}`), {
+            uid: currentUid, datum: d, citatel: stats.citatel, jmenovatel: stats.jmenovatel
+          });
+          d = addDaysToIsoDate(d, 1);
+          count++;
+          if (count >= 400) break; // pojistka proti příliš velké dávce
+        }
+        batch.set(doc(db, STATS_COL, `${currentUid}_meta`), {
+          uid: currentUid, type: "meta", trackingStartDate, formulaVersion: STATS_FORMULA_VERSION
+        }, { merge: true });
+        await batch.commit();
+      } catch (err) {
+        console.error("Chyba při přepočtu statistiky na nový vzorec:", err);
+      }
+      return; // doplnění případných dalších chybějících dnů se stihne při příštím zavolání
     }
 
     let lastPersisted = null;
