@@ -110,7 +110,7 @@
   .login-card p.sub { color: var(--ink-soft); font-size: 14px; margin: 0 0 28px; }
   .field { text-align: left; margin-bottom: 14px; }
   .field label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: var(--ink-soft); }
-  input[type=email], input[type=password], input[type=date], input[type=text], select {
+  input[type=email], input[type=password], input[type=date], input[type=text], select, textarea {
     width: 100%;
     padding: 11px 13px;
     border-radius: 10px;
@@ -121,7 +121,8 @@
     outline: none;
     transition: border-color .15s;
   }
-  input:focus, select:focus { border-color: var(--accent); }
+  textarea { resize: vertical; font-family: inherit; }
+  input:focus, select:focus, textarea:focus { border-color: var(--accent); }
   .btn {
     display: inline-flex; align-items: center; justify-content: center; gap: 6px;
     background: var(--accent); color: #fff; border: none; padding: 12px 20px;
@@ -313,9 +314,11 @@
   .trash-purge-btn:hover { background: #fce8e6; color: var(--danger); border-color: #fce8e6; }
 
   /* ---------- Kalendář ---------- */
+  /* Tlačítka Den/Týden/Měsíc/Vzad/Dnes/Vpřed jsou zvětšená (na počítači
+     výrazněji, na mobilu jen mírně - viz mobilní media query níže). */
   .calendar-mode-switch { display: flex; gap: 6px; margin: 4px 4px 10px; }
   .calendar-mode-btn {
-    flex: 1; padding: 6px 10px; font-size: 12.5px; font-weight: 600; border-radius: 8px;
+    flex: 1; padding: 11px 14px; font-size: 15.5px; font-weight: 700; border-radius: 10px;
     border: 1.5px solid var(--line); background: var(--paper); color: var(--ink-soft); cursor: pointer;
   }
   .calendar-mode-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
@@ -329,20 +332,31 @@
   .calendar-day-single .calendar-note-chip { font-size: 16px; padding: 6px 10px; }
   .calendar-note-chip-expanded { white-space: normal; overflow: visible; text-overflow: clip; display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
   .calendar-note-chip-main { display: flex; align-items: center; gap: 4px; flex: 1; min-width: 0; }
+  .calendar-note-overdue-date { font-size: 11.5px; font-weight: 700; color: var(--danger); flex-shrink: 0; }
   .calendar-note-chip-actions { display: flex; gap: 4px; flex-shrink: 0; }
   .calendar-note-action-btn {
     border: 1px solid var(--line); background: var(--paper); border-radius: 6px; cursor: pointer;
-    font-size: 14px; line-height: 1; padding: 4px 6px;
-  }
-  .calendar-note-retermin-label { position: relative; display: inline-flex; align-items: center; justify-content: center; min-width: 30px; min-height: 30px; }
-  .calendar-note-retermin-input {
-    position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; border: 0; padding: 0; margin: 0;
+    font-size: 14px; line-height: 1; padding: 4px 6px; color: var(--ink-soft);
+    display: inline-flex; align-items: center; justify-content: center;
   }
   .calendar-note-action-btn:hover { border-color: var(--accent); background: var(--accent-soft); }
   .calendar-note-delete-btn:hover { border-color: var(--danger); background: #fce8e6; color: var(--danger); }
   .calendar-nav-label { font-size: 15px; font-weight: 700; flex: 1; text-align: center; }
-  .calendar-nav-btn { flex-shrink: 0; }
+  .calendar-nav-btn { flex-shrink: 0; padding: 11px 18px; font-size: 15.5px; font-weight: 700; border-radius: 10px; }
   .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+  /* ---------- Kalendář: prošlé (nedokončené) požadavky - červené zvýraznění ----------
+     Den: samostatný box bez data (viz buildOverdueBoxHtml v JS) se všemi
+     prošlými požadavky napříč kalendářem. Týden: konkrétní den v mřížce,
+     který prošlé požadavky obsahuje, se orámuje stejně. --danger a
+     --highlight-overdue už mají vlastní odstíny pro tmavý režim (viz
+     html[data-theme="dark"] v :root výše), díky tomu funguje zvýraznění
+     v obou režimech bez dalších pravidel navíc. */
+  .calendar-day-overdue {
+    border: 2px solid var(--danger) !important;
+    background: var(--highlight-overdue) !important;
+  }
+  .calendar-overdue-box { cursor: default !important; margin-bottom: 8px; min-height: auto !important; }
+  .calendar-overdue-box .calendar-day-num { color: var(--danger); }
   .calendar-grid-head { margin-bottom: 4px; }
   .calendar-day-abbr { text-align: center; font-size: 11px; font-weight: 700; color: var(--ink-soft); text-transform: uppercase; }
   .calendar-day {
@@ -521,6 +535,14 @@
   .nl-format-option { display: flex; align-items: center; gap: 6px; font-size: 13.5px; font-weight: 600; color: var(--ink-soft); cursor: pointer; }
   .nl-format-option input { width: auto; margin: 0; }
 
+  /* ---------- Kalendář: dialog rychlé editace poznámky ---------- */
+  .modal-card.calendar-quick-edit-card { max-width: 420px; text-align: left; }
+  .calendar-quick-edit-folder { margin-bottom: 14px; }
+  .calendar-quick-edit-status { min-height: 16px; margin: -6px 0 10px; }
+  .calendar-quick-edit-btns { margin-bottom: 8px; }
+  .calendar-quick-edit-btns .btn-mini { flex: 1 1 auto; text-align: center; }
+  .calendar-quick-edit-delete-btn:hover { background: #fce8e6; color: var(--danger); border-color: #fce8e6; }
+
   .toast {
     position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
     background: var(--toast-bg); color: var(--toast-ink); padding: 11px 20px; border-radius: 10px;
@@ -696,7 +718,11 @@
     .calendar-day-abbr { font-size: 9.5px; }
     .calendar-note-chip { font-size: 9px; padding: 1px 3px; }
     .calendar-nav-label { font-size: 13.5px; }
-    .calendar-mode-btn { font-size: 11.5px; padding: 5px 6px; }
+    /* Na mobilu jen mírné zvětšení tlačítek Den/Týden/Měsíc/Vzad/Dnes/Vpřed
+       oproti dřívějším rozměrům (na počítači jsou zvětšená výrazněji - viz
+       .calendar-mode-btn/.calendar-nav-btn v základním pravidle výše). */
+    .calendar-mode-btn { font-size: 13px; padding: 7px 8px; }
+    .calendar-nav-btn { padding: 8px 12px; font-size: 13.5px; }
     .calendar-week-list .calendar-day { min-height: auto; max-height: 260px; }
     .calendar-day-single .calendar-day { min-height: 200px; max-height: 400px; }
     .calendar-week-list .calendar-day-num,
@@ -840,7 +866,7 @@
         <div class="head-actions">
           <button class="icon-btn small" id="themeToggleBtn" type="button" title="Přepnout tmavý/světlý režim" aria-label="Přepnout tmavý/světlý režim">🌙</button>
           <button class="icon-btn small" id="jsonExportBtn" title="Záloha JSON" aria-label="Záloha JSON">⬇</button>
-          <button class="icon-btn small" id="logoutBtn" title="Odhlásit" aria-label="Odhlásit">⏻</button>
+          <button class="icon-btn small" id="logoutBtn" type="button" title="Odhlásit" aria-label="Odhlásit"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg></button>
         </div>
       </div>
       <div class="menu-search-wrap">
@@ -877,7 +903,7 @@
           <button class="icon-btn small" id="exportPdfBtn" title="Export do PDF" aria-label="Export do PDF">🖨</button>
           <button class="icon-btn small" id="newsletterBtn" title="Export obrázku Hláška" aria-label="Export obrázku Hláška">🖼</button>
           <button class="icon-btn small icon-btn-plus" id="newNoteBtn" title="Nová poznámka" aria-label="Nová poznámka">＋</button>
-          <button class="icon-btn small" id="emptyTrashBtn" type="button" title="Vysypat koš" aria-label="Vysypat koš" style="display:none;">🗑✕</button>
+          <button class="icon-btn small" id="emptyTrashBtn" type="button" title="Vysypat koš" aria-label="Vysypat koš" style="display:none;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px" aria-hidden="true"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"></path></svg>✕</button>
         </div>
       </div>
       <div class="search-wrap">
@@ -916,7 +942,7 @@
           <button class="icon-btn small" id="editorFavBtn" title="Oblíbené" aria-label="Oblíbené">★</button>
           <button class="icon-btn small" id="editorShareBtn" type="button" title="Sdílet přes WhatsApp" aria-label="Sdílet přes WhatsApp">📤</button>
           <button class="icon-btn small" id="editorEmailBtn" type="button" title="Sdílet e-mailem" aria-label="Sdílet e-mailem">✉️</button>
-          <button class="icon-btn small" id="editorDeleteBtn" title="Smazat poznámku" aria-label="Smazat poznámku">🗑</button>
+          <button class="icon-btn small" id="editorDeleteBtn" title="Smazat poznámku" aria-label="Smazat poznámku"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px" aria-hidden="true"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"></path></svg></button>
         </div>
         <div class="editor-title-row">
           <span class="rating-badge editor-rating-badge" id="editorRatingBadge" style="display:none;"></span>
@@ -962,6 +988,37 @@
       <button class="btn btn-secondary" id="trashPreviewRestoreBtn" type="button">↩ Obnovit</button>
       <button class="btn btn-secondary trash-preview-purge-btn" id="trashPreviewPurgeBtn" type="button">✕ Smazat natrvalo</button>
       <button class="btn" id="trashPreviewCloseBtn" type="button">Zavřít</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ---------- Kalendář: dialog rychlé editace poznámky ----------
+     Klik na poznámku v kalendáři (den/týden/měsíc) tohle otevře místo
+     přepnutí do složky/plného editoru - pole Termín/Název/Popis se dají
+     upravit rovnou tady, ukládají se samy (viz JS: openCalendarQuickEdit). -->
+<div class="modal-overlay" id="calendarQuickEditModal">
+  <div class="modal-card calendar-quick-edit-card">
+    <div id="calendarQuickEditFolderLabel" class="calendar-quick-edit-folder"></div>
+    <div class="field">
+      <label for="calendarQuickEditTermin">Termín</label>
+      <input type="date" id="calendarQuickEditTermin">
+    </div>
+    <div class="field">
+      <label for="calendarQuickEditNazev">Název</label>
+      <input type="text" id="calendarQuickEditNazev" placeholder="Název poznámky">
+    </div>
+    <div class="field">
+      <label for="calendarQuickEditPopis">Popis</label>
+      <textarea id="calendarQuickEditPopis" rows="6" placeholder="Popis…"></textarea>
+    </div>
+    <div class="modal-sub calendar-quick-edit-status" id="calendarQuickEditStatus"></div>
+    <div class="row-btns calendar-quick-edit-btns">
+      <button class="btn-mini calendar-quick-edit-delete-btn" id="calendarQuickEditDeleteBtn" type="button">🗑 Smazat</button>
+      <button class="btn-mini" id="calendarQuickEditOpenBtn" type="button">📂 Otevřít v editoru</button>
+    </div>
+    <div class="row-btns">
+      <button class="btn" id="calendarQuickEditCloseBtn" type="button">Zavřít</button>
     </div>
   </div>
 </div>
@@ -1033,7 +1090,7 @@
   // nahrání nové verze na GitHub pozná (i přes zpoždění nasazení), jestli
   // se jí už načetla nejnovější verze, nebo pořád vidí tu starou z cache.
   // Při KAŽDÉ příští úpravě index.html je potřeba tohle číslo zvýšit o 1.
-  const APP_VERSION = "14";
+  const APP_VERSION = "16";
   document.querySelectorAll(".app-version-badge").forEach(el => {
     el.textContent = "v" + APP_VERSION;
   });
@@ -1100,6 +1157,15 @@
   const trashPreviewRestoreBtn = document.getElementById("trashPreviewRestoreBtn");
   const trashPreviewPurgeBtn = document.getElementById("trashPreviewPurgeBtn");
   const trashPreviewCloseBtn = document.getElementById("trashPreviewCloseBtn");
+  const calendarQuickEditModal = document.getElementById("calendarQuickEditModal");
+  const calendarQuickEditFolderLabel = document.getElementById("calendarQuickEditFolderLabel");
+  const calendarQuickEditTermin = document.getElementById("calendarQuickEditTermin");
+  const calendarQuickEditNazev = document.getElementById("calendarQuickEditNazev");
+  const calendarQuickEditPopis = document.getElementById("calendarQuickEditPopis");
+  const calendarQuickEditStatus = document.getElementById("calendarQuickEditStatus");
+  const calendarQuickEditDeleteBtn = document.getElementById("calendarQuickEditDeleteBtn");
+  const calendarQuickEditOpenBtn = document.getElementById("calendarQuickEditOpenBtn");
+  const calendarQuickEditCloseBtn = document.getElementById("calendarQuickEditCloseBtn");
   const columnsEl = document.getElementById("columns");
 
   const foldersList = document.getElementById("foldersList");
@@ -1179,6 +1245,9 @@
   let suppressAutosave = false;
   let pendingDeletes = new Map(); // id -> { timeoutId }
   let undoToastTimer = null;
+  // ---------- Kalendář: dialog rychlé editace (viz openCalendarQuickEdit) ----------
+  let calendarQuickEditNoteId = null;
+  let calendarQuickEditSaveTimer = null;
   let lastFocusIsQuill = false; // false = vkládá se do naposledy použitého text inputu, true = do Quillu
   let lastFocusEl = null; // konkrétní text input (název poznámky, název složky nové/přejmenované...)
   let lastFocusCursor = null;
@@ -1195,22 +1264,6 @@
   // ale zavola tuto funkci - pouziva se pro ikony kategorii (misto vkladani do
   // nazvu slozky primo v textu) a pro ikonu nove slozky.
   let emojiIconTarget = null;
-  // Kdyz je true, prekresleni seznamu poznamek vyvolane prichozim snapshotem
-  // z Firestore se AZ DO ODVOLANI presklakuje - pouziva se, dokud ma
-  // uzivatel na desktopu otevreny nativni <input type="date"> picker pro
-  // zmenu terminu v Kalendari (Den/Tyden). Bez tohohle by prekresleni
-  // (notesList.innerHTML = ...) v nepredvidatelnem okamziku - typicky kdyz
-  // Firestore potvrdi drivejsi zapis serverem - vyhodilo z DOM prave
-  // otevreny picker jine poznamky, coz na desktopu picker tise zavre bez
-  // udalosti change (uzivatel pak marne klika, "nic se nestane"). Na
-  // mobilu je datumovy picker OS-level modal nezavisly na zivotnim cyklu
-  // DOM elementu, proto se tam bug neprojevoval.
-  let pendingRenderAfterPicker = false;
-
-  function isTerminPickerOpen() {
-    return !!(document.activeElement && document.activeElement.classList &&
-      document.activeElement.classList.contains("calendar-note-retermin-input"));
-  }
 
   function showToast(msg) {
     clearTimeout(undoToastTimer);
@@ -1261,6 +1314,17 @@
   function normalizeSearchText(str) {
     return (str || "").toString().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
   }
+
+  // ---------- Ikona koše (smazat) ----------
+  // Dřív jednotné emoji 🗑, na počítači ale Iri hlásila, že u samostatných
+  // (jen ikonových, bez popisku) tlačítek moc nejde poznat, co znázorňuje -
+  // na mobilu byl emoji glyf v pořádku. Nahrazeno vlastní vektorovou (SVG)
+  // ikonou popelnice, která vypadá stejně na všech zařízeních/prohlížečích
+  // a barví se přes currentColor (funguje i s hover stavy .icon-btn apod.).
+  // Používá se u tlačítek BEZ vlastního textového popisku vedle (editor,
+  // řádek poznámky, kalendář, vysypání koše, mazání složky) - položka menu
+  // "🗑 Koš" má vlastní viditelný text a zůstává beze změny.
+  const TRASH_ICON_SVG = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px" aria-hidden="true"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"></path></svg>';
 
   // ---------- Hodnocení poznámky ----------
   // Jedna barva (appka už používá modrou jako svou hlavní), pět odstínů -
@@ -1517,7 +1581,7 @@
     reader.onload = (e) => {
       const img = new Image();
       img.onload = () => {
-        const maxW = 900;
+        const maxW = 800;
         const scale = Math.min(1, maxW / img.width);
         const w = Math.round(img.width * scale);
         const h = Math.round(img.height * scale);
@@ -1527,7 +1591,8 @@
         ctx.fillStyle = "#fff";
         ctx.fillRect(0, 0, w, h);
         ctx.drawImage(img, 0, 0, w, h);
-        callback(canvas.toDataURL("image/jpeg", 0.72));
+        const webpUrl = canvas.toDataURL("image/webp", 0.7);
+        callback(webpUrl.indexOf("data:image/webp") === 0 ? webpUrl : canvas.toDataURL("image/jpeg", 0.7));
       };
       img.src = e.target.result;
     };
@@ -1545,8 +1610,8 @@
       subscribeNotes(user.uid);
       subscribeStats(user.uid);
       if (window.innerWidth <= 900) {
-        calendarViewMode = "week";
-        localStorage.setItem("calendarViewMode", "week");
+        calendarViewMode = "day";
+        localStorage.setItem("calendarViewMode", "day");
         selectView({ type: "calendar" });
       }
     } else {
@@ -1692,7 +1757,7 @@
             <input type="color" class="folder-color-input" data-id="${f.id}" value="${f.barva}">
           </span>
           <button class="folder-tool-btn" data-rename="${f.id}" title="Přejmenovat složku" aria-label="Přejmenovat složku">✎</button>
-          <button class="folder-tool-btn" data-delete="${f.id}" title="Smazat složku" aria-label="Smazat složku">🗑</button>
+          <button class="folder-tool-btn" data-delete="${f.id}" title="Smazat složku" aria-label="Smazat složku">${TRASH_ICON_SVG}</button>
         </div>
       </div>`;
     });
@@ -1888,12 +1953,8 @@
     unsubNotes = onSnapshot(q, (snapshot) => {
       allNotes = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
       notesLoaded = true;
-      if (isTerminPickerOpen()) {
-        pendingRenderAfterPicker = true;
-      } else {
-        renderFolders();
-        renderNotes();
-      }
+      renderFolders();
+      renderNotes();
       if (selectedNoteId) {
         const still = allNotes.find(n => n.id === selectedNoteId);
         if (!still) closeEditor();
@@ -1901,6 +1962,10 @@
       if (trashPreviewNoteId) {
         const stillInTrash = allNotes.find(n => n.id === trashPreviewNoteId && n.smazano);
         if (!stillInTrash) closeTrashPreview();
+      }
+      if (calendarQuickEditNoteId) {
+        const stillOpen = allNotes.find(n => n.id === calendarQuickEditNoteId && !n.smazano);
+        if (!stillOpen) closeCalendarQuickEdit();
       }
       autoPurgeOldTrash();
       runDailyDialogs();
@@ -2172,7 +2237,7 @@
     const titleAttr = tooltipText ? ` title="${escapeHtml(tooltipText)}"` : "";
 
     return `<div class="${rowClasses}" style="border-left-color:${color}" data-id="${n.id}"${titleAttr}>
-      <button class="note-row-del" data-id="${n.id}" title="Smazat poznámku" aria-label="Smazat poznámku">🗑</button>
+      <button class="note-row-del" data-id="${n.id}" title="Smazat poznámku" aria-label="Smazat poznámku">${TRASH_ICON_SVG}</button>
       <div class="note-row-top">
         <span class="note-row-badge" style="background:${color}22;color:${color}">${folderIconPrefix(folder)}${escapeHtml(n.druh || "")}</span>
         <button class="note-row-star ${starActive ? "active" : ""}" data-id="${n.id}" title="Oblíbené" aria-label="Oblíbené">★</button>
@@ -2246,19 +2311,25 @@
   let calendarRefDate = null;
   let calendarViewMode = localStorage.getItem("calendarViewMode") || "month";
 
-  function calendarNoteChipHtml(n, maxLen, compact) {
+  function calendarNoteChipHtml(n, maxLen, compact, opts = {}) {
+    const { showDate = false } = opts;
     const folder = folderByName(n.druh);
     const color = folder ? folder.barva : "#999";
     const title = noteTitle(n);
     const truncated = title.length > maxLen ? title.slice(0, maxLen) + "…" : title;
+    // Datum se u chipu normálně nezobrazuje (kontext dává den, ve kterém
+    // chip je) - výjimka je box s prošlými požadavky (viz buildOverdueBoxHtml),
+    // který sdružuje poznámky z RŮZNÝCH dní, tam se datum hodí.
+    const dateLabelHtml = (showDate && n.termin) ? `<span class="calendar-note-overdue-date">${formatDate(n.termin)}</span>` : "";
+    // Ikona pro rychlou změnu termínu přímo z chipu byla zrušena (nahrazena
+    // polem Termín v dialogu rychlé editace, viz openCalendarQuickEdit) -
+    // zůstává jen tlačítko Smazat.
     const actionsHtml = compact ? "" : `<div class="calendar-note-chip-actions">
-      <label class="calendar-note-action-btn calendar-note-retermin-label" title="Změnit termín" aria-label="Změnit termín">
-        📅<input type="date" class="calendar-note-retermin-input" data-id="${n.id}" value="${n.termin || ""}">
-      </label>
-      <button class="calendar-note-action-btn calendar-note-delete-btn" data-id="${n.id}" type="button" title="Smazat" aria-label="Smazat">🗑</button>
+      <button class="calendar-note-action-btn calendar-note-delete-btn" data-id="${n.id}" type="button" title="Smazat" aria-label="Smazat">${TRASH_ICON_SVG}</button>
     </div>`;
     return `<div class="calendar-note-chip ${compact ? "" : "calendar-note-chip-expanded"}" data-id="${n.id}" title="${escapeHtml(title)}">
       <div class="calendar-note-chip-main">
+        ${dateLabelHtml}
         <span class="calendar-note-cat" style="color:${color}">${folderIconPrefix(folder)}${escapeHtml(n.druh || "")}</span>
         ${ratingBadgeHtml(n.hodnoceni)}<span class="calendar-note-title">${escapeHtml(truncated)}</span>
       </div>
@@ -2266,14 +2337,41 @@
     </div>`;
   }
 
-  function calendarDayCellHtml(dateStr, dayLabel, notesByDate, compact) {
+  // ---------- Kalendář: box s prošlými požadavky (jen denní pohled) ----------
+  // Sbírá VŠECHNY poznámky s termínem v minulosti (< dnešek) napříč celým
+  // kalendářem, bez ohledu na to, který den je zrovna v denním pohledu
+  // zobrazený - appka je stále považuje za otevřené (visibleNotes(), ze
+  // kterých notesByDate vzniká, už vylučuje smazané/dokončené). Box nemá
+  // vlastní datum (na rozdíl od dne, ke kterému patří) - je to samostatné
+  // upozornění "tohle ti pořád visí", červeně orámované (viz .calendar-day-overdue).
+  function buildOverdueBoxHtml(notesByDate) {
+    const todayStr = localTodayStr();
+    let overdueNotes = [];
+    notesByDate.forEach((notes, dateStr) => {
+      if (dateStr < todayStr) overdueNotes = overdueNotes.concat(notes);
+    });
+    if (overdueNotes.length === 0) return "";
+    overdueNotes.sort((a, b) => (a.termin < b.termin ? -1 : a.termin > b.termin ? 1 : (a.druh || "").localeCompare(b.druh || "", "cs")));
+    const chips = overdueNotes.map(n => calendarNoteChipHtml(n, 60, false, { showDate: true })).join("");
+    return `<div class="calendar-day calendar-day-overdue calendar-overdue-box">
+      <div class="calendar-day-num">⏰ Prošlé</div>
+      <div class="calendar-day-notes">${chips}</div>
+    </div>`;
+  }
+
+  function calendarDayCellHtml(dateStr, dayLabel, notesByDate, compact, opts = {}) {
+    const { highlightOverdueDay = false } = opts;
     const todayStr = localTodayStr();
     const isToday = dateStr === todayStr;
     const notesToday = (notesByDate.get(dateStr) || []).slice()
       .sort((a, b) => (a.druh || "").localeCompare(b.druh || "", "cs"));
     const maxLen = compact ? 14 : 60;
     const chips = notesToday.map(n => calendarNoteChipHtml(n, maxLen, compact)).join("");
-    return `<div class="calendar-day ${isToday ? "calendar-day-today" : ""}" data-date="${dateStr}">
+    // V týdenním pohledu se den, který obsahuje prošlé (nedokončené) požadavky,
+    // orámuje červeně - viz .calendar-day-overdue. V měsíčním pohledu se
+    // tohle zvýraznění nepoužívá (highlightOverdueDay se tam nepředává).
+    const isOverdueDay = highlightOverdueDay && dateStr < todayStr && notesToday.length > 0;
+    return `<div class="calendar-day ${isToday ? "calendar-day-today" : ""} ${isOverdueDay ? "calendar-day-overdue" : ""}" data-date="${dateStr}">
       <div class="calendar-day-num">${dayLabel}</div>
       <div class="calendar-day-notes">${chips}</div>
     </div>`;
@@ -2307,14 +2405,14 @@
       const dayNum = Number(dateStr.slice(8, 10));
       const monthNum = Number(dateStr.slice(5, 7));
       const label = `${CZ_DAY_NAMES_FULL[i]} ${dayNum}.${monthNum}.`;
-      html += calendarDayCellHtml(dateStr, label, notesByDate, false);
+      html += calendarDayCellHtml(dateStr, label, notesByDate, false, { highlightOverdueDay: true });
     }
     html += `</div>`;
     return html;
   }
 
   function buildCalendarDayHtml(dateStr, notesByDate) {
-    return `<div class="calendar-day-single">${calendarDayCellHtml(dateStr, formatDate(dateStr), notesByDate, false)}</div>`;
+    return `<div class="calendar-day-single">${buildOverdueBoxHtml(notesByDate)}${calendarDayCellHtml(dateStr, formatDate(dateStr), notesByDate, false)}</div>`;
   }
 
   function shiftCalendarRef(delta) {
@@ -2391,30 +2489,18 @@
       calendarRefDate = localTodayStr();
       renderCalendarView();
     });
+    // Klik na poznámku v kalendáři (den/týden/měsíc) neotevírá plný editor -
+    // otevře dialog s rychlou editací (viz openCalendarQuickEdit).
     notesList.querySelectorAll(".calendar-note-chip").forEach(chip => {
       chip.addEventListener("click", (e) => {
         e.stopPropagation();
-        goToNoteInFolder(chip.dataset.id);
+        openCalendarQuickEdit(chip.dataset.id);
       });
     });
     notesList.querySelectorAll(".calendar-note-delete-btn").forEach(btn => {
       btn.addEventListener("click", (e) => {
         e.stopPropagation();
         deleteNoteRow(btn.dataset.id);
-      });
-    });
-    notesList.querySelectorAll(".calendar-note-retermin-label").forEach(label => {
-      label.addEventListener("click", (e) => e.stopPropagation());
-    });
-    notesList.querySelectorAll(".calendar-note-retermin-input").forEach(input => {
-      input.addEventListener("click", (e) => e.stopPropagation());
-      input.addEventListener("change", () => changeTerminForNote(input.dataset.id, input.value));
-      input.addEventListener("blur", () => {
-        if (pendingRenderAfterPicker) {
-          pendingRenderAfterPicker = false;
-          renderFolders();
-          renderNotes();
-        }
       });
     });
     notesList.querySelectorAll(".calendar-day[data-date]").forEach(dayEl => {
@@ -2429,13 +2515,119 @@
     try {
       await updateDoc(doc(db, NOTES_COL, id), { termin: newDate, upraveno: serverTimestamp() });
       allNotes = allNotes.map(x => x.id === id ? { ...x, termin: newDate } : x);
-      pendingRenderAfterPicker = false;
       renderNotes();
       showToast("Termín změněn");
     } catch (err) {
       showToast("Chyba při změně termínu: " + err.message);
     }
   }
+
+  // ---------- Kalendář: dialog rychlé editace poznámky ----------
+  // Klik na poznámku v kalendáři (den/týden/měsíc) tohle otevře MÍSTO
+  // přepnutí do složky a plného editoru - pole Termín/Název/Popis se dají
+  // upravit rovnou tady a appka je ukládá samostatně za běhu (viz posluchače
+  // níže). Popis se v dialogu zobrazuje jako prostý text bez formátování a
+  // appka ho tak i uloží ZPĚT, pokud ho tu uživatel skutečně upraví (viz
+  // plainTextToHtmlParagraphs) - dokud pole Popis nikdo nesáhne, zůstává
+  // v databázi beze změny (i s případným bohatším formátováním/obrázky
+  // z plného editoru, které by se do prostého textu nevešly).
+  let calendarQuickEditPendingFields = null;
+
+  function noteFolderBadgeHtml(n) {
+    const folder = folderByName(n.druh);
+    const color = folder ? folder.barva : "#999";
+    return `<span class="note-row-badge" style="background:${color}22;color:${color}">${folderIconPrefix(folder)}${escapeHtml(n.druh || "")}</span>`;
+  }
+
+  function openCalendarQuickEdit(id) {
+    const n = allNotes.find(x => x.id === id);
+    if (!n) return;
+    flushCalendarQuickEditSave();
+    calendarQuickEditNoteId = id;
+    calendarQuickEditPendingFields = null;
+    clearTimeout(calendarQuickEditSaveTimer);
+    calendarQuickEditFolderLabel.innerHTML = noteFolderBadgeHtml(n);
+    calendarQuickEditTermin.value = n.termin || "";
+    calendarQuickEditNazev.value = n.nazev || "";
+    calendarQuickEditPopis.value = htmlToShareText(n.popis || "", { markdown: false });
+    calendarQuickEditStatus.textContent = "";
+    calendarQuickEditModal.classList.add("visible");
+  }
+
+  function closeCalendarQuickEdit() {
+    flushCalendarQuickEditSave();
+    calendarQuickEditNoteId = null;
+    calendarQuickEditModal.classList.remove("visible");
+  }
+
+  function scheduleCalendarQuickEditSave(fields) {
+    calendarQuickEditPendingFields = { ...(calendarQuickEditPendingFields || {}), ...fields };
+    calendarQuickEditStatus.textContent = "Ukládání…";
+    clearTimeout(calendarQuickEditSaveTimer);
+    calendarQuickEditSaveTimer = setTimeout(() => { commitCalendarQuickEditSave(); }, 700);
+  }
+
+  function flushCalendarQuickEditSave() {
+    if (!calendarQuickEditPendingFields) return;
+    clearTimeout(calendarQuickEditSaveTimer);
+    commitCalendarQuickEditSave();
+  }
+
+  async function commitCalendarQuickEditSave() {
+    const id = calendarQuickEditNoteId;
+    const fields = calendarQuickEditPendingFields;
+    if (!id || !fields) return;
+    calendarQuickEditPendingFields = null;
+    try {
+      await updateDoc(doc(db, NOTES_COL, id), { ...fields, upraveno: serverTimestamp() });
+      allNotes = allNotes.map(x => x.id === id ? { ...x, ...fields } : x);
+      if (calendarQuickEditNoteId === id) calendarQuickEditStatus.textContent = "Uloženo";
+    } catch (err) {
+      if (calendarQuickEditNoteId === id) calendarQuickEditStatus.textContent = "Chyba při ukládání";
+      showToast("Chyba: " + err.message);
+    }
+  }
+
+  // Prostý text z textarey převede zpět na jednoduché <p> odstavce (každý
+  // řádek vlastní odstavec) - stejný princip jako plainTextToHtml v
+  // quick.html, ať appka víceřádkový text uložený z tohohle dialogu
+  // nesplyne do jednoho řádku.
+  function plainTextToHtmlParagraphs(text) {
+    return (text || "").split("\n").map(line => `<p>${escapeHtml(line)}</p>`).join("");
+  }
+
+  calendarQuickEditTermin.addEventListener("change", () => {
+    if (!calendarQuickEditNoteId || !calendarQuickEditTermin.value) return;
+    changeTerminForNote(calendarQuickEditNoteId, calendarQuickEditTermin.value);
+    calendarQuickEditStatus.textContent = "Uloženo";
+  });
+  calendarQuickEditNazev.addEventListener("input", () => {
+    scheduleCalendarQuickEditSave({ nazev: calendarQuickEditNazev.value });
+  });
+  calendarQuickEditPopis.addEventListener("input", () => {
+    scheduleCalendarQuickEditSave({ popis: plainTextToHtmlParagraphs(calendarQuickEditPopis.value) });
+  });
+  calendarQuickEditCloseBtn.addEventListener("click", () => closeCalendarQuickEdit());
+  calendarQuickEditModal.addEventListener("click", (e) => {
+    if (e.target === calendarQuickEditModal) closeCalendarQuickEdit();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && calendarQuickEditModal.classList.contains("visible")) closeCalendarQuickEdit();
+  });
+  calendarQuickEditDeleteBtn.addEventListener("click", () => {
+    if (!calendarQuickEditNoteId) return;
+    const id = calendarQuickEditNoteId;
+    calendarQuickEditPendingFields = null;
+    clearTimeout(calendarQuickEditSaveTimer);
+    closeCalendarQuickEdit();
+    deleteNoteRow(id);
+  });
+  calendarQuickEditOpenBtn.addEventListener("click", () => {
+    if (!calendarQuickEditNoteId) return;
+    const id = calendarQuickEditNoteId;
+    closeCalendarQuickEdit();
+    goToNoteInFolder(id);
+  });
 
   async function createNoteForCalendarDay(dateStr) {
     const targetFolder = folders.length ? folders[folders.length - 1].nazev : null;
@@ -2558,7 +2750,7 @@
     const bg = forceBg || "var(--paper)";
     const borderLeft = forceBorder || color;
     return `<div class="dashboard-sticky ${wide ? "dashboard-sticky-wide" : ""}" style="background:${bg};border-left-color:${borderLeft}" data-id="${n.id}">
-      <button class="note-row-del" data-id="${n.id}" title="Smazat poznámku" aria-label="Smazat poznámku">🗑</button>
+      <button class="note-row-del" data-id="${n.id}" title="Smazat poznámku" aria-label="Smazat poznámku">${TRASH_ICON_SVG}</button>
       <div class="dashboard-sticky-top">
         <span class="note-row-badge" style="background:${color}33;color:${color}">${badgeExtra}${folderIconPrefix(folder)}${escapeHtml(n.druh || "")}</span>
         <button class="note-row-star ${n.oblibene ? "active" : ""}" data-id="${n.id}" title="Oblíbené" aria-label="Oblíbené">★</button>
