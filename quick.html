@@ -131,6 +131,13 @@
 
   .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
+  .field-inline-btns { display: flex; gap: 8px; margin-top: 8px; }
+  .field-inline-btns button {
+    flex: 1; background: var(--accent-soft); border: 1.5px solid var(--accent); color: var(--accent-dark);
+    border-radius: 9px; padding: 8px 10px; font-size: 13.5px; font-weight: 600; cursor: pointer;
+  }
+  .field-inline-btns button:active { background: var(--accent); color: #fff; }
+
   .btn {
     display: flex; align-items: center; justify-content: center; gap: 6px;
     background: var(--accent); color: #fff; border: none; padding: 14px 20px;
@@ -224,6 +231,10 @@
     <div class="field">
       <label for="termin">Termín (nepovinné)</label>
       <input type="date" id="termin">
+      <div class="field-inline-btns">
+        <button type="button" id="terminTodayBtn">Dnes</button>
+        <button type="button" id="terminTomorrowBtn">Zítra</button>
+      </div>
     </div>
     <div class="field">
       <label for="stitky">Štítky</label>
@@ -321,6 +332,8 @@
   const popisEl = document.getElementById("popis");
   const stitkyEl = document.getElementById("stitky");
   const terminEl = document.getElementById("termin");
+  const terminTodayBtn = document.getElementById("terminTodayBtn");
+  const terminTomorrowBtn = document.getElementById("terminTomorrowBtn");
   const micBtn = document.getElementById("micBtn");
   const micInterim = document.getElementById("micInterim");
   const toast = document.getElementById("toast");
@@ -355,6 +368,10 @@
     const tzOffsetMs = d.getTimezoneOffset() * 60000;
     return new Date(d.getTime() - tzOffsetMs).toISOString().slice(0, 10);
   }
+
+  // ---------- Tlačítka "Dnes"/"Zítra" u pole Termín ----------
+  terminTodayBtn.addEventListener("click", () => { terminEl.value = localTodayStr(); });
+  terminTomorrowBtn.addEventListener("click", () => { terminEl.value = localTomorrowStr(); });
 
   // ---------- Auto-vyplnění Název z Popis ----------
   // Dokud je pole Název prázdné, odvodí se z první věty (do tečky/vykřičníku/

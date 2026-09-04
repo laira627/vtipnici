@@ -158,7 +158,7 @@
   .col-footer { padding: 10px 16px; border-top: 1px solid var(--line); display: flex; gap: 6px; }
   .col-footer .icon-btn { flex: 1; justify-content: center; }
   .search-wrap { padding: 10px 14px; border-bottom: 1px solid var(--line); }
-  .search-wrap input, .menu-search-wrap input { width: 100%; padding: 9px 12px; border-radius: 9px; border: 1.5px solid var(--line); font-size: 14px; background: var(--panel); outline: none; }
+  .search-wrap input, .menu-search-wrap input { width: 100%; padding: 9px 12px; border-radius: 9px; border: 1.5px solid var(--line); font-size: 14px; background: var(--accent-soft); outline: none; }
   .search-wrap input:focus, .menu-search-wrap input:focus { border-color: var(--accent); background: var(--paper); }
   .search-box { position: relative; }
   .search-box input { padding-right: 34px; }
@@ -187,7 +187,7 @@
   .btn-mini:hover { background: var(--accent-soft); color: var(--accent-dark); border-color: var(--accent-soft); }
   .trash-purge-btn:hover { background: #fce8e6; color: var(--danger); border-color: #fce8e6; }
   .calendar-mode-switch { display: flex; gap: 6px; margin: 4px 4px 10px; }
-  .calendar-mode-btn { flex: 1; padding: 11px 14px; font-size: 15.5px; font-weight: 700; border-radius: 10px; border: 1.5px solid var(--line); background: var(--paper); color: var(--ink-soft); cursor: pointer; }
+  .calendar-mode-btn { flex: 1; padding: 11px 14px; font-size: 15.5px; font-weight: 700; border-radius: 10px; border: 1.5px solid var(--accent-soft); background: var(--accent-soft); color: var(--ink-soft); cursor: pointer; }
   .calendar-mode-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
   .calendar-nav { display: flex; align-items: center; gap: 8px; margin: 4px 4px 14px; }
   .calendar-week-list { display: flex; flex-direction: column; gap: 8px; }
@@ -203,7 +203,7 @@
   .calendar-note-action-btn:hover { border-color: var(--accent); background: var(--accent-soft); }
   .calendar-note-delete-btn:hover { border-color: var(--danger); background: #fce8e6; color: var(--danger); }
   .calendar-nav-label { font-size: 15px; font-weight: 700; flex: 1; text-align: center; }
-  .calendar-nav-btn { flex-shrink: 0; padding: 11px 18px; font-size: 15.5px; font-weight: 700; border-radius: 10px; }
+  .calendar-nav-btn { flex-shrink: 0; padding: 11px 18px; font-size: 15.5px; font-weight: 700; border-radius: 10px; background: var(--accent-soft); border-color: var(--accent-soft); }
   .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
   .calendar-day-overdue { border: 2px solid var(--danger) !important; background: var(--highlight-overdue) !important; }
   .calendar-overdue-box { cursor: default !important; margin-bottom: 8px; min-height: auto !important; }
@@ -289,6 +289,8 @@
   .nl-format-option input { width: auto; margin: 0; }
   .modal-card.calendar-quick-edit-card { max-width: 420px; text-align: left; }
   .calendar-quick-edit-folder { margin-bottom: 14px; }
+  .calendar-quick-edit-termin-row { display: flex; gap: 6px; align-items: center; }
+  .calendar-quick-edit-termin-row input[type=date] { flex: 1; min-width: 0; }
   .calendar-quick-edit-status { min-height: 16px; margin: -6px 0 10px; }
   .calendar-quick-edit-btns { margin-bottom: 8px; }
   .calendar-quick-edit-btns .btn-mini { flex: 1 1 auto; text-align: center; }
@@ -520,6 +522,15 @@
           <select id="editorFolder"></select>
           <input type="date" id="editorDate" title="Datum poznámky" aria-label="Datum poznámky">
           <input type="date" id="editorTermin" title="Termín (nepovinné)" aria-label="Termín (nepovinné)">
+          <button class="icon-btn small" id="editorTerminTomorrowBtn" type="button" title="Nastavit termín na zítřek" aria-label="Nastavit termín na zítřek">zítra</button>
+          <select id="editorOpakovani" title="Opakování" aria-label="Opakování">
+            <option value="">Bez opakování</option>
+            <option value="zitra">Opakovat: zítra</option>
+            <option value="tyden">Opakovat: týden</option>
+            <option value="2tydny">Opakovat: 2 týdny</option>
+            <option value="mesic">Opakovat: měsíc</option>
+            <option value="rok">Opakovat: rok</option>
+          </select>
           <div class="spacer"></div>
           <div class="emoji-picker-wrap">
             <button class="icon-btn small emoji-trigger-btn" id="emojiPickerBtn" type="button" title="Vložit emoji" aria-label="Vložit emoji">😊</button>
@@ -591,7 +602,10 @@
     <div id="calendarQuickEditFolderLabel" class="calendar-quick-edit-folder"></div>
     <div class="field">
       <label for="calendarQuickEditTermin">Termín</label>
-      <input type="date" id="calendarQuickEditTermin">
+      <div class="calendar-quick-edit-termin-row">
+        <input type="date" id="calendarQuickEditTermin">
+        <button class="btn-mini" id="calendarQuickEditTerminTomorrowBtn" type="button">zítra</button>
+      </div>
     </div>
     <div class="field">
       <label for="calendarQuickEditNazev">Název</label>
@@ -674,7 +688,7 @@
     query, where, orderBy, onSnapshot, serverTimestamp, writeBatch, getDocs
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-  const APP_VERSION = "17";
+  const APP_VERSION = "18";
   document.querySelectorAll(".app-version-badge").forEach(el => {
     el.textContent = "v" + APP_VERSION;
   });
@@ -731,6 +745,7 @@
   const calendarQuickEditModal = document.getElementById("calendarQuickEditModal");
   const calendarQuickEditFolderLabel = document.getElementById("calendarQuickEditFolderLabel");
   const calendarQuickEditTermin = document.getElementById("calendarQuickEditTermin");
+  const calendarQuickEditTerminTomorrowBtn = document.getElementById("calendarQuickEditTerminTomorrowBtn");
   const calendarQuickEditNazev = document.getElementById("calendarQuickEditNazev");
   const calendarQuickEditPopis = document.getElementById("calendarQuickEditPopis");
   const calendarQuickEditStatus = document.getElementById("calendarQuickEditStatus");
@@ -763,6 +778,8 @@
   const editorFolder = document.getElementById("editorFolder");
   const editorDate = document.getElementById("editorDate");
   const editorTermin = document.getElementById("editorTermin");
+  const editorTerminTomorrowBtn = document.getElementById("editorTerminTomorrowBtn");
+  const editorOpakovani = document.getElementById("editorOpakovani");
   const emojiPickerBtn = document.getElementById("emojiPickerBtn");
   const emojiPickerPanel = document.getElementById("emojiPickerPanel");
   const newFolderEmojiBtn = document.getElementById("newFolderEmojiBtn");
@@ -1683,6 +1700,37 @@
     return d.toISOString().slice(0, 10);
   }
 
+  function addMonthsToIsoDate(isoDate, months) {
+    const [y, m, d] = isoDate.split("-").map(Number);
+    const date = new Date(Date.UTC(y, (m - 1) + months, d));
+    return date.toISOString().slice(0, 10);
+  }
+
+  function addYearsToIsoDate(isoDate, years) {
+    const [y, m, d] = isoDate.split("-").map(Number);
+    const date = new Date(Date.UTC(y + years, m - 1, d));
+    return date.toISOString().slice(0, 10);
+  }
+
+  const OPAKOVANI_LABELS = {
+    zitra: "zítra",
+    tyden: "za týden",
+    "2tydny": "za 2 týdny",
+    mesic: "za měsíc",
+    rok: "za rok"
+  };
+
+  function computeRepeatTermin(opakovani, baseIsoDate) {
+    switch (opakovani) {
+      case "zitra": return addDaysToIsoDate(baseIsoDate, 1);
+      case "tyden": return addDaysToIsoDate(baseIsoDate, 7);
+      case "2tydny": return addDaysToIsoDate(baseIsoDate, 14);
+      case "mesic": return addMonthsToIsoDate(baseIsoDate, 1);
+      case "rok": return addYearsToIsoDate(baseIsoDate, 1);
+      default: return null;
+    }
+  }
+
   function mondayOfIsoWeek(isoDate) {
     const d = new Date(isoDate + "T00:00:00Z");
     const day = d.getUTCDay();
@@ -2058,6 +2106,13 @@
     changeTerminForNote(calendarQuickEditNoteId, calendarQuickEditTermin.value);
     calendarQuickEditStatus.textContent = "Uloženo";
   });
+  calendarQuickEditTerminTomorrowBtn.addEventListener("click", () => {
+    if (!calendarQuickEditNoteId) return;
+    const tomorrow = addDaysToIsoDate(localTodayStr(), 1);
+    calendarQuickEditTermin.value = tomorrow;
+    changeTerminForNote(calendarQuickEditNoteId, tomorrow);
+    calendarQuickEditStatus.textContent = "Uloženo";
+  });
   calendarQuickEditNazev.addEventListener("input", () => {
     scheduleCalendarQuickEditSave({ nazev: calendarQuickEditNazev.value });
   });
@@ -2096,6 +2151,7 @@
       nazev: "",
       popis: "",
       termin: dateStr,
+      opakovani: "",
       hodnoceni: "",
       oblibene: false,
       stitky: [],
@@ -2494,6 +2550,7 @@
       nazev: "",
       popis: "",
       termin: "",
+      opakovani: "",
       hodnoceni: "",
       oblibene: false,
       stitky: [],
@@ -2558,12 +2615,51 @@
     const entry = pendingDeletes.get(id);
     if (!entry) return;
     pendingDeletes.delete(id);
+    const noteBeforeDelete = allNotes.find(n => n.id === id);
     try {
       await updateDoc(doc(db, NOTES_COL, id), { smazano: true, smazanoKdy: serverTimestamp() });
+      if (noteBeforeDelete && noteBeforeDelete.opakovani) {
+        await createRepeatCopy(noteBeforeDelete);
+      }
     } catch (err) {
       showToast("Chyba při mazání: " + err.message);
       renderFolders();
       renderNotes();
+    }
+  }
+
+  // ---------- Opakování: při smazání poznámky s nastaveným opakováním se založí její kopie ----------
+  // Nová kopie má aktuální datum vzniku (`datum`) a termín posunutý podle zvoleného
+  // parametru opakování (zítra/týden/2 týdny/měsíc/rok), počítaný od DNEŠKA (dne smazání),
+  // ne od původního (třeba už prošlého) termínu - stejná logika jako tlačítko "zítra".
+  // Kopie si nese stejné opakování dál, takže řetězec opakování pokračuje i příště.
+  async function createRepeatCopy(note) {
+    const todayStr = localTodayStr();
+    const nextTermin = computeRepeatTermin(note.opakovani, todayStr);
+    if (!nextTermin) return;
+    const newNoteData = {
+      datum: todayStr,
+      druh: note.druh,
+      nazev: note.nazev || "",
+      popis: note.popis || "",
+      termin: nextTermin,
+      opakovani: note.opakovani,
+      hodnoceni: note.hodnoceni || "",
+      oblibene: !!note.oblibene,
+      stitky: Array.isArray(note.stitky) ? [...note.stitky] : [],
+      uid: currentUid,
+      vytvoreno: serverTimestamp(),
+      upraveno: serverTimestamp()
+    };
+    try {
+      const ref = await addDoc(collection(db, NOTES_COL), newNoteData);
+      if (!allNotes.some(n => n.id === ref.id)) {
+        allNotes = [{ id: ref.id, ...newNoteData }, ...allNotes];
+      }
+      const label = OPAKOVANI_LABELS[note.opakovani] || "";
+      showToast(`Založena opakovaná poznámka (${label ? label + ", " : ""}${formatDate(nextTermin)})`);
+    } catch (err) {
+      showToast("Chyba při zakládání opakované poznámky: " + err.message);
     }
   }
 
@@ -2674,6 +2770,7 @@
       nazev: "",
       popis: "",
       termin: view.type === "calendar" ? localTodayStr() : "",
+      opakovani: "",
       hodnoceni: "",
       oblibene: false,
       stitky: [],
@@ -2714,6 +2811,7 @@
     editorFolder.value = n.druh || "";
     editorDate.value = n.datum || "";
     editorTermin.value = n.termin || "";
+    editorOpakovani.value = n.opakovani || "";
     editorTitle.value = n.nazev || "";
     editorHodnoceni.value = n.hodnoceni || "";
     updateEditorRatingBadge(n.hodnoceni);
@@ -2794,6 +2892,11 @@
   editorFolder.addEventListener("change", () => scheduleSave());
   editorDate.addEventListener("change", () => scheduleSave());
   editorTermin.addEventListener("change", () => scheduleSave());
+  editorTerminTomorrowBtn.addEventListener("click", () => {
+    editorTermin.value = addDaysToIsoDate(localTodayStr(), 1);
+    scheduleSave();
+  });
+  editorOpakovani.addEventListener("change", () => scheduleSave());
   editorHodnoceni.addEventListener("change", () => {
     updateEditorRatingBadge(editorHodnoceni.value);
     scheduleSave();
@@ -2995,6 +3098,7 @@
         druh: editorFolder.value,
         datum: editorDate.value,
         termin: editorTermin.value,
+        opakovani: editorOpakovani.value,
         hodnoceni: editorHodnoceni.value,
         nazev: editorTitle.value,
         popis: quill.root.innerHTML,
