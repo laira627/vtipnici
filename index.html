@@ -185,6 +185,7 @@
   .note-row-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; padding-right: 26px; }
   .note-row-title { font-weight: 700; font-size: 14px; margin-bottom: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .note-row-meta { font-size: 12px; color: var(--ink-soft); display: flex; gap: 6px; align-items: center; margin-bottom: 4px; }
+  .note-row-repeat { font-size: 11px; color: var(--ink-soft); opacity: .85; white-space: nowrap; }
   .note-row-snippet { font-size: 12.5px; color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .note-row-badge { font-size: 10.5px; font-weight: 700; text-transform: uppercase; padding: 2px 7px; border-radius: 999px; flex-shrink: 0; }
   .note-row-star { background: transparent; border: none; cursor: pointer; font-size: 14px; color: #d8cfc2; flex-shrink: 0; }
@@ -241,6 +242,7 @@
   .editor-topbar select { max-width: 150px; padding: 7px 9px; font-size: 13px; }
   .editor-topbar input[type=date] { padding: 7px 9px; font-size: 13px; max-width: 145px; }
   .editor-topbar .spacer { flex: 1; }
+  .editor-topbar-icon { font-size: 15px; opacity: .8; line-height: 1; flex-shrink: 0; }
   .editor-title-row { margin: 14px 20px 0; padding: 10px 16px 4px; background: var(--accent-soft); border: 1.5px solid var(--accent); border-radius: 12px; display: flex; align-items: flex-end; gap: 8px; }
   #editorTitle { flex: 1; min-width: 0; border: none; outline: none; font-size: 24px; font-weight: 700; color: var(--ink); background: transparent; padding: 0 0 12px; }
   #editorTitle::placeholder { color: #c8bfae; }
@@ -303,6 +305,8 @@
   .calendar-quick-edit-folder { margin-bottom: 14px; }
   .calendar-quick-edit-termin-row { display: flex; gap: 6px; align-items: center; }
   .calendar-quick-edit-termin-row input[type=date] { flex: 1; min-width: 0; }
+  .calendar-quick-edit-repeat { font-size: 12.5px; color: var(--ink-soft); margin-top: 6px; }
+  .calendar-quick-edit-repeat:empty { display: none; }
   .calendar-quick-edit-status { min-height: 16px; margin: -6px 0 10px; }
   .calendar-quick-edit-btns { margin-bottom: 8px; }
   .calendar-quick-edit-btns .btn-mini { flex: 1 1 auto; text-align: center; }
@@ -541,6 +545,7 @@
           <input type="date" id="editorDate" title="Datum poznámky" aria-label="Datum poznámky">
           <input type="date" id="editorTermin" title="Termín (nepovinné)" aria-label="Termín (nepovinné)">
           <button class="icon-btn small" id="editorTerminTomorrowBtn" type="button" title="Nastavit termín na zítřek" aria-label="Nastavit termín na zítřek">zítra</button>
+          <span class="editor-topbar-icon" title="Opakování">🔁</span>
           <select id="editorOpakovani" title="Opakování" aria-label="Opakování">
             <option value="">Bez opakování</option>
             <option value="zitra">Opakovat: zítra</option>
@@ -624,6 +629,7 @@
         <input type="date" id="calendarQuickEditTermin">
         <button class="btn-mini" id="calendarQuickEditTerminTomorrowBtn" type="button">zítra</button>
       </div>
+      <div class="calendar-quick-edit-repeat" id="calendarQuickEditRepeat"></div>
     </div>
     <div class="field">
       <label for="calendarQuickEditNazev">Název</label>
@@ -706,7 +712,7 @@
     query, where, orderBy, onSnapshot, serverTimestamp, writeBatch, getDocs
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-  const APP_VERSION = "19";
+  const APP_VERSION = "20";
   document.querySelectorAll(".app-version-badge").forEach(el => {
     el.textContent = "v" + APP_VERSION;
   });
@@ -765,6 +771,7 @@
   const calendarQuickEditModal = document.getElementById("calendarQuickEditModal");
   const calendarQuickEditFolderLabel = document.getElementById("calendarQuickEditFolderLabel");
   const calendarQuickEditTermin = document.getElementById("calendarQuickEditTermin");
+  const calendarQuickEditRepeat = document.getElementById("calendarQuickEditRepeat");
   const calendarQuickEditTerminTomorrowBtn = document.getElementById("calendarQuickEditTerminTomorrowBtn");
   const calendarQuickEditNazev = document.getElementById("calendarQuickEditNazev");
   const calendarQuickEditPopis = document.getElementById("calendarQuickEditPopis");
@@ -1804,6 +1811,17 @@
     rok: "za rok"
   };
 
+  // Krátké názvy opakování pro ikonku 🔁 u termínu (v boxících poznámek, v
+  // dialogu Kalendáře i v editoru) - odpovídají textu voleb v selectu
+  // #editorOpakovani (bez předpony "Opakovat: ").
+  const OPAKOVANI_SHORT_LABELS = {
+    zitra: "zítra",
+    tyden: "týden",
+    "2tydny": "2 týdny",
+    mesic: "měsíc",
+    rok: "rok"
+  };
+
   function computeRepeatTermin(opakovani, baseIsoDate) {
     switch (opakovani) {
       case "zitra": return addDaysToIsoDate(baseIsoDate, 1);
@@ -1851,8 +1869,12 @@
       : "";
     const starActive = starForceActive || n.oblibene;
     const datumHtml = showDatum ? `<div class="note-row-meta">${formatDate(n.datum)}</div>` : "";
+    const opakovaniLabel = n.opakovani ? (OPAKOVANI_SHORT_LABELS[n.opakovani] || "") : "";
+    const opakovaniBadgeHtml = opakovaniLabel
+      ? `<span class="note-row-repeat" title="Opakování: ${escapeHtml(opakovaniLabel)}">🔁 ${escapeHtml(opakovaniLabel)}</span>`
+      : "";
     const terminHtml = (showTermin && n.termin)
-      ? `<div class="note-row-meta note-row-termin">📌 ${formatDate(n.termin)}</div>`
+      ? `<div class="note-row-meta note-row-termin">📌 ${formatDate(n.termin)}${opakovaniBadgeHtml}</div>`
       : "";
     const rowClasses = ["note-row", extraClasses, isActive ? "active" : "", urgencyClass]
       .filter(Boolean).join(" ");
@@ -2141,6 +2163,9 @@
     clearTimeout(calendarQuickEditSaveTimer);
     calendarQuickEditFolderLabel.innerHTML = noteFolderBadgeHtml(n);
     calendarQuickEditTermin.value = n.termin || "";
+    calendarQuickEditRepeat.innerHTML = n.opakovani
+      ? `🔁 Opakování: ${escapeHtml(OPAKOVANI_SHORT_LABELS[n.opakovani] || n.opakovani)}`
+      : "";
     calendarQuickEditNazev.value = n.nazev || "";
     calendarQuickEditPopis.value = htmlToShareText(n.popis || "", { markdown: false });
     calendarQuickEditStatus.textContent = "";
