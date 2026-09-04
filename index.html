@@ -11,10 +11,6 @@
 <meta name="theme-color" content="#dceefb" id="themeColorMeta">
 <link rel="manifest" href="manifest-app.json">
 <script>
-  // Nastavit tmavý/světlý režim co nejdřív (ještě před vykreslením stránky),
-  // ať appka na chvilku nebliká světlým vzhledem, než se stihne načíst
-  // a spustit hlavní skript dole. Volba: uložená preference uživatele
-  // (localStorage) > systémové nastavení telefonu (prefers-color-scheme).
   (function () {
     try {
       const saved = localStorage.getItem("vtipnici-theme");
@@ -49,12 +45,6 @@
     --cream-card-bg2: #fdf3d9;
     --cream-card-border2: #e8c14a;
   }
-  /* ---------- Tmavý režim ----------
-     Přepíná se atributem data-theme="dark" na <html> (viz applyTheme() v JS).
-     Řídí se buď ručním výběrem uživatele (uložen v localStorage), nebo -
-     když si uživatel nic nevybral - systémovým nastavením telefonu
-     (prefers-color-scheme). Barvy složek/štítků (barva) se nemění, jsou
-     dost syté na to, aby fungovaly na obou pozadích. */
   html[data-theme="dark"] {
     --bg: #0f0c09;
     --paper: #241e17;
@@ -77,8 +67,6 @@
     --cream-card-border2: #5c4a22;
   }
   * { box-sizing: border-box; }
-  /* color-scheme řídí i vzhled nativních prvků prohlížeče/OS (datumový
-     picker, posuvníky, zaškrtávátka), aby ladily s appkou i v tmavém režimu. */
   html { color-scheme: light; }
   html[data-theme="dark"] { color-scheme: dark; }
   html, body { height: 100%; margin: 0; }
@@ -88,38 +76,15 @@
     color: var(--ink);
   }
   input, select, textarea, button { font-family: inherit; }
-
-  /* ---------- Login ---------- */
-  #loginScreen {
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-  }
-  .login-card {
-    background: var(--paper);
-    border-radius: 20px;
-    padding: 40px 32px;
-    width: 100%;
-    max-width: 360px;
-    box-shadow: var(--shadow);
-    text-align: center;
-  }
+  #loginScreen { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+  .login-card { background: var(--paper); border-radius: 20px; padding: 40px 32px; width: 100%; max-width: 360px; box-shadow: var(--shadow); text-align: center; }
   .login-card h1 { font-size: 26px; margin: 0 0 6px; font-weight: 700; }
   .login-card p.sub { color: var(--ink-soft); font-size: 14px; margin: 0 0 28px; }
   .field { text-align: left; margin-bottom: 14px; }
   .field label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: var(--ink-soft); }
   input[type=email], input[type=password], input[type=date], input[type=text], select, textarea {
-    width: 100%;
-    padding: 11px 13px;
-    border-radius: 10px;
-    border: 1.5px solid var(--line);
-    font-size: 15px;
-    background: var(--paper);
-    color: var(--ink);
-    outline: none;
-    transition: border-color .15s;
+    width: 100%; padding: 11px 13px; border-radius: 10px; border: 1.5px solid var(--line);
+    font-size: 15px; background: var(--paper); color: var(--ink); outline: none; transition: border-color .15s;
   }
   textarea { resize: vertical; font-family: inherit; }
   input:focus, select:focus, textarea:focus { border-color: var(--accent); }
@@ -134,35 +99,17 @@
   .btn-secondary { background: transparent; color: var(--ink-soft); border: 1.5px solid var(--line); }
   .btn-secondary:hover { background: var(--accent-soft); color: var(--accent-dark); border-color: var(--accent-soft); }
   #loginError { color: var(--danger); font-size: 13px; margin-top: 12px; min-height: 18px; }
-
-  /* ---------- App shell ---------- */
   #app { display: none; height: 100vh; }
   #app.visible { display: block; }
-
-  .columns {
-    display: grid;
-    grid-template-columns: 230px 320px 1fr;
-    height: 100vh;
-  }
-
+  .columns { display: grid; grid-template-columns: 230px 320px 1fr; height: 100vh; }
   .col { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
   .col-folders { background: var(--panel); border-right: 1px solid var(--line); }
   .col-notes { background: var(--paper); border-right: 1px solid var(--line); }
   .col-editor { background: var(--paper); }
-
-  .col-head {
-    padding: 14px 16px;
-    border-bottom: 1px solid var(--line);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    flex-shrink: 0;
-  }
+  .col-head { padding: 14px 16px; border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-shrink: 0; }
   .col-head h2 { font-size: 15px; margin: 0; font-weight: 700; }
   .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 16px; }
   .head-actions { display: flex; align-items: center; gap: 4px; }
-
   .icon-btn {
     background: transparent; border: 1.5px solid var(--line); color: var(--ink-soft);
     border-radius: 8px; padding: 6px 10px; font-size: 13px; font-weight: 600; cursor: pointer;
@@ -171,77 +118,36 @@
   .icon-btn:hover { background: var(--accent-soft); color: var(--accent-dark); border-color: var(--accent-soft); }
   .icon-btn.small { padding: 5px 8px; font-size: 15px; }
   #editorFavBtn.active { color: #e0a733; border-color: #e0a733; background: rgba(224,167,51,0.12); }
-
-  /* ---------- Výraznější tlačítka "plus" (přidat poznámku/složku) ---------- */
-  .icon-btn-plus {
-    background: #f6c445;
-    border-color: #f6c445;
-    color: #2b2620;
-    font-weight: 700;
-  }
-  .icon-btn-plus:hover {
-    background: #e8b52e;
-    border-color: #e8b52e;
-    color: #2b2620;
-  }
-  html[data-theme="dark"] .icon-btn-plus {
-    background: #caa53a;
-    border-color: #caa53a;
-    color: #1d1811;
-  }
-  html[data-theme="dark"] .icon-btn-plus:hover {
-    background: #e0bd52;
-    border-color: #e0bd52;
-    color: #1d1811;
-  }
-
-  /* ---------- Folders column ---------- */
+  .icon-btn-plus { background: #f6c445; border-color: #f6c445; color: #2b2620; font-weight: 700; }
+  .icon-btn-plus:hover { background: #e8b52e; border-color: #e8b52e; color: #2b2620; }
+  html[data-theme="dark"] .icon-btn-plus { background: #caa53a; border-color: #caa53a; color: #1d1811; }
+  html[data-theme="dark"] .icon-btn-plus:hover { background: #e0bd52; border-color: #e0bd52; color: #1d1811; }
   .folders-list { flex: 1; overflow-y: auto; padding: 10px 8px; }
   .folder-divider { border-top: 1px solid var(--line); margin: 8px 8px 10px; }
-  .folder-row {
-    display: flex; align-items: center; gap: 9px; padding: 9px 10px;
-    border-radius: 9px; cursor: pointer; font-size: 14px; font-weight: 600;
-    color: var(--ink); margin-bottom: 2px; position: relative;
-  }
+  .folder-row { display: flex; align-items: center; gap: 9px; padding: 9px 10px; border-radius: 9px; cursor: pointer; font-size: 14px; font-weight: 600; color: var(--ink); margin-bottom: 2px; position: relative; }
   .folder-row:hover { background: var(--accent-soft); }
   .folder-row.active { background: var(--accent); color: #fff; }
   .folder-row.active .folder-count { color: rgba(255,255,255,0.8); }
   .folder-dot { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; border: 1px solid rgba(0,0,0,0.08); }
   .folder-icon { width: 18px; flex-shrink: 0; font-size: 14px; line-height: 1; text-align: center; }
-  .new-folder-icon-preview {
-    width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;
-    font-size: 17px; border: 1.5px solid var(--line); border-radius: 9px; flex-shrink: 0; background: var(--paper);
-  }
+  .new-folder-icon-preview { width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; font-size: 17px; border: 1.5px solid var(--line); border-radius: 9px; flex-shrink: 0; background: var(--paper); }
   .folder-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .folder-count { font-size: 12px; color: var(--ink-soft); font-weight: 600; }
-  .folder-tools {
-    display: none; gap: 3px; position: absolute; right: 6px; background: inherit;
-  }
+  .folder-tools { display: none; gap: 3px; position: absolute; right: 6px; background: inherit; }
   .folder-row:hover .folder-tools { display: flex; }
   .folder-row.active .folder-tools { display: flex; }
-  .folder-tool-btn {
-    background: rgba(255,255,255,0.5); border: none; border-radius: 5px; cursor: pointer;
-    width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: 11px;
-  }
+  .folder-tool-btn { background: rgba(255,255,255,0.5); border: none; border-radius: 5px; cursor: pointer; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: 11px; }
   .folder-row.active .folder-tool-btn { background: rgba(255,255,255,0.25); color: #fff; }
   .termin-badges { display: flex; gap: 4px; align-items: center; flex-shrink: 0; }
-  .termin-badge {
-    min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px;
-    font-size: 10.5px; font-weight: 700; color: #fff; display: flex; align-items: center; justify-content: center;
-    line-height: 1;
-  }
+  .termin-badge { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; font-size: 10.5px; font-weight: 700; color: #fff; display: flex; align-items: center; justify-content: center; line-height: 1; }
   .termin-badge-overdue { background: #c0392b; }
   .termin-badge-today { background: #e0a733; }
   .folder-row.active .termin-badge { box-shadow: 0 0 0 1.5px rgba(255,255,255,0.7); }
   .note-row.termin-tile-overdue { background: var(--highlight-overdue); }
   .note-row.termin-tile-today { background: var(--highlight-today); }
   .folder-color-input { position: absolute; opacity: 0; width: 20px; height: 20px; left: 0; top: 0; cursor: pointer; }
-  .folder-name-input {
-    flex: 1; min-width: 0; border: none; background: rgba(255,255,255,0.6); border-radius: 5px;
-    font-size: 14px; font-weight: 600; padding: 3px 6px; color: var(--ink); outline: 1.5px solid var(--accent);
-  }
+  .folder-name-input { flex: 1; min-width: 0; border: none; background: rgba(255,255,255,0.6); border-radius: 5px; font-size: 14px; font-weight: 600; padding: 3px 6px; color: var(--ink); outline: 1.5px solid var(--accent); }
   .folder-tools.force-visible { display: flex !important; }
-
   .add-folder-panel { padding: 10px 16px 14px; border-top: 1px solid var(--line); display: none; }
   .add-folder-panel.visible { display: block; }
   .add-folder-panel .row { display: flex; gap: 6px; margin-bottom: 8px; }
@@ -249,284 +155,131 @@
   .add-folder-panel input[type=color] { width: 38px; height: 38px; padding: 2px; border-radius: 8px; border: 1.5px solid var(--line); cursor: pointer; }
   .add-folder-panel .row-btns { display: flex; gap: 8px; }
   .add-folder-panel .row-btns .btn { padding: 9px; font-size: 13px; }
-
   .col-footer { padding: 10px 16px; border-top: 1px solid var(--line); display: flex; gap: 6px; }
   .col-footer .icon-btn { flex: 1; justify-content: center; }
-
-  /* ---------- Notes column ---------- */
   .search-wrap { padding: 10px 14px; border-bottom: 1px solid var(--line); }
-  .search-wrap input, .menu-search-wrap input {
-    width: 100%; padding: 9px 12px; border-radius: 9px; border: 1.5px solid var(--line);
-    font-size: 14px; background: var(--panel); outline: none;
-  }
+  .search-wrap input, .menu-search-wrap input { width: 100%; padding: 9px 12px; border-radius: 9px; border: 1.5px solid var(--line); font-size: 14px; background: var(--panel); outline: none; }
   .search-wrap input:focus, .menu-search-wrap input:focus { border-color: var(--accent); background: var(--paper); }
   .search-box { position: relative; }
   .search-box input { padding-right: 34px; }
-  .search-clear-btn {
-    position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
-    background: transparent; border: none; cursor: pointer; color: var(--ink-soft);
-    font-size: 17px; line-height: 1; padding: 5px 7px; border-radius: 7px; display: none;
-  }
+  .search-clear-btn { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: transparent; border: none; cursor: pointer; color: var(--ink-soft); font-size: 17px; line-height: 1; padding: 5px 7px; border-radius: 7px; display: none; }
   .search-clear-btn.visible { display: block; }
   .search-clear-btn:hover { background: var(--accent-soft); color: var(--accent-dark); }
-
-  /* ---------- Vyhledávání v hlavním menu (nad přehledem Termín) ---------- */
-  .menu-search-wrap {
-    padding: 10px 14px;
-    border-bottom: 1px solid var(--line);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
+  .menu-search-wrap { padding: 10px 14px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 8px; }
   .menu-search-wrap .search-box { flex: 1; min-width: 0; }
-
   .notes-list { flex: 1; overflow-y: auto; padding: 8px; }
-  .note-row {
-    background: var(--paper); border: 1px solid var(--line); border-left-width: 4px;
-    border-radius: 10px; padding: 11px 12px; margin-bottom: 8px; cursor: pointer; position: relative;
-  }
+  .note-row { background: var(--paper); border: 1px solid var(--line); border-left-width: 4px; border-radius: 10px; padding: 11px 12px; margin-bottom: 8px; cursor: pointer; position: relative; }
   .note-row.active { background: var(--accent-soft); border-color: var(--accent); }
   .note-row-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; padding-right: 26px; }
   .note-row-title { font-weight: 700; font-size: 14px; margin-bottom: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .note-row-meta { font-size: 12px; color: var(--ink-soft); display: flex; gap: 6px; align-items: center; margin-bottom: 4px; }
   .note-row-snippet { font-size: 12.5px; color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .note-row-badge {
-    font-size: 10.5px; font-weight: 700; text-transform: uppercase; padding: 2px 7px; border-radius: 999px; flex-shrink: 0;
-  }
+  .note-row-badge { font-size: 10.5px; font-weight: 700; text-transform: uppercase; padding: 2px 7px; border-radius: 999px; flex-shrink: 0; }
   .note-row-star { background: transparent; border: none; cursor: pointer; font-size: 14px; color: #d8cfc2; flex-shrink: 0; }
   .note-row-star.active { color: #e0a733; }
-  .note-row-del {
-    position: absolute; top: 8px; right: 8px; background: transparent; border: none; color: var(--ink-soft);
-    cursor: pointer; display: none; font-size: 13px; padding: 3px 6px; border-radius: 6px;
-  }
+  .note-row-del { position: absolute; top: 8px; right: 8px; background: transparent; border: none; color: var(--ink-soft); cursor: pointer; display: none; font-size: 13px; padding: 3px 6px; border-radius: 6px; }
   .note-row:hover .note-row-del { display: block; }
   .note-row:hover .note-row-del:hover { background: #fce8e6; color: var(--danger); }
   .empty-state { text-align: center; color: var(--ink-soft); padding: 40px 20px; font-size: 13.5px; }
-
-  /* ---------- Koš (trash) ---------- */
   .trash-tile { cursor: pointer; }
   .trash-tile-actions { display: flex; gap: 6px; margin-top: 8px; }
-  .btn-mini {
-    font-size: 11.5px; font-weight: 600; padding: 5px 9px; border-radius: 7px;
-    border: 1px solid var(--line); background: var(--paper); color: var(--ink-soft); cursor: pointer;
-  }
+  .btn-mini { font-size: 11.5px; font-weight: 600; padding: 5px 9px; border-radius: 7px; border: 1px solid var(--line); background: var(--paper); color: var(--ink-soft); cursor: pointer; }
   .btn-mini:hover { background: var(--accent-soft); color: var(--accent-dark); border-color: var(--accent-soft); }
   .trash-purge-btn:hover { background: #fce8e6; color: var(--danger); border-color: #fce8e6; }
-
-  /* ---------- Kalendář ---------- */
-  /* Tlačítka Den/Týden/Měsíc/Vzad/Dnes/Vpřed jsou zvětšená (na počítači
-     výrazněji, na mobilu jen mírně - viz mobilní media query níže). */
   .calendar-mode-switch { display: flex; gap: 6px; margin: 4px 4px 10px; }
-  .calendar-mode-btn {
-    flex: 1; padding: 11px 14px; font-size: 15.5px; font-weight: 700; border-radius: 10px;
-    border: 1.5px solid var(--line); background: var(--paper); color: var(--ink-soft); cursor: pointer;
-  }
+  .calendar-mode-btn { flex: 1; padding: 11px 14px; font-size: 15.5px; font-weight: 700; border-radius: 10px; border: 1.5px solid var(--line); background: var(--paper); color: var(--ink-soft); cursor: pointer; }
   .calendar-mode-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
   .calendar-nav { display: flex; align-items: center; gap: 8px; margin: 4px 4px 14px; }
   .calendar-week-list { display: flex; flex-direction: column; gap: 8px; }
   .calendar-week-list .calendar-day { min-height: auto; max-height: 320px; }
   .calendar-day-single .calendar-day { min-height: 320px; max-height: 560px; cursor: pointer; }
-  .calendar-week-list .calendar-day-num,
-  .calendar-day-single .calendar-day-num { font-size: 18px; }
-  .calendar-week-list .calendar-note-chip,
-  .calendar-day-single .calendar-note-chip { font-size: 16px; padding: 6px 10px; }
+  .calendar-week-list .calendar-day-num, .calendar-day-single .calendar-day-num { font-size: 18px; }
+  .calendar-week-list .calendar-note-chip, .calendar-day-single .calendar-note-chip { font-size: 16px; padding: 6px 10px; }
   .calendar-note-chip-expanded { white-space: normal; overflow: visible; text-overflow: clip; display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
   .calendar-note-chip-main { display: flex; align-items: center; gap: 4px; flex: 1; min-width: 0; }
   .calendar-note-overdue-date { font-size: 11.5px; font-weight: 700; color: var(--danger); flex-shrink: 0; }
   .calendar-note-chip-actions { display: flex; gap: 4px; flex-shrink: 0; }
-  .calendar-note-action-btn {
-    border: 1px solid var(--line); background: var(--paper); border-radius: 6px; cursor: pointer;
-    font-size: 14px; line-height: 1; padding: 4px 6px; color: var(--ink-soft);
-    display: inline-flex; align-items: center; justify-content: center;
-  }
+  .calendar-note-action-btn { border: 1px solid var(--line); background: var(--paper); border-radius: 6px; cursor: pointer; font-size: 14px; line-height: 1; padding: 4px 6px; color: var(--ink-soft); display: inline-flex; align-items: center; justify-content: center; }
   .calendar-note-action-btn:hover { border-color: var(--accent); background: var(--accent-soft); }
   .calendar-note-delete-btn:hover { border-color: var(--danger); background: #fce8e6; color: var(--danger); }
   .calendar-nav-label { font-size: 15px; font-weight: 700; flex: 1; text-align: center; }
   .calendar-nav-btn { flex-shrink: 0; padding: 11px 18px; font-size: 15.5px; font-weight: 700; border-radius: 10px; }
   .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
-  /* ---------- Kalendář: prošlé (nedokončené) požadavky - červené zvýraznění ----------
-     Den: samostatný box bez data (viz buildOverdueBoxHtml v JS) se všemi
-     prošlými požadavky napříč kalendářem. Týden: konkrétní den v mřížce,
-     který prošlé požadavky obsahuje, se orámuje stejně. --danger a
-     --highlight-overdue už mají vlastní odstíny pro tmavý režim (viz
-     html[data-theme="dark"] v :root výše), díky tomu funguje zvýraznění
-     v obou režimech bez dalších pravidel navíc. */
-  .calendar-day-overdue {
-    border: 2px solid var(--danger) !important;
-    background: var(--highlight-overdue) !important;
-  }
+  .calendar-day-overdue { border: 2px solid var(--danger) !important; background: var(--highlight-overdue) !important; }
   .calendar-overdue-box { cursor: default !important; margin-bottom: 8px; min-height: auto !important; }
   .calendar-overdue-box .calendar-day-num { color: var(--danger); }
   .calendar-grid-head { margin-bottom: 4px; }
   .calendar-day-abbr { text-align: center; font-size: 11px; font-weight: 700; color: var(--ink-soft); text-transform: uppercase; }
-  .calendar-day {
-    background: var(--paper); border: 1px solid var(--line); border-radius: 8px;
-    padding: 5px; min-height: 84px; max-height: 150px; overflow-y: auto; cursor: pointer;
-  }
+  .calendar-day { background: var(--paper); border: 1px solid var(--line); border-radius: 8px; padding: 5px; min-height: 84px; max-height: 150px; overflow-y: auto; cursor: pointer; }
   .calendar-day:hover { border-color: var(--accent); }
   .calendar-day-pad { background: transparent; border-color: transparent; cursor: default; }
   .calendar-day-pad:hover { border-color: transparent; }
   .calendar-day-today { border-color: var(--accent); background: var(--accent-soft); }
   .calendar-day-num { font-size: 11.5px; font-weight: 700; color: var(--ink-soft); margin-bottom: 4px; }
   .calendar-day-today .calendar-day-num { color: var(--accent-dark); }
-  .calendar-note-chip {
-    font-size: 10.5px; line-height: 1.3; padding: 2px 4px; border-radius: 5px;
-    margin-bottom: 3px; cursor: pointer; background: var(--panel); overflow: hidden;
-    white-space: nowrap; text-overflow: ellipsis;
-  }
+  .calendar-note-chip { font-size: 10.5px; line-height: 1.3; padding: 2px 4px; border-radius: 5px; margin-bottom: 3px; cursor: pointer; background: var(--panel); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
   .calendar-note-chip:hover { background: var(--accent-soft); }
   .calendar-note-cat { font-weight: 700; margin-right: 3px; }
-
-  /* ---------- Tag pills ---------- */
   .note-row-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
-  .tag-pill {
-    font-size: 10.5px; font-weight: 600; background: var(--accent-soft); color: var(--accent-dark);
-    padding: 2px 8px; border-radius: 999px; white-space: nowrap;
-  }
-
-  /* ---------- Editor column ---------- */
-  .editor-empty {
-    flex: 1; display: flex; align-items: center; justify-content: center;
-    color: var(--ink-soft); font-size: 14px; text-align: center; padding: 40px;
-  }
+  .tag-pill { font-size: 10.5px; font-weight: 600; background: var(--accent-soft); color: var(--accent-dark); padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+  .editor-empty { flex: 1; display: flex; align-items: center; justify-content: center; color: var(--ink-soft); font-size: 14px; text-align: center; padding: 40px; }
   .editor-wrap { display: none; flex-direction: column; flex: 1; min-height: 0; }
   .editor-wrap.visible { display: flex; }
-
-  .editor-topbar {
-    padding: 12px 20px; border-bottom: 1px solid var(--line);
-    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-  }
+  .editor-topbar { padding: 12px 20px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .editor-topbar select { max-width: 150px; padding: 7px 9px; font-size: 13px; }
   .editor-topbar input[type=date] { padding: 7px 9px; font-size: 13px; max-width: 145px; }
   .editor-topbar .spacer { flex: 1; }
-
-  .editor-title-row {
-    margin: 14px 20px 0; padding: 10px 16px 4px;
-    background: var(--accent-soft); border: 1.5px solid var(--accent); border-radius: 12px;
-    display: flex; align-items: flex-end; gap: 8px;
-  }
-  #editorTitle {
-    flex: 1; min-width: 0; border: none; outline: none; font-size: 24px; font-weight: 700;
-    color: var(--ink); background: transparent; padding: 0 0 12px;
-  }
+  .editor-title-row { margin: 14px 20px 0; padding: 10px 16px 4px; background: var(--accent-soft); border: 1.5px solid var(--accent); border-radius: 12px; display: flex; align-items: flex-end; gap: 8px; }
+  #editorTitle { flex: 1; min-width: 0; border: none; outline: none; font-size: 24px; font-weight: 700; color: var(--ink); background: transparent; padding: 0 0 12px; }
   #editorTitle::placeholder { color: #c8bfae; }
-  .rating-badge {
-    display: inline-flex; align-items: center; justify-content: center; border-radius: 50%;
-    font-size: 11px; font-weight: 700; flex-shrink: 0; vertical-align: middle;
-  }
+  .rating-badge { display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; font-size: 11px; font-weight: 700; flex-shrink: 0; vertical-align: middle; }
   .editor-rating-badge { width: 26px; height: 26px; font-size: 13px; margin-bottom: 12px; }
-  .note-row-title .rating-badge, .calendar-note-chip .rating-badge {
-    width: 16px; height: 16px; font-size: 9.5px; margin-right: 4px;
-  }
-
-  .editor-tags-row {
-    padding: 0 20px 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
-  }
+  .note-row-title .rating-badge, .calendar-note-chip .rating-badge { width: 16px; height: 16px; font-size: 9.5px; margin-right: 4px; }
+  .editor-tags-row { padding: 0 20px 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
   .tag-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-  .tag-chip {
-    display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; font-weight: 600;
-    background: var(--accent-soft); color: var(--accent-dark); padding: 4px 6px 4px 10px; border-radius: 999px;
-  }
-  .tag-chip button {
-    background: transparent; border: none; cursor: pointer; color: inherit; font-size: 13px;
-    line-height: 1; padding: 0 2px; opacity: .7;
-  }
+  .tag-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; font-weight: 600; background: var(--accent-soft); color: var(--accent-dark); padding: 4px 6px 4px 10px; border-radius: 999px; }
+  .tag-chip button { background: transparent; border: none; cursor: pointer; color: inherit; font-size: 13px; line-height: 1; padding: 0 2px; opacity: .7; }
   .tag-chip button:hover { opacity: 1; }
-  #tagInput {
-    border: none; outline: none; background: transparent; font-size: 13px; color: var(--ink-soft);
-    min-width: 120px; padding: 4px 2px;
-  }
-
+  #tagInput { border: none; outline: none; background: transparent; font-size: 13px; color: var(--ink-soft); min-width: 120px; padding: 4px 2px; }
   #quillContainer { flex: 1; overflow-y: auto; border: none !important; }
   .ql-toolbar.ql-snow { border: none !important; border-bottom: 1px solid var(--line) !important; padding: 8px 20px !important; }
   .ql-container.ql-snow { border: none !important; font-size: 15px; }
   .ql-editor { padding: 16px 20px 40px; min-height: 200px; }
   .ql-editor.ql-blank::before { color: #c8bfae; font-style: normal; }
-
-  /* Quill vykresluje ikony toolbaru přes inline SVG, jejichž obrysy/výplně
-     mají natvrdo tmavé obrysy/text. V tmavém režimu je potřeba je přebarvit
-     na barvy podle appky, jinak by byly na tmavém pozadí špatně vidět. */
   html[data-theme="dark"] .ql-snow .ql-stroke { stroke: var(--ink-soft); }
-  html[data-theme="dark"] .ql-snow .ql-fill,
-  html[data-theme="dark"] .ql-snow .ql-stroke.ql-fill { fill: var(--ink-soft); }
+  html[data-theme="dark"] .ql-snow .ql-fill, html[data-theme="dark"] .ql-snow .ql-stroke.ql-fill { fill: var(--ink-soft); }
   html[data-theme="dark"] .ql-snow .ql-picker { color: var(--ink-soft); }
   html[data-theme="dark"] .ql-snow .ql-picker-options { background: var(--paper); border-color: var(--line) !important; }
   html[data-theme="dark"] .ql-snow .ql-picker-item { color: var(--ink); }
-  html[data-theme="dark"] .ql-snow .ql-tooltip {
-    background: var(--paper); border-color: var(--line) !important; color: var(--ink);
-    box-shadow: var(--shadow);
-  }
+  html[data-theme="dark"] .ql-snow .ql-tooltip { background: var(--paper); border-color: var(--line) !important; color: var(--ink); box-shadow: var(--shadow); }
   html[data-theme="dark"] .ql-snow .ql-tooltip input[type=text] { background: var(--panel); color: var(--ink); border-color: var(--line); }
-  html[data-theme="dark"] .ql-snow.ql-toolbar button:hover,
-  html[data-theme="dark"] .ql-snow .ql-toolbar button:hover,
-  html[data-theme="dark"] .ql-snow.ql-toolbar button.ql-active,
-  html[data-theme="dark"] .ql-snow .ql-toolbar button.ql-active {
-    color: var(--accent);
-  }
-  html[data-theme="dark"] .ql-snow.ql-toolbar button:hover .ql-stroke,
-  html[data-theme="dark"] .ql-snow .ql-toolbar button:hover .ql-stroke,
-  html[data-theme="dark"] .ql-snow.ql-toolbar button.ql-active .ql-stroke,
-  html[data-theme="dark"] .ql-snow .ql-toolbar button.ql-active .ql-stroke {
-    stroke: var(--accent);
-  }
-
-  .editor-statusbar {
-    padding: 8px 20px; border-top: 1px solid var(--line); font-size: 12px; color: var(--ink-soft);
-    display: flex; justify-content: space-between; flex-shrink: 0;
-  }
-
-  .editor-import-row {
-    padding: 0 20px 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
-  }
-  .editor-import-row input[type=url] {
-    flex: 1; min-width: 160px; padding: 8px 11px; border-radius: 9px; border: 1.5px solid var(--line);
-    font-size: 13px; background: var(--panel); outline: none; color: var(--ink);
-  }
+  html[data-theme="dark"] .ql-snow.ql-toolbar button:hover, html[data-theme="dark"] .ql-snow .ql-toolbar button:hover, html[data-theme="dark"] .ql-snow.ql-toolbar button.ql-active, html[data-theme="dark"] .ql-snow .ql-toolbar button.ql-active { color: var(--accent); }
+  html[data-theme="dark"] .ql-snow.ql-toolbar button:hover .ql-stroke, html[data-theme="dark"] .ql-snow .ql-toolbar button:hover .ql-stroke, html[data-theme="dark"] .ql-snow.ql-toolbar button.ql-active .ql-stroke, html[data-theme="dark"] .ql-snow .ql-toolbar button.ql-active .ql-stroke { stroke: var(--accent); }
+  .editor-statusbar { padding: 8px 20px; border-top: 1px solid var(--line); font-size: 12px; color: var(--ink-soft); display: flex; justify-content: space-between; flex-shrink: 0; }
+  .editor-import-row { padding: 0 20px 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .editor-import-row input[type=url] { flex: 1; min-width: 160px; padding: 8px 11px; border-radius: 9px; border: 1.5px solid var(--line); font-size: 13px; background: var(--panel); outline: none; color: var(--ink); }
   .editor-import-row input[type=url]:focus { border-color: var(--accent); background: var(--paper); }
   .editor-import-row .icon-btn { flex-shrink: 0; }
   #importStatus { font-size: 12px; color: var(--ink-soft); flex-shrink: 0; }
-
   .emoji-picker-wrap { position: relative; }
-  .emoji-picker-panel {
-    display: none; position: fixed; z-index: 250;
-    background: var(--paper); border: 1px solid var(--line); border-radius: 12px;
-    box-shadow: var(--shadow); padding: 10px; width: 290px; max-height: 260px; overflow-y: auto;
-  }
+  .emoji-picker-panel { display: none; position: fixed; z-index: 250; background: var(--paper); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); padding: 10px; width: 290px; max-height: 260px; overflow-y: auto; }
   .emoji-picker-panel.visible { display: block; }
-  .emoji-picker-section-label {
-    font-size: 10.5px; font-weight: 700; color: var(--ink-soft); text-transform: uppercase;
-    letter-spacing: .04em; margin: 8px 2px 4px;
-  }
+  .emoji-picker-section-label { font-size: 10.5px; font-weight: 700; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .04em; margin: 8px 2px 4px; }
   .emoji-picker-section-label:first-child { margin-top: 0; }
   .emoji-picker-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; }
-  .emoji-picker-grid button {
-    background: transparent; border: none; cursor: pointer; font-size: 19px; padding: 5px 0;
-    border-radius: 7px; line-height: 1;
-  }
+  .emoji-picker-grid button { background: transparent; border: none; cursor: pointer; font-size: 19px; padding: 5px 0; border-radius: 7px; line-height: 1; }
   .emoji-picker-grid button:hover { background: var(--accent-soft); }
-
-  .modal-overlay {
-    display: none; position: fixed; inset: 0; background: rgba(43,38,32,0.35);
-    align-items: center; justify-content: center; z-index: 300; padding: 20px;
-  }
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(43,38,32,0.35); align-items: center; justify-content: center; z-index: 300; padding: 20px; }
   .modal-overlay.visible { display: flex; }
-  .modal-card {
-    background: var(--paper); border-radius: 16px; padding: 24px; width: 100%; max-width: 340px;
-    box-shadow: var(--shadow);
-  }
+  .modal-card { background: var(--paper); border-radius: 16px; padding: 24px; width: 100%; max-width: 340px; box-shadow: var(--shadow); }
   .modal-card h3 { margin: 0 0 6px; font-size: 17px; }
   .modal-card .modal-sub { color: var(--ink-soft); font-size: 13px; margin: 0 0 16px; }
   .modal-card .row-btns { display: flex; gap: 8px; margin-top: 6px; }
   .modal-card .row-btns .btn { padding: 10px; font-size: 14px; }
-
-  /* ---------- Náhled poznámky v koši (jen ke čtení) ---------- */
   .modal-card.trash-preview-card { max-width: 480px; }
   .trash-preview-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
   .trash-preview-date { font-size: 12px; color: var(--ink-soft); }
-  .trash-preview-content {
-    max-height: 45vh; overflow-y: auto; font-size: 14px; line-height: 1.5;
-    padding: 12px; background: var(--panel); border-radius: 10px; border: 1px solid var(--line);
-  }
+  .trash-preview-content { max-height: 45vh; overflow-y: auto; font-size: 14px; line-height: 1.5; padding: 12px; background: var(--panel); border-radius: 10px; border: 1px solid var(--line); }
   .trash-preview-content img { max-width: 100%; }
   .trash-preview-btns { flex-wrap: wrap; }
   .trash-preview-btns .btn { flex: 1 1 auto; }
@@ -534,112 +287,50 @@
   .nl-format-row { display: flex; gap: 14px; flex-wrap: wrap; }
   .nl-format-option { display: flex; align-items: center; gap: 6px; font-size: 13.5px; font-weight: 600; color: var(--ink-soft); cursor: pointer; }
   .nl-format-option input { width: auto; margin: 0; }
-
-  /* ---------- Kalendář: dialog rychlé editace poznámky ---------- */
   .modal-card.calendar-quick-edit-card { max-width: 420px; text-align: left; }
   .calendar-quick-edit-folder { margin-bottom: 14px; }
   .calendar-quick-edit-status { min-height: 16px; margin: -6px 0 10px; }
   .calendar-quick-edit-btns { margin-bottom: 8px; }
   .calendar-quick-edit-btns .btn-mini { flex: 1 1 auto; text-align: center; }
   .calendar-quick-edit-delete-btn:hover { background: #fce8e6; color: var(--danger); border-color: #fce8e6; }
-
-  .toast {
-    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
-    background: var(--toast-bg); color: var(--toast-ink); padding: 11px 20px; border-radius: 10px;
-    font-size: 14px; font-weight: 600; opacity: 0; pointer-events: none;
-    transition: opacity .2s, transform .2s; z-index: 200;
-    display: flex; align-items: center; gap: 10px;
-  }
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--toast-bg); color: var(--toast-ink); padding: 11px 20px; border-radius: 10px; font-size: 14px; font-weight: 600; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; z-index: 200; display: flex; align-items: center; gap: 10px; }
   .toast.visible { opacity: 1; transform: translateX(-50%) translateY(-6px); pointer-events: auto; }
-
-  /* ---------- Ranní dialog (termíny) ---------- */
   .modal-card.termin-summary-card { background: var(--cream-card-bg2); border: 2px solid var(--cream-card-border2); max-width: 400px; }
-  .toast-undo-btn {
-    background: transparent; border: 1.5px solid rgba(255,255,255,0.5); color: var(--toast-ink);
-    border-radius: 7px; padding: 4px 11px; font-size: 12.5px; font-weight: 700; cursor: pointer;
-    white-space: nowrap;
-  }
+  .toast-undo-btn { background: transparent; border: 1.5px solid rgba(255,255,255,0.5); color: var(--toast-ink); border-radius: 7px; padding: 4px 11px; font-size: 12.5px; font-weight: 700; cursor: pointer; white-space: nowrap; }
   .toast-undo-btn:hover { background: rgba(255,255,255,0.18); }
-
-  /* ---------- Newsletter (Hláška) ---------- */
-  #newsletterStage {
-    position: fixed; left: -99999px; top: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  }
+  #newsletterStage { position: fixed; left: -99999px; top: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
   .nl-root { background: #fffaf0; width: 1080px; }
-  .nl-header {
-    background: linear-gradient(180deg, #ffd6a5 0%, #ff9a9e 100%);
-    padding: 70px 60px 45px; text-align: center; position: relative; overflow: hidden;
-  }
-  .nl-header h1 {
-    font-size: 62px; font-weight: 800; color: #46161e; margin: 0 0 14px;
-    letter-spacing: 1px;
-  }
+  .nl-header { background: linear-gradient(180deg, #ffd6a5 0%, #ff9a9e 100%); padding: 70px 60px 45px; text-align: center; position: relative; overflow: hidden; }
+  .nl-header h1 { font-size: 62px; font-weight: 800; color: #46161e; margin: 0 0 14px; letter-spacing: 1px; }
   .nl-header .nl-sub { font-size: 30px; color: #5a2d2d; margin: 0 0 10px; }
   .nl-header .nl-src { font-size: 24px; color: #783f3f; }
   .nl-cards { padding: 34px 64px 0; }
-  .nl-card {
-    background: #fff; border-radius: 28px; padding: 40px 40px 30px;
-    margin-bottom: 34px; box-shadow: 6px 8px 0 #e1cdc3; position: relative;
-    border-left: 14px solid var(--nl-color, #999);
-  }
+  .nl-card { background: #fff; border-radius: 28px; padding: 40px 40px 30px; margin-bottom: 34px; box-shadow: 6px 8px 0 #e1cdc3; position: relative; border-left: 14px solid var(--nl-color, #999); }
   .nl-card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
   .nl-badges { display: flex; flex-wrap: wrap; gap: 8px; }
-  .nl-badge {
-    display: inline-block; background: var(--nl-badge-color, var(--nl-color, #999)); color: #fff;
-    font-weight: 700; font-size: 26px; padding: 10px 18px; border-radius: 999px;
-  }
+  .nl-badge { display: inline-block; background: var(--nl-badge-color, var(--nl-color, #999)); color: #fff; font-weight: 700; font-size: 26px; padding: 10px 18px; border-radius: 999px; }
   .nl-date { font-size: 24px; color: #786464; }
   .nl-title { font-size: 34px; font-weight: 700; color: #3c2d32; margin: 0 0 18px; }
   .nl-text { font-size: 30px; line-height: 1.45; color: #373237; white-space: pre-wrap; }
-  .nl-footer {
-    margin: 0 64px 50px; background: #ffebd2; border-radius: 28px;
-    padding: 32px; text-align: center;
-  }
+  .nl-footer { margin: 0 64px 50px; background: #ffebd2; border-radius: 28px; padding: 32px; text-align: center; }
   .nl-footer .nl-f1 { font-size: 26px; font-weight: 700; color: #78412d; margin: 0 0 12px; }
   .nl-footer .nl-f2 { font-size: 24px; color: #965f4b; margin: 0; }
-
-  /* ---------- Export A4 (fotokniha) ----------
-     Okraje stránky: nahoře/dole 1 cm, vlevo/vpravo 2 cm (na 1240x1754px
-     plátně = cca 59.05 px/cm, tedy 59px svisle a 118px vodorovně) -
-     řešeno jako padding přímo na .a4-page (box-sizing: border-box, takže
-     se do 1240x1754 vejde i s paddingem). Hlavička/obsah/patička už nemají
-     vlastní vodorovný padding, ten teď zajišťuje výhradně okraj stránky. */
-  .a4-page {
-    width: 1240px; background: #fffaf0; box-sizing: border-box;
-    padding: 59px 118px;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  }
+  .a4-page { width: 1240px; background: #fffaf0; box-sizing: border-box; padding: 59px 118px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
   .a4-page-fixed { height: 1754px; overflow: hidden; }
-  .a4-header {
-    background: linear-gradient(180deg, #ffd6a5 0%, #ff9a9e 100%);
-    padding: 20px 0 26px; text-align: center;
-  }
+  .a4-header { background: linear-gradient(180deg, #ffd6a5 0%, #ff9a9e 100%); padding: 20px 0 26px; text-align: center; }
   .a4-header h1 { font-size: 46px; font-weight: 800; color: #46161e; margin: 0 0 8px; letter-spacing: .5px; }
   .a4-header-range { font-size: 21px; color: #5a2d2d; }
   .a4-header-pagenum { font-size: 15px; color: #783f3f; margin-top: 6px; }
   .a4-content { padding: 26px 0 0; }
-  /* Boxy s hláškami nejsou rotované (na přání Iri) - mezery mezi nimi jsou
-     naopak dost velké, ať se obsah stránky pěkně rozloží po celé ploše;
-     počet hlášek na stránce si Iri hlídá sama při generování. */
   .a4-cards { column-count: 2; column-gap: 48px; }
-  .a4-card {
-    background: #fff; border-radius: 14px; padding: 20px 22px; margin: 10px 0 36px;
-    box-shadow: 4px 5px 0 #e1cdc3; border-left: 7px solid var(--nl-color, #999);
-    break-inside: avoid; -webkit-column-break-inside: avoid;
-  }
+  .a4-card { background: #fff; border-radius: 14px; padding: 20px 22px; margin: 10px 0 36px; box-shadow: 4px 5px 0 #e1cdc3; border-left: 7px solid var(--nl-color, #999); break-inside: avoid; -webkit-column-break-inside: avoid; }
   .a4-card-top { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 8px; }
   .a4-badges { display: flex; flex-wrap: wrap; gap: 5px; }
-  .a4-badge {
-    display: inline-block; background: var(--nl-badge-color, var(--nl-color, #999)); color: #fff;
-    font-weight: 700; font-size: 10.5px; padding: 3px 9px; border-radius: 999px;
-  }
+  .a4-badge { display: inline-block; background: var(--nl-badge-color, var(--nl-color, #999)); color: #fff; font-weight: 700; font-size: 10.5px; padding: 3px 9px; border-radius: 999px; }
   .a4-date { font-size: 11px; color: #786464; }
   .a4-title { font-size: 15px; font-weight: 700; color: #3c2d32; margin: 0 0 8px; }
   .a4-text { font-size: 13.5px; line-height: 1.42; color: #373237; white-space: pre-wrap; }
   .a4-footer { text-align: center; padding: 16px 0 0; font-size: 15px; font-weight: 700; color: #965f4b; }
-
-  /* ---------- Print ---------- */
   #printArea { display: none; }
   @media print {
     body.printing > *:not(#printArea) { display: none !important; }
@@ -648,48 +339,26 @@
     .print-title { font-size: 20px; font-weight: 700; margin: 0 0 2px; }
     .print-meta { font-size: 12px; color: #555; margin-bottom: 10px; }
     .print-tags { margin: 0 0 10px; }
-    .print-tag-pill {
-      display: inline-block; font-size: 11px; font-weight: 600; background: #eef3f8; color: #2c527f;
-      padding: 2px 8px; border-radius: 999px; margin: 0 4px 4px 0;
-    }
+    .print-tag-pill { display: inline-block; font-size: 11px; font-weight: 600; background: #eef3f8; color: #2c527f; padding: 2px 8px; border-radius: 999px; margin: 0 4px 4px 0; }
     .print-folder-title { font-size: 26px; margin-bottom: 20px; }
     .print-content img { max-width: 100%; }
   }
-
-  /* ---------- Dashboard ---------- */
   .columns.dashboard-mode { grid-template-columns: 230px 1fr; }
   .columns.dashboard-mode .col-editor { display: none; }
   .dashboard-group { margin-bottom: 20px; }
-  .dashboard-group-label {
-    display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 700;
-    text-transform: uppercase; letter-spacing: .04em; color: var(--ink-soft);
-    margin: 6px 4px 8px;
-  }
+  .dashboard-group-label { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-soft); margin: 6px 4px 8px; }
   .dashboard-row { display: flex; flex-wrap: wrap; gap: 8px; }
   .dashboard-tile { flex: 1 1 180px; max-width: 280px; margin-bottom: 0; }
   .dashboard-tile.termin-dash-tile { flex: 0 0 280px; width: 280px; }
-
-  /* ---------- Statistika ---------- */
-  .stat-today-card {
-    background: var(--paper); border-radius: 14px; padding: 18px 20px; margin-bottom: 20px;
-    box-shadow: var(--shadow); text-align: center;
-  }
-  .stat-today-label {
-    font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
-    color: var(--ink-soft); margin-bottom: 6px;
-  }
+  .stat-today-card { background: var(--paper); border-radius: 14px; padding: 18px 20px; margin-bottom: 20px; box-shadow: var(--shadow); text-align: center; }
+  .stat-today-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-soft); margin-bottom: 6px; }
   .stat-today-percent { font-size: 40px; font-weight: 800; line-height: 1.1; color: var(--ink); }
   .stat-today-percent.stat-good { color: #3f8f5f; }
   .stat-today-percent.stat-mid { color: #b8873a; }
   .stat-today-percent.stat-low { color: #b5502f; }
   .stat-today-frac { font-size: 13px; color: var(--ink-soft); margin-top: 4px; }
-  .stat-day-list {
-    background: var(--paper); border-radius: 14px; box-shadow: var(--shadow); overflow: hidden;
-  }
-  .stat-day-row {
-    display: flex; align-items: center; gap: 10px; padding: 9px 16px;
-    border-bottom: 1px solid var(--line); font-size: 13.5px;
-  }
+  .stat-day-list { background: var(--paper); border-radius: 14px; box-shadow: var(--shadow); overflow: hidden; }
+  .stat-day-row { display: flex; align-items: center; gap: 10px; padding: 9px 16px; border-bottom: 1px solid var(--line); font-size: 13.5px; }
   .stat-day-list .stat-day-row:last-child { border-bottom: none; }
   .stat-day-row.stat-day-today { font-weight: 700; background: var(--accent-soft); }
   .stat-day-row.stat-day-empty { color: var(--ink-soft); }
@@ -699,8 +368,6 @@
   .stat-day-percent.stat-good { color: #3f8f5f; }
   .stat-day-percent.stat-mid { color: #b8873a; }
   .stat-day-percent.stat-low { color: #b5502f; }
-
-  /* ---------- Mobile ---------- */
   .back-btn { display: none; }
   @media (max-width: 900px) {
     .columns { grid-template-columns: 100%; }
@@ -718,114 +385,41 @@
     .calendar-day-abbr { font-size: 9.5px; }
     .calendar-note-chip { font-size: 9px; padding: 1px 3px; }
     .calendar-nav-label { font-size: 13.5px; }
-    /* Na mobilu jen mírné zvětšení tlačítek Den/Týden/Měsíc/Vzad/Dnes/Vpřed
-       oproti dřívějším rozměrům (na počítači jsou zvětšená výrazněji - viz
-       .calendar-mode-btn/.calendar-nav-btn v základním pravidle výše). */
     .calendar-mode-btn { font-size: 13px; padding: 7px 8px; }
     .calendar-nav-btn { padding: 8px 12px; font-size: 13.5px; }
     .calendar-week-list .calendar-day { min-height: auto; max-height: 260px; }
     .calendar-day-single .calendar-day { min-height: 200px; max-height: 400px; }
-    .calendar-week-list .calendar-day-num,
-    .calendar-day-single .calendar-day-num { font-size: 16px; }
-    .calendar-week-list .calendar-note-chip,
-    .calendar-day-single .calendar-note-chip { font-size: 14.5px; padding: 5px 8px; }
+    .calendar-week-list .calendar-day-num, .calendar-day-single .calendar-day-num { font-size: 16px; }
+    .calendar-week-list .calendar-note-chip, .calendar-day-single .calendar-note-chip { font-size: 14.5px; padding: 5px 8px; }
     .calendar-note-action-btn { font-size: 13px; padding: 4px 5px; }
-
-    /* Klavesnice na mobilu prekryva spodni cast obrazovky a .col-editor ma
-       pevnou vysku 100vh, ktera se pri otevrene klavesnici automaticky
-       nezmensuje - psany text v Popisu tak muze skoncit schovany pod
-       klavesnici. Reseni: misto schovavani jinych poli se cely editor-wrap
-       stane scrollovatelny a Quill editor se pri fokusu sam odscrolluje
-       nahoru (viz JS focus listener) - nic se neschovava, jen se to tam
-       posune scrollem, a zpatky na Datum/Nazev/Stitky se da kdykoliv
-       normalne doscrollovat.  */
     .editor-wrap { overflow-y: auto; -webkit-overflow-scrolling: touch; }
     .editor-wrap #quillContainer { flex: none; overflow-y: visible; }
   }
-
-  /* ---------- Verze appky ---------- */
-  .app-version-badge {
-    color: #b7afa1; font-size: 11px; font-weight: 600; margin-left: 6px;
-    vertical-align: middle; letter-spacing: .02em;
-  }
-
-  /* ---------- Pastelové pozadí přehledů (Termín / Kalendář / Dashboard) ---------- */
-  .columns.view-termin .col-notes,
-  .columns.view-calendar .col-notes,
-  .columns.view-dashboard .col-notes {
-    position: relative;
-    z-index: 0;
-  }
-  .columns.view-termin .col-notes::before,
-  .columns.view-calendar .col-notes::before,
-  .columns.view-dashboard .col-notes::before {
-    content: "";
-    position: absolute; left: 0; right: 0; top: 0; height: 190px;
-    pointer-events: none; z-index: -1;
+  .app-version-badge { color: #b7afa1; font-size: 11px; font-weight: 600; margin-left: 6px; vertical-align: middle; letter-spacing: .02em; }
+  .columns.view-termin .col-notes, .columns.view-calendar .col-notes, .columns.view-dashboard .col-notes { position: relative; z-index: 0; }
+  .columns.view-termin .col-notes::before, .columns.view-calendar .col-notes::before, .columns.view-dashboard .col-notes::before {
+    content: ""; position: absolute; left: 0; right: 0; top: 0; height: 190px; pointer-events: none; z-index: -1;
     background-repeat: repeat-x; background-position: top left; background-size: 340px 150px;
     -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 30%, transparent 90%);
     mask-image: linear-gradient(to bottom, #000 0%, #000 30%, transparent 90%);
   }
   .columns.view-termin .col-notes { background-color: #fffaf2; }
-  .columns.view-termin .col-notes::before {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='340' height='150' viewBox='0 0 340 150'%3E%3Cpath d='M-10,16 C 30,30 55,4 95,18 C 135,32 155,6 195,20 C 235,34 255,6 295,18 C 315,24 325,14 350,20' stroke='%23c9a24a' stroke-width='1.4' fill='none' opacity='0.5'/%3E%3Cellipse cx='60' cy='30' rx='9' ry='4' fill='%23f0c98a' opacity='0.6'/%3E%3Cellipse cx='120' cy='34' rx='9' ry='4' fill='%23e0a733' opacity='0.55'/%3E%3Cellipse cx='180' cy='30' rx='9' ry='4' fill='%23f0c98a' opacity='0.55'/%3E%3Cellipse cx='240' cy='34' rx='9' ry='4' fill='%23e0a733' opacity='0.55'/%3E%3Cellipse cx='300' cy='30' rx='9' ry='4' fill='%23f0c98a' opacity='0.6'/%3E%3C/svg%3E");
-  }
+  .columns.view-termin .col-notes::before { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='340' height='150' viewBox='0 0 340 150'%3E%3Cpath d='M-10,16 C 30,30 55,4 95,18 C 135,32 155,6 195,20 C 235,34 255,6 295,18 C 315,24 325,14 350,20' stroke='%23c9a24a' stroke-width='1.4' fill='none' opacity='0.5'/%3E%3Cellipse cx='60' cy='30' rx='9' ry='4' fill='%23f0c98a' opacity='0.6'/%3E%3Cellipse cx='120' cy='34' rx='9' ry='4' fill='%23e0a733' opacity='0.55'/%3E%3Cellipse cx='180' cy='30' rx='9' ry='4' fill='%23f0c98a' opacity='0.55'/%3E%3Cellipse cx='240' cy='34' rx='9' ry='4' fill='%23e0a733' opacity='0.55'/%3E%3Cellipse cx='300' cy='30' rx='9' ry='4' fill='%23f0c98a' opacity='0.6'/%3E%3C/svg%3E"); }
   .columns.view-calendar .col-notes { background-color: #f6faf7; }
-  .columns.view-calendar .col-notes::before {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='340' height='150' viewBox='0 0 340 150'%3E%3Cpath d='M-10,16 C 30,30 55,4 95,18 C 135,32 155,6 195,20 C 235,34 255,6 295,18 C 315,24 325,14 350,20' stroke='%238aab8a' stroke-width='1.4' fill='none' opacity='0.5'/%3E%3Cellipse cx='60' cy='36' rx='9' ry='4' fill='%23b6d9bd' opacity='0.6'/%3E%3Cellipse cx='120' cy='40' rx='9' ry='4' fill='%238fbf9f' opacity='0.55'/%3E%3Cellipse cx='180' cy='34' rx='9' ry='4' fill='%23b6d9bd' opacity='0.55'/%3E%3Cellipse cx='240' cy='38' rx='9' ry='4' fill='%238fbf9f' opacity='0.55'/%3E%3Cellipse cx='300' cy='34' rx='9' ry='4' fill='%23b6d9bd' opacity='0.6'/%3E%3C/svg%3E");
-  }
+  .columns.view-calendar .col-notes::before { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='340' height='150' viewBox='0 0 340 150'%3E%3Cpath d='M-10,16 C 30,30 55,4 95,18 C 135,32 155,6 195,20 C 235,34 255,6 295,18 C 315,24 325,14 350,20' stroke='%238aab8a' stroke-width='1.4' fill='none' opacity='0.5'/%3E%3Cellipse cx='60' cy='36' rx='9' ry='4' fill='%23b6d9bd' opacity='0.6'/%3E%3Cellipse cx='120' cy='40' rx='9' ry='4' fill='%238fbf9f' opacity='0.55'/%3E%3Cellipse cx='180' cy='34' rx='9' ry='4' fill='%23b6d9bd' opacity='0.55'/%3E%3Cellipse cx='240' cy='38' rx='9' ry='4' fill='%238fbf9f' opacity='0.55'/%3E%3Cellipse cx='300' cy='34' rx='9' ry='4' fill='%23b6d9bd' opacity='0.6'/%3E%3C/svg%3E"); }
   .columns.view-dashboard .col-notes { background-color: #fbf7fa; }
-  .columns.view-dashboard .col-notes::before {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='340' height='150' viewBox='0 0 340 150'%3E%3Cpath d='M-10,16 C 30,30 55,4 95,18 C 135,32 155,6 195,20 C 235,34 255,6 295,18 C 315,24 325,14 350,20' stroke='%23b599c9' stroke-width='1.4' fill='none' opacity='0.5'/%3E%3Cellipse cx='60' cy='34' rx='9' ry='4' fill='%23cbb8d9' opacity='0.6'/%3E%3Cellipse cx='120' cy='38' rx='9' ry='4' fill='%23b7c9a8' opacity='0.55'/%3E%3Cellipse cx='180' cy='34' rx='9' ry='4' fill='%23e8a6d0' opacity='0.55'/%3E%3Cellipse cx='240' cy='40' rx='9' ry='4' fill='%23cbb8d9' opacity='0.55'/%3E%3Cellipse cx='300' cy='34' rx='9' ry='4' fill='%23b7c9a8' opacity='0.6'/%3E%3C/svg%3E");
-  }
-  /* Pastelové vlnky/pozadí jsou navrženy jen pro světlý režim - v tmavém by
-     zůstaly svítit jako světlé skvrny na tmavém podkladu. V tmavém režimu
-     proto zůstane pozadí stejně tmavé jako všude jinde v appce a dekorace
-     se schová. */
-  html[data-theme="dark"] .columns.view-termin .col-notes,
-  html[data-theme="dark"] .columns.view-calendar .col-notes,
-  html[data-theme="dark"] .columns.view-dashboard .col-notes {
-    background-color: var(--paper);
-  }
-  html[data-theme="dark"] .columns.view-termin .col-notes::before,
-  html[data-theme="dark"] .columns.view-calendar .col-notes::before,
-  html[data-theme="dark"] .columns.view-dashboard .col-notes::before {
-    display: none;
-  }
-
-  /* ---------- Kalendář Den/Týden - box poznámek se výšce nepřizpůsobuje ---------- */
-  .calendar-week-list .calendar-day,
-  .calendar-day-single .calendar-day {
-    max-height: none !important;
-    overflow-y: visible !important;
-  }
-
-  /* ---------- Dashboard - poznámky jako stickies ---------- */
-  .dashboard-stickies {
-    column-width: 250px; column-gap: 12px; margin-bottom: 18px;
-  }
-  .dashboard-stickies-wide {
-    column-width: auto; column-count: 1;
-    display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px;
-  }
-  .dashboard-sticky {
-    width: 100%; max-width: 100%; border-radius: 14px; padding: 12px 14px 14px;
-    box-shadow: var(--shadow); position: relative; cursor: pointer;
-    display: flex; flex-direction: column; gap: 6px; min-width: 0; overflow: hidden;
-    break-inside: avoid; -webkit-column-break-inside: avoid; margin: 0 0 12px;
-    background: var(--paper); border: 1px solid var(--line); border-left-width: 4px;
-  }
+  .columns.view-dashboard .col-notes::before { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='340' height='150' viewBox='0 0 340 150'%3E%3Cpath d='M-10,16 C 30,30 55,4 95,18 C 135,32 155,6 195,20 C 235,34 255,6 295,18 C 315,24 325,14 350,20' stroke='%23b599c9' stroke-width='1.4' fill='none' opacity='0.5'/%3E%3Cellipse cx='60' cy='34' rx='9' ry='4' fill='%23cbb8d9' opacity='0.6'/%3E%3Cellipse cx='120' cy='38' rx='9' ry='4' fill='%23b7c9a8' opacity='0.55'/%3E%3Cellipse cx='180' cy='34' rx='9' ry='4' fill='%23e8a6d0' opacity='0.55'/%3E%3Cellipse cx='240' cy='40' rx='9' ry='4' fill='%23cbb8d9' opacity='0.55'/%3E%3Cellipse cx='300' cy='34' rx='9' ry='4' fill='%23b7c9a8' opacity='0.6'/%3E%3C/svg%3E"); }
+  html[data-theme="dark"] .columns.view-termin .col-notes, html[data-theme="dark"] .columns.view-calendar .col-notes, html[data-theme="dark"] .columns.view-dashboard .col-notes { background-color: var(--paper); }
+  html[data-theme="dark"] .columns.view-termin .col-notes::before, html[data-theme="dark"] .columns.view-calendar .col-notes::before, html[data-theme="dark"] .columns.view-dashboard .col-notes::before { display: none; }
+  .calendar-week-list .calendar-day, .calendar-day-single .calendar-day { max-height: none !important; overflow-y: visible !important; }
+  .dashboard-stickies { column-width: 250px; column-gap: 12px; margin-bottom: 18px; }
+  .dashboard-stickies-wide { column-width: auto; column-count: 1; display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
+  .dashboard-sticky { width: 100%; max-width: 100%; border-radius: 14px; padding: 12px 14px 14px; box-shadow: var(--shadow); position: relative; cursor: pointer; display: flex; flex-direction: column; gap: 6px; min-width: 0; overflow: hidden; break-inside: avoid; -webkit-column-break-inside: avoid; margin: 0 0 12px; background: var(--paper); border: 1px solid var(--line); border-left-width: 4px; }
   .dashboard-sticky-wide { margin-bottom: 0; }
   .dashboard-sticky:hover .note-row-del { display: block; }
   .dashboard-sticky-top { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
-  .dashboard-sticky .note-row-title {
-    white-space: normal; overflow: visible; text-overflow: clip;
-    overflow-wrap: anywhere; word-break: break-word;
-  }
-  .dashboard-sticky-content {
-    font-size: 13.5px; line-height: 1.45; color: var(--ink);
-    overflow-wrap: anywhere; word-break: break-word; min-width: 0;
-  }
+  .dashboard-sticky .note-row-title { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; word-break: break-word; }
+  .dashboard-sticky-content { font-size: 13.5px; line-height: 1.45; color: var(--ink); overflow-wrap: anywhere; word-break: break-word; min-width: 0; }
   .dashboard-sticky-content * { max-width: 100%; overflow-wrap: anywhere; word-break: break-word; }
   .dashboard-sticky-content p { margin: 0 0 8px; }
   .dashboard-sticky-content p:last-child { margin-bottom: 0; }
@@ -992,11 +586,6 @@
   </div>
 </div>
 
-
-<!-- ---------- Kalendář: dialog rychlé editace poznámky ----------
-     Klik na poznámku v kalendáři (den/týden/měsíc) tohle otevře místo
-     přepnutí do složky/plného editoru - pole Termín/Název/Popis se dají
-     upravit rovnou tady, ukládají se samy (viz JS: openCalendarQuickEdit). -->
 <div class="modal-overlay" id="calendarQuickEditModal">
   <div class="modal-card calendar-quick-edit-card">
     <div id="calendarQuickEditFolderLabel" class="calendar-quick-edit-folder"></div>
@@ -1045,7 +634,7 @@
 </div>
 
 <div class="modal-overlay" id="newsletterRangeModal">
-  <div class="modal-card">
+  <div class="modal-card" id="newsletterRangeModalCard">
     <h3>Export obrázku Hláška</h3>
     <p class="modal-sub">Vyber časové rozmezí. Zahrnou se jen poznámky ze složky Hláška s vyplněným obsahem.</p>
     <div class="field">
@@ -1085,12 +674,7 @@
     query, where, orderBy, onSnapshot, serverTimestamp, writeBatch, getDocs
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-  // Číslo verze appky - zobrazuje se malým světle šedým písmem hned vedle
-  // názvu "Vtipníci" (na přihlašovací obrazovce i v appce), ať Iri po
-  // nahrání nové verze na GitHub pozná (i přes zpoždění nasazení), jestli
-  // se jí už načetla nejnovější verze, nebo pořád vidí tu starou z cache.
-  // Při KAŽDÉ příští úpravě index.html je potřeba tohle číslo zvýšit o 1.
-  const APP_VERSION = "16";
+  const APP_VERSION = "17";
   document.querySelectorAll(".app-version-badge").forEach(el => {
     el.textContent = "v" + APP_VERSION;
   });
@@ -1112,19 +696,7 @@
 
   const NOTES_COL = "poznamky";
   const FOLDERS_COL = "slozky";
-  // Kolekce s trvale uloženými denními statistikami (poznámky s termínem
-  // splněné vs. celkem) - jeden dokument na den a uživatele, ID ve tvaru
-  // "<uid>_<datum>", ať přežije i vysypání koše (TRASH_RETENTION_DAYS).
   const STATS_COL = "statistikaDny";
-  // Verze vzorce pro výpočet denní statistiky (viz computeStatsForDay níže).
-  // Zvýšit VŽDY, když se změní VÝZNAM čitatele/jmenovatele - appka pak při
-  // příštím načtení sama přepočítá a přepíše všechny už uložené dny podle
-  // nového vzorce (viz "přepočet při změně vzorce" ve finalizeMissingStatsDays),
-  // ať staré dny neukazují čísla spočítaná jinak než ty nové.
-  // v1 -> v2 (2. 9. 2026): oprava jmenovatele - poznámka dokončená v některém
-  // z předchozích dnů se dřív do jmenovatele táhla i všechny další dny navždy
-  // (dokud nevypadla z appky po 30denním vysypání koše), takže "dnešní" počet
-  // byl uměle nafouklý o dávno vyřízené položky (Iri hlásila 27 místo cca 16-18).
   const STATS_FORMULA_VERSION = 2;
 
   const DEFAULT_FOLDERS = [
@@ -1137,7 +709,6 @@
     { nazev: "Tipy", barva: "#c2569b", poradi: 6 }
   ];
 
-  // ---------- Elements ----------
   const loginScreen = document.getElementById("loginScreen");
   const appEl = document.getElementById("app");
   const loginForm = document.getElementById("loginForm");
@@ -1217,6 +788,8 @@
   const newsletterBtn = document.getElementById("newsletterBtn");
   const emptyTrashBtn = document.getElementById("emptyTrashBtn");
   const newsletterRangeModal = document.getElementById("newsletterRangeModal");
+  const newsletterRangeModalCard = document.getElementById("newsletterRangeModalCard");
+  const newsletterRangeModalCardDefaultHtml = newsletterRangeModalCard.innerHTML;
   const nlFromDate = document.getElementById("nlFromDate");
   const nlToDate = document.getElementById("nlToDate");
   const nlCancelBtn = document.getElementById("nlCancelBtn");
@@ -1226,43 +799,31 @@
   const backToFolders = document.getElementById("backToFolders");
   const backToNotes = document.getElementById("backToNotes");
 
-  // ---------- State ----------
   let currentUid = null;
-  let folders = [];           // [{id, nazev, barva, poradi}]
-  let allNotes = [];          // all notes for user
+  let folders = [];
+  let allNotes = [];
   let unsubNotes = null, unsubFolders = null;
-  // ---------- Statistika: trvale uložené denní statistiky ----------
-  let statsDays = new Map();  // datum ("YYYY-MM-DD") -> { citatel, jmenovatel }
+  let statsDays = new Map();
   let unsubStats = null;
   let notesLoaded = false, statsLoaded = false, statsFinalizing = false;
-  let trackingStartDate = null; // od kterého dne appka statistiku doopravdy sleduje (viz finalizeMissingStatsDays)
-  let statsFormulaVersion = 1; // verze vzorce, podle které jsou uložené dny v statsDays spočítané (viz STATS_FORMULA_VERSION)
-  let view = { type: "all" }; // {type:'all'} | {type:'fav'} | {type:'folder', id, nazev, barva}
+  let trackingStartDate = null;
+  let statsFormulaVersion = 1;
+  let view = { type: "all" };
   let selectedNoteId = null;
   let currentTags = [];
   let quill = null;
   let saveTimer = null;
   let suppressAutosave = false;
-  let pendingDeletes = new Map(); // id -> { timeoutId }
+  let pendingDeletes = new Map();
   let undoToastTimer = null;
-  // ---------- Kalendář: dialog rychlé editace (viz openCalendarQuickEdit) ----------
   let calendarQuickEditNoteId = null;
   let calendarQuickEditSaveTimer = null;
-  let lastFocusIsQuill = false; // false = vkládá se do naposledy použitého text inputu, true = do Quillu
-  let lastFocusEl = null; // konkrétní text input (název poznámky, název složky nové/přejmenované...)
+  let lastFocusIsQuill = false;
+  let lastFocusEl = null;
   let lastFocusCursor = null;
   let quillLastRange = null;
   let emojiPickerCurrentTrigger = null;
-  // Dokud se ve slozce prave edituje nazev, hlavni menu se NESMI
-  // prekreslit (renderFolders() prepisuje cely #foldersList.innerHTML) -
-  // jinak by Firestore snapshot prichazejici v prubehu editace (coz se
-  // bezne deje, typicky hned po prihlaseni prijde jeste jednou navic ze
-  // serveru) tise smazal rozepsany <input> drive, nez ho uzivatel stihne
-  // dokoncit.
   let renamingFolderId = null;
-  // Kdyz neni null, tlacitko pro vyber emoji NEVKLADA znak do textoveho pole,
-  // ale zavola tuto funkci - pouziva se pro ikony kategorii (misto vkladani do
-  // nazvu slozky primo v textu) a pro ikonu nove slozky.
   let emojiIconTarget = null;
 
   function showToast(msg) {
@@ -1307,28 +868,12 @@
     return str.replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
   }
 
-  // ---------- Hledání bez ohledu na diakritiku ----------
-  // "ockovani" v hledacím poli tak najde i poznámky s "očkování" v názvu,
-  // popisu nebo štítku - text se pro porovnání převede na malá písmena BEZ
-  // diakritiky (NFD rozklad + odstranění kombinovaných diakritických znaků).
   function normalizeSearchText(str) {
     return (str || "").toString().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
   }
 
-  // ---------- Ikona koše (smazat) ----------
-  // Dřív jednotné emoji 🗑, na počítači ale Iri hlásila, že u samostatných
-  // (jen ikonových, bez popisku) tlačítek moc nejde poznat, co znázorňuje -
-  // na mobilu byl emoji glyf v pořádku. Nahrazeno vlastní vektorovou (SVG)
-  // ikonou popelnice, která vypadá stejně na všech zařízeních/prohlížečích
-  // a barví se přes currentColor (funguje i s hover stavy .icon-btn apod.).
-  // Používá se u tlačítek BEZ vlastního textového popisku vedle (editor,
-  // řádek poznámky, kalendář, vysypání koše, mazání složky) - položka menu
-  // "🗑 Koš" má vlastní viditelný text a zůstává beze změny.
   const TRASH_ICON_SVG = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px" aria-hidden="true"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"></path></svg>';
 
-  // ---------- Hodnocení poznámky ----------
-  // Jedna barva (appka už používá modrou jako svou hlavní), pět odstínů -
-  // 1 je nejtmavší (nejlepší, jako ve škole), 5 nejsvětlejší.
   const RATING_COLORS = {
     "1": { bg: "#16324f", text: "#ffffff" },
     "2": { bg: "#2c527f", text: "#ffffff" },
@@ -1350,8 +895,6 @@
     return (d.textContent || "").trim();
   }
 
-  // Stejná logika jako na stránce Quick - dokud je Název prázdný, odvodí se
-  // z první věty (do tečky/vykřičníku/otazníku/odřádkování), max 50 znaků.
   function deriveTitleFromText(text) {
     const trimmed = text.trim();
     if (!trimmed) return "";
@@ -1362,11 +905,6 @@
     return candidate;
   }
 
-  // Převede HTML obsah poznámky na čitelný prostý text pro sdílení
-  // (WhatsApp, e-mail) - na rozdíl od stripHtml() zachovává odřádkování
-  // mezi odstavci/řádky/položkami seznamu. Pokud je markdown: true, tučné,
-  // kurzívu a přeškrtnutí převede na WhatsApp formátování (*tučné*,
-  // _kurzíva_, ~přeškrtnuté~), které si WhatsApp sám naformátuje.
   function htmlToShareText(html, opts = {}) {
     const { markdown = false } = opts;
     if (!html) return "";
@@ -1413,13 +951,9 @@
     return folders.find(f => f.nazev === nazev);
   }
 
-  // Ikona kategorie (pokud je nastavena) jako prefix pred nazvem - pouziva se
-  // vsude, kde se zobrazuje nazev kategorie poznamky (badge, kalendar, dashboard...).
   function folderIconPrefix(folder) {
     return (folder && folder.ikona) ? escapeHtml(folder.ikona) + " " : "";
   }
-
-  // ---------- Quill init ----------
   function initQuill() {
     if (quill) return;
     const toolbarOptions = [
@@ -1599,7 +1133,6 @@
     reader.readAsDataURL(file);
   }
 
-  // ---------- Auth ----------
   onAuthStateChanged(auth, (user) => {
     if (user) {
       currentUid = user.uid;
@@ -1640,9 +1173,6 @@
     }
   });
 
-  // ---------- Tmavý / světlý režim ----------
-  // Barva stavového řádku (theme-color) v mobilu / PWA se mění spolu
-  // s režimem, ať appka i mimo samotný obsah stránky vypadá souvisle.
   function applyTheme(theme) {
     document.documentElement.setAttribute("data-theme", theme);
     themeColorMeta.setAttribute("content", theme === "dark" ? "#0f0c09" : "#dceefb");
@@ -1658,8 +1188,6 @@
     localStorage.setItem("vtipnici-theme", next);
     applyTheme(next);
   });
-  // Pokud si uživatel sám nikdy nepřepnul (nic uloženo), appka dál
-  // sleduje systémové nastavení telefonu a přepne se spolu s ním.
   if (window.matchMedia) {
     window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (e) => {
       if (!localStorage.getItem("vtipnici-theme")) applyTheme(e.matches ? "dark" : "light");
@@ -1668,7 +1196,6 @@
 
   logoutBtn.addEventListener("click", () => signOut(auth));
 
-  // ---------- Folders ----------
   async function seedDefaultFolders(uid) {
     const batch = writeBatch(db);
     DEFAULT_FOLDERS.forEach(f => {
@@ -1714,7 +1241,6 @@
       toggleEmojiPicker(btn);
     });
   }
-
   function renderFolders() {
     if (renamingFolderId) return;
     const notesForCounts = visibleNotes();
@@ -1926,7 +1452,6 @@
     editorFolder.innerHTML = folders.map(f => `<option value="${escapeHtml(f.nazev)}">${folderIconPrefix(f)}${escapeHtml(f.nazev)}</option>`).join("");
   }
 
-  // ---------- View selection ----------
   function selectView(v) {
     view = v;
     searchInput.value = "";
@@ -1947,7 +1472,6 @@
     if (window.innerWidth <= 900) columnsEl.dataset.view = "notes";
   }
 
-  // ---------- Notes subscription ----------
   function subscribeNotes(uid) {
     const q = query(collection(db, NOTES_COL), where("uid", "==", uid), orderBy("datum", "desc"));
     unsubNotes = onSnapshot(q, (snapshot) => {
@@ -1975,8 +1499,6 @@
       notesList.innerHTML = `<div class="empty-state">Chyba při načítání: ${err.message}</div>`;
     });
   }
-
-  // ---------- Statistika: subscribe + finalizace uplynulých dnů ----------
   function subscribeStats(uid) {
     const q = query(collection(db, STATS_COL), where("uid", "==", uid));
     unsubStats = onSnapshot(q, (snapshot) => {
@@ -2003,17 +1525,6 @@
     });
   }
 
-  // Poznámka s termínem se do statistiky dne D počítá do jmenovatele, pokud
-  // její AKTUÁLNÍ termín je <= D A poznámka byla ke dni D ještě OTEVŘENÁ -
-  // tedy buď pořád není v koši, nebo do koše putovala až V DEN D nebo později
-  // (== ten den D ještě "byla na stole"). Bez týhle druhé podmínky (oprava
-  // 2. 9. 2026, viz STATS_FORMULA_VERSION) by se poznámka dokončená kdykoliv
-  // v minulosti počítala do jmenovatele i všech NÁSLEDUJÍCÍCH dnů navždy -
-  // "dnešní" jmenovatel tak byl uměle nafouklý o dávno vyřízené položky
-  // (Iri hlásila 27 poznámek s termínem na dnešek místo cca 16-18, které
-  // appka opravdu měla v pohledu Termín, a 8 místo 5 za včerejšek).
-  // Čitatel beze změny: poznámka s termínem smazaná (přesunuta do koše)
-  // právě v den D.
   function computeStatsForDay(dateStr, notes) {
     const withTermin = notes.filter(n => n.termin);
     const wasOpenOnDay = (n) => {
@@ -2035,14 +1546,6 @@
     finalizeMissingStatsDays().finally(() => { statsFinalizing = false; });
   }
 
-  // Doplní (a trvale uloží) statistiku pro všechny dny mezi posledním již
-  // uloženým dnem a včerejškem - "dnešek" se nikdy neukládá, počítá se vždy
-  // živě. Appka NIKDY zpětně nedopočítává statistiku pro dny předtím, než
-  // funkci začala sledovat (nešlo by spolehlivě rekonstruovat, jaký byl
-  // termín poznámky "tehdy" - jen jaký je teď) - první spuštění proto jen
-  // smaže případná dřívější zpětně dopočítaná data a nastaví začátek
-  // sledování na zítřek; live "Dnes" i historie se pak počítají jen z dat,
-  // která od té doby doopravdy vznikla.
   async function finalizeMissingStatsDays() {
     const todayStr = localTodayStr();
     const yesterdayStr = addDaysToIsoDate(todayStr, -1);
@@ -2062,14 +1565,6 @@
       return;
     }
 
-    // Pokud se od posledního uložení změnil VZOREC statistiky (viz
-    // STATS_FORMULA_VERSION výše), dřív uložené dny byly spočítané podle
-    // starého vzorce a je potřeba je přepočítat, ne jen doplnit chybějící -
-    // jinak by staré (třeba i dávno uzavřené) dny dál ukazovaly čísla podle
-    // starého, chybného výpočtu. Přepočítají a přepíšou se VŠECHNY dny od
-    // trackingStartDate do včerejška (appka statistiku sleduje jen pár dní,
-    // takže tohle není objemná operace), a do meta dokumentu se uloží nová
-    // verze vzorce, ať se přepočet příště už neopakuje.
     if (statsFormulaVersion < STATS_FORMULA_VERSION) {
       try {
         const batch = writeBatch(db);
@@ -2082,7 +1577,7 @@
           });
           d = addDaysToIsoDate(d, 1);
           count++;
-          if (count >= 400) break; // pojistka proti příliš velké dávce
+          if (count >= 400) break;
         }
         batch.set(doc(db, STATS_COL, `${currentUid}_meta`), {
           uid: currentUid, type: "meta", trackingStartDate, formulaVersion: STATS_FORMULA_VERSION
@@ -2091,7 +1586,7 @@
       } catch (err) {
         console.error("Chyba při přepočtu statistiky na nový vzorec:", err);
       }
-      return; // doplnění případných dalších chybějících dnů se stihne při příštím zavolání
+      return;
     }
 
     let lastPersisted = null;
@@ -2111,7 +1606,7 @@
       });
       d = addDaysToIsoDate(d, 1);
       count++;
-      if (count >= 400) break; // pojistka proti příliš velké dávce
+      if (count >= 400) break;
     }
     if (count === 0) return;
     try {
@@ -2121,7 +1616,6 @@
     }
   }
 
-  // ---------- Ranní dialog (termíny) ----------
   function tryShowTerminSummaryModal() {
     const now = new Date();
     if (now.getHours() < 6) return false;
@@ -2152,9 +1646,6 @@
     terminSummaryModal.classList.remove("visible");
   });
 
-  // Hledání je necitlivé na diakritiku (viz normalizeSearchText) - hledaný
-  // výraz i porovnávaný text (název, popis, štítky) se před porovnáním
-  // zbaví diakritiky, takže "ockovani" najde i "očkování".
   function currentViewNotes() {
     let list;
     const base = visibleNotes();
@@ -2207,7 +1698,6 @@
     if (n.termin === todayStr) return "termin-tile-today";
     return "";
   }
-
   function noteTileHtml(n, opts = {}) {
     const {
       extraClasses = "",
@@ -2303,7 +1793,6 @@
     });
   }
 
-  // ---------- Kalendář ----------
   const CZ_MONTH_NAMES = ["Leden", "Únor", "Březen", "Duben", "Květen", "Červen",
     "Červenec", "Srpen", "Září", "Říjen", "Listopad", "Prosinec"];
   const CZ_DAY_ABBR = ["Po", "Út", "St", "Čt", "Pá", "So", "Ne"];
@@ -2317,13 +1806,7 @@
     const color = folder ? folder.barva : "#999";
     const title = noteTitle(n);
     const truncated = title.length > maxLen ? title.slice(0, maxLen) + "…" : title;
-    // Datum se u chipu normálně nezobrazuje (kontext dává den, ve kterém
-    // chip je) - výjimka je box s prošlými požadavky (viz buildOverdueBoxHtml),
-    // který sdružuje poznámky z RŮZNÝCH dní, tam se datum hodí.
     const dateLabelHtml = (showDate && n.termin) ? `<span class="calendar-note-overdue-date">${formatDate(n.termin)}</span>` : "";
-    // Ikona pro rychlou změnu termínu přímo z chipu byla zrušena (nahrazena
-    // polem Termín v dialogu rychlé editace, viz openCalendarQuickEdit) -
-    // zůstává jen tlačítko Smazat.
     const actionsHtml = compact ? "" : `<div class="calendar-note-chip-actions">
       <button class="calendar-note-action-btn calendar-note-delete-btn" data-id="${n.id}" type="button" title="Smazat" aria-label="Smazat">${TRASH_ICON_SVG}</button>
     </div>`;
@@ -2337,13 +1820,6 @@
     </div>`;
   }
 
-  // ---------- Kalendář: box s prošlými požadavky (jen denní pohled) ----------
-  // Sbírá VŠECHNY poznámky s termínem v minulosti (< dnešek) napříč celým
-  // kalendářem, bez ohledu na to, který den je zrovna v denním pohledu
-  // zobrazený - appka je stále považuje za otevřené (visibleNotes(), ze
-  // kterých notesByDate vzniká, už vylučuje smazané/dokončené). Box nemá
-  // vlastní datum (na rozdíl od dne, ke kterému patří) - je to samostatné
-  // upozornění "tohle ti pořád visí", červeně orámované (viz .calendar-day-overdue).
   function buildOverdueBoxHtml(notesByDate) {
     const todayStr = localTodayStr();
     let overdueNotes = [];
@@ -2367,9 +1843,6 @@
       .sort((a, b) => (a.druh || "").localeCompare(b.druh || "", "cs"));
     const maxLen = compact ? 14 : 60;
     const chips = notesToday.map(n => calendarNoteChipHtml(n, maxLen, compact)).join("");
-    // V týdenním pohledu se den, který obsahuje prošlé (nedokončené) požadavky,
-    // orámuje červeně - viz .calendar-day-overdue. V měsíčním pohledu se
-    // tohle zvýraznění nepoužívá (highlightOverdueDay se tam nepředává).
     const isOverdueDay = highlightOverdueDay && dateStr < todayStr && notesToday.length > 0;
     return `<div class="calendar-day ${isToday ? "calendar-day-today" : ""} ${isOverdueDay ? "calendar-day-overdue" : ""}" data-date="${dateStr}">
       <div class="calendar-day-num">${dayLabel}</div>
@@ -2428,7 +1901,6 @@
       calendarRefDate = `${year}-${String(month + 1).padStart(2, "0")}-01`;
     }
   }
-
   function renderCalendarView() {
     notesColTitle.textContent = "📅 Kalendář";
     if (!calendarRefDate) calendarRefDate = localTodayStr();
@@ -2489,8 +1961,6 @@
       calendarRefDate = localTodayStr();
       renderCalendarView();
     });
-    // Klik na poznámku v kalendáři (den/týden/měsíc) neotevírá plný editor -
-    // otevře dialog s rychlou editací (viz openCalendarQuickEdit).
     notesList.querySelectorAll(".calendar-note-chip").forEach(chip => {
       chip.addEventListener("click", (e) => {
         e.stopPropagation();
@@ -2522,15 +1992,6 @@
     }
   }
 
-  // ---------- Kalendář: dialog rychlé editace poznámky ----------
-  // Klik na poznámku v kalendáři (den/týden/měsíc) tohle otevře MÍSTO
-  // přepnutí do složky a plného editoru - pole Termín/Název/Popis se dají
-  // upravit rovnou tady a appka je ukládá samostatně za běhu (viz posluchače
-  // níže). Popis se v dialogu zobrazuje jako prostý text bez formátování a
-  // appka ho tak i uloží ZPĚT, pokud ho tu uživatel skutečně upraví (viz
-  // plainTextToHtmlParagraphs) - dokud pole Popis nikdo nesáhne, zůstává
-  // v databázi beze změny (i s případným bohatším formátováním/obrázky
-  // z plného editoru, které by se do prostého textu nevešly).
   let calendarQuickEditPendingFields = null;
 
   function noteFolderBadgeHtml(n) {
@@ -2588,10 +2049,6 @@
     }
   }
 
-  // Prostý text z textarey převede zpět na jednoduché <p> odstavce (každý
-  // řádek vlastní odstavec) - stejný princip jako plainTextToHtml v
-  // quick.html, ať appka víceřádkový text uložený z tohohle dialogu
-  // nesplyne do jednoho řádku.
   function plainTextToHtmlParagraphs(text) {
     return (text || "").split("\n").map(line => `<p>${escapeHtml(line)}</p>`).join("");
   }
@@ -2665,9 +2122,6 @@
     if (window.innerWidth <= 900) columnsEl.dataset.view = "editor";
     setTimeout(() => editorTitle.focus(), 150);
   }
-
-  // Hledání v koši je taky necitlivé na diakritiku, stejná normalizace jako
-  // v currentViewNotes().
   function renderTrashView() {
     notesColTitle.textContent = "🗑 Koš";
     let items = trashNotes().slice().sort((a, b) => {
@@ -2875,8 +2329,6 @@
       btn.addEventListener("click", (e) => { e.stopPropagation(); toggleFavorite(btn.dataset.id); });
     });
   }
-
-  // ---------- Statistika ----------
   function statPercentText(citatel, jmenovatel) {
     if (!jmenovatel) return "—";
     return Math.round((citatel / jmenovatel) * 100) + "%";
@@ -2893,14 +2345,9 @@
   function renderStatistikaView() {
     notesColTitle.textContent = "📊 Statistika";
     const todayStr = localTodayStr();
-    // Dokud appka nemá nastavený začátek sledování (trackingStartDate),
-    // nebo dokud sledování ještě nezačalo, se nic nepočítá ani nezobrazuje -
-    // ať se do statistiky nedostane nic zpětně dopočítaného.
     const trackingStarted = trackingStartDate && todayStr >= trackingStartDate;
     const todayStats = trackingStarted ? computeStatsForDay(todayStr, allNotes) : null;
 
-    // Posledních 14 dní: dnešek (počítaný živě) + 13 předchozích, trvale
-    // uložených dnů.
     const dailyDates = [];
     for (let i = 0; i < 14; i++) dailyDates.push(addDaysToIsoDate(todayStr, -i));
     const oldestDailyDate = dailyDates[dailyDates.length - 1];
@@ -2943,10 +2390,7 @@
       <div class="stat-day-list">${dailyDates.map(dailyRowHtml).join("")}</div>
     </div>`;
 
-    // Souhrn dřívějších (celých) týdnů - jen ty, které celé leží před
-    // oknem posledních 14 dní, ať se žádný den nepočítá dvakrát. Součet
-    // čitatelů/jmenovatelů za týden, ne průměr denních procent.
-    const weekBuckets = new Map(); // pondělí týdne (ISO) -> {citatel, jmenovatel}
+    const weekBuckets = new Map();
     statsDays.forEach((stats, dateStr) => {
       if (dateStr >= oldestDailyDate) return;
       const monday = mondayOfIsoWeek(dateStr);
@@ -3015,11 +2459,6 @@
     searchInput.focus();
   });
 
-  // ---------- Vyhledávání v hlavním menu (nad přehledem Termín) ----------
-  // Na rozdíl od vyhledávacího pole u seznamu poznámek (to hledá jen
-  // v aktuálně zobrazeném pohledu/složce) tohle nové pole VŽDY přepne na
-  // přehled "Všechny poznámky" a hledá napříč úplně všemi poznámkami. Obě
-  // pole jsou navzájem synchronizovaná (psaní v jednom se propíše do druhého).
   menuSearchInput.addEventListener("input", () => {
     searchInput.value = menuSearchInput.value;
     updateSearchClearBtn();
@@ -3045,10 +2484,6 @@
     menuSearchInput.focus();
   });
 
-  // ---------- Rychlé přidání poznámky z hlavního menu (do poslední kategorie) ----------
-  // Stejná logika jako "Nová poznámka" v pohledech Termín/Kalendář - nová
-  // poznámka se založí rovnou do poslední (abecedně) kategorie, která appce
-  // dlouhodobě slouží jako neformální seznam ToDo úkolů.
   menuQuickAddBtn.addEventListener("click", async () => {
     const targetFolder = folders.length ? folders[folders.length - 1].nazev : null;
     if (!targetFolder) { showToast("Nejprve vytvoř složku"); return; }
@@ -3106,7 +2541,6 @@
       showToast("Chyba při ukládání oblíbené poznámky: " + err.message);
     }
   }
-
   const TRASH_RETENTION_DAYS = 30;
 
   async function deleteNoteRow(id) {
@@ -3162,11 +2596,6 @@
     }
   }
 
-  // ---------- Náhled poznámky v koši (jen ke čtení) ----------
-  // Poznámky v koši se neotevírají v editoru (šlo by je omylem upravit) -
-  // klik na dlaždici místo toho ukáže stejný obsah (název, štítky, datum,
-  // text) v jednoduchém náhledovém okně, ze kterého jde poznámku rovnou
-  // obnovit nebo smazat natrvalo, ale ne upravovat.
   let trashPreviewNoteId = null;
 
   function showTrashPreview(id) {
@@ -3232,7 +2661,6 @@
     emptyTrash();
   });
 
-  // ---------- New note ----------
   newNoteBtn.addEventListener("click", async () => {
     let targetFolder;
     if (view.type === "folder") targetFolder = view.nazev;
@@ -3240,9 +2668,6 @@
     else targetFolder = folders[0] ? folders[0].nazev : null;
     if (!targetFolder) { showToast("Nejprve vytvoř složku"); return; }
 
-    // Na přehledu Kalendář se termín nové poznámky rovnou předvyplní na
-    // dnešní datum (klik na žlutou ikonu ＋ v hlavičce, ne na konkrétní
-    // den v mřížce - to už dřív řešila createNoteForCalendarDay()).
     const newNoteData = {
       datum: localTodayStr(),
       druh: targetFolder,
@@ -3278,7 +2703,6 @@
     setTimeout(() => editorTitle.focus(), 150);
   });
 
-  // ---------- Editor ----------
   function openNote(id) {
     const n = allNotes.find(x => x.id === id);
     if (!n) return;
@@ -3322,8 +2746,6 @@
       columnsEl.dataset.view = "notes";
     }
   }
-
-  // ---------- Tags ----------
   function renderTagChips() {
     tagChips.innerHTML = currentTags.map(t => `<span class="tag-chip">#${escapeHtml(t)}<button data-tag="${escapeHtml(t)}" title="Odebrat">×</button></span>`).join("");
     tagChips.querySelectorAll("button").forEach(btn => {
@@ -3392,7 +2814,6 @@
   }
   registerEmojiTarget(editorTitle);
 
-  // ---------- Výběr emoji ----------
   const EMOJI_SECTIONS = [
     { label: "Smajlíci", items: ["😀","😃","😄","😁","😆","😅","🤣","😂","🙂","🙃","😉","😊","😇","🥰","😍","🤩","😘","😋","😛","😜","🤪","🤔","🤨","😐","🙄","😴","😌","🥱","😮","😯","😪","🤗","🥳","😎"] },
     { label: "Gesta a lidé", items: ["👍","👎","👌","✌️","🤞","🤟","🤘","👊","✊","👋","🤙","💪","🙏","👏","🙌","🤷","🤦","🤒","🤕","🤢"] },
@@ -3527,8 +2948,6 @@
     if (!selectedNoteId) return;
     deleteNoteRow(selectedNoteId);
   });
-
-  // ---------- Sdílení poznámky ----------
   function noteTitle(n) {
     return (n.nazev && n.nazev.trim()) ? n.nazev.trim() : "Poznámka";
   }
@@ -3590,11 +3009,9 @@
     }
   }
 
-  // ---------- Mobile nav ----------
   backToFolders.addEventListener("click", () => columnsEl.dataset.view = "folders");
   backToNotes.addEventListener("click", () => columnsEl.dataset.view = "notes");
 
-  // ---------- PDF export ----------
   exportPdfBtn.addEventListener("click", () => {
     if (currentViewNotes().length === 0) { showToast("Není co exportovat"); return; }
     pdfFromDate.value = "";
@@ -3621,9 +3038,6 @@
     runPdfExport(from, to);
   });
 
-  // Export do PDF - u každé poznámky se teď kromě názvu/data/kategorie
-  // vypisují i všechny její štítky (viz .print-tags/.print-tag-pill v CSS,
-  // platné jen v @media print).
   function runPdfExport(from, to) {
     let list = [...currentViewNotes()];
     if (from) list = list.filter(n => n.datum >= from);
@@ -3654,8 +3068,6 @@
   window.addEventListener("afterprint", () => {
     document.body.classList.remove("printing");
   });
-
-  // ---------- Newsletter (Hláška) export ----------
   const CZ_MONTHS_GEN = ["ledna","února","března","dubna","května","června",
     "července","srpna","září","října","listopadu","prosince"];
 
@@ -3663,8 +3075,32 @@
     return /hl[aá]šk/i.test(nazev || "");
   }
 
+  // ---------- Barvy štítků v exportovaném obrázku ----------
+  // Rodinné štítky, které se v appce opakují pořád dokola, mají PEVNĚ
+  // přiřazenou barvu (na přání Iri) - jakýkoli jiný štítek dostane barvu
+  // odvozenou z hashe jeho textu (stejná logika jako dřív), takže zůstává
+  // konzistentní v rámci jednoho běhu, ale nijak nekoliduje se seznamem níž.
+  // Porovnání je necitlivé na velikost písmen i na diakritiku, ať appka
+  // pozná "Láďa" i "lada" nebo "LÁĎA" jako stejný štítek.
+  function normalizeTagKey(str) {
+    return (str || "").toString().trim().toLowerCase()
+      .normalize("NFD").replace(/[̀-ͯ]/g, "");
+  }
+
+  const TAG_FIXED_COLORS = {
+    "mami": "hsl(45, 80%, 40%)",   // žlutá
+    "any": "hsl(332, 65%, 50%)",   // růžová
+    "babi": "hsl(272, 42%, 46%)",  // fialová
+    "lada": "hsl(210, 55%, 42%)",  // modrá (Láďa)
+    "tata": "hsl(140, 45%, 35%)",  // zelená
+    "deda": "hsl(28, 42%, 30%)",   // hnědá
+    "roxy": "hsl(27, 85%, 48%)"    // oranžová
+  };
+
   function tagColor(str) {
     if (!str) return "#9a8f86";
+    const fixed = TAG_FIXED_COLORS[normalizeTagKey(str)];
+    if (fixed) return fixed;
     let h = 0;
     for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) % 360;
     return `hsl(${h}, 60%, 46%)`;
@@ -3718,9 +3154,6 @@
     }
   });
 
-  // Dialog teď nabízí dva formáty (viz radio #nlFormatWa/#nlFormatA4 v HTML) -
-  // "Obrázek pro WA" spouští původní export (runNewsletterExport), "Obrázek
-  // A4" nový export pro fotoknihu (runNewsletterExportA4).
   nlConfirmBtn.addEventListener("click", () => {
     const from = nlFromDate.value;
     const to = nlToDate.value;
@@ -3740,6 +3173,67 @@
     return out;
   }
 
+  // ---------- Prezentace vygenerovaných obrázků (Stáhnout / Sdílet) ----------
+  // Na mobilu (hlavně iOS) mizí "uživatelské gesto" (user activation) dřív,
+  // než html2canvas dokončí kreslení (zvlášť u víc stránek) - pak selže
+  // jak automatické navigator.share, tak automatický a.click() download,
+  // appka to ale nijak nehlásí (Iri hlásila, že se dialog s datem zavře a
+  // nic se nestane, dokud appku neshodí a znovu neotevře). Appka teď po
+  // vygenerování NEZKOUŠÍ sdílet/stahovat sama - nabídne místo toho tenhle
+  // dialog s tlačítky; klik na tlačítko je vždy čerstvé gesto, které
+  // mobilní prohlížeč uzná, takže stažení/sdílení spolehlivě projde.
+  let exportReadyModal = null;
+  let exportReadyCard = null;
+  function ensureExportReadyModal() {
+    if (exportReadyModal) return;
+    exportReadyModal = document.createElement("div");
+    exportReadyModal.className = "modal-overlay";
+    exportReadyModal.id = "exportReadyModal";
+    exportReadyModal.innerHTML = '<div class="modal-card" id="exportReadyCard"></div>';
+    document.body.appendChild(exportReadyModal);
+    exportReadyCard = exportReadyModal.querySelector("#exportReadyCard");
+    exportReadyModal.addEventListener("click", (e) => {
+      if (e.target === exportReadyModal) closeExportReadyModal();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && exportReadyModal.classList.contains("visible")) closeExportReadyModal();
+    });
+  }
+  function closeExportReadyModal() {
+    if (exportReadyModal) exportReadyModal.classList.remove("visible");
+  }
+
+  function presentGeneratedFiles(files, shareTitle) {
+    ensureExportReadyModal();
+    const canShareAll = !!(navigator.canShare && navigator.canShare({ files }));
+    const rows = files.map(file => {
+      const url = URL.createObjectURL(file);
+      return `<div class="row-btns" style="margin-bottom:8px;">
+        <a class="btn btn-secondary" style="flex:1;" href="${url}" download="${escapeHtml(file.name)}">⬇ ${escapeHtml(file.name)}</a>
+      </div>`;
+    }).join("");
+    exportReadyCard.innerHTML = `
+      <h3>Obrázek je hotový</h3>
+      <p class="modal-sub">${files.length > 1 ? "Ulož si postupně všechny obrázky, nebo je nejdřív nasdílej najednou." : "Ulož si obrázek tlačítkem níže, nebo ho rovnou nasdílej."}</p>
+      ${canShareAll ? `<div class="row-btns" style="margin-bottom:8px;"><button class="btn" id="exportShareAllBtn" type="button">📤 Sdílet${files.length > 1 ? " vše" : ""}</button></div>` : ""}
+      ${rows}
+      <div class="row-btns">
+        <button class="btn btn-secondary" id="exportReadyCloseBtn" type="button">Zavřít</button>
+      </div>`;
+    if (canShareAll) {
+      exportReadyCard.querySelector("#exportShareAllBtn").addEventListener("click", async () => {
+        try {
+          await navigator.share({ files, title: shareTitle });
+        } catch (err) {
+          if (!err || err.name !== "AbortError") showToast("Sdílení se nezdařilo: " + (err && err.message ? err.message : "neznámá chyba"));
+        }
+      });
+    }
+    exportReadyCard.querySelector("#exportReadyCloseBtn").addEventListener("click", () => {
+      closeExportReadyModal();
+    });
+    exportReadyModal.classList.add("visible");
+  }
   async function runNewsletterExport(from, to) {
     if (typeof html2canvas === "undefined") {
       showToast("Nepodařilo se načíst knihovnu pro export obrázku");
@@ -3806,52 +3300,13 @@
         files.push(new File([blob], fileName, { type: "image/png" }));
       }
       newsletterStage.innerHTML = "";
-
-      let shareSucceeded = false;
-      let userCancelled = false;
-      if (navigator.canShare && navigator.canShare({ files })) {
-        try {
-          await navigator.share({ files, title: "Rodinné hlášky" });
-          shareSucceeded = true;
-        } catch (err) {
-          if (err && err.name === "AbortError") userCancelled = true;
-        }
-      }
-      if (userCancelled) return;
-
-      files.forEach((file, i) => {
-        setTimeout(() => {
-          const url = URL.createObjectURL(file);
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = file.name;
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
-          setTimeout(() => URL.revokeObjectURL(url), 4000);
-        }, i * 300);
-      });
-      if (shareSucceeded) {
-        showToast("Obrázek uložen i do telefonu jako záloha, kdyby sdílení do WhatsAppu selhalo");
-      }
+      presentGeneratedFiles(files, "Rodinné hlášky");
     } catch (err) {
       newsletterStage.innerHTML = "";
       showToast("Export obrázku selhal: " + err.message);
     }
   }
 
-  // ---------- Export A4 (pro fotoknihu) ----------
-  // Na rozdíl od exportu pro WhatsApp (pevný počet hlášek na obrázek) je
-  // tady stránka pevné velikosti A4 (poměr stran 210:297, okraje nahoře/dole
-  // 1 cm a vlevo/vpravo 2 cm - viz padding na .a4-page v CSS) a appka místo
-  // pevného počtu odhaduje, KOLIK hlášek se na jednu stránku vejde - zkusmo
-  // je do stránky (dvousloupcové "masonry" rozložení se širšími mezerami,
-  // viz .a4-cards v CSS) postupně přidává a po každé reálně změří vykreslenou
-  // výšku (mimo obrazovku, v #newsletterStage) - jakmile by další hláška
-  // stránku přetekla, uzavře ji a začne novou. Karty NEJSOU rotované (Iri to
-  // vyzkoušela a nechtěla) - jen mají mezi sebou dost velké mezery, ať se
-  // obsah rozloží po celé ploše stránky; kolik hlášek na stránku zahrnout,
-  // si Iri hlídá sama při generování.
   const A4_PAGE_W = 1240;
   const A4_PAGE_H = 1754;
   const A4_HEIGHT_BUFFER = 26;
@@ -3943,27 +3398,12 @@
         files.push(new File([blob], fileName, { type: "image/png" }));
       }
       newsletterStage.innerHTML = "";
-
-      files.forEach((file, i) => {
-        setTimeout(() => {
-          const url = URL.createObjectURL(file);
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = file.name;
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
-          setTimeout(() => URL.revokeObjectURL(url), 4000);
-        }, i * 300);
-      });
-      showToast(pages.length > 1 ? `${pages.length} obrázky A4 staženy` : "Obrázek A4 stažen");
+      presentGeneratedFiles(files, "Rodinné hlášky (A4)");
     } catch (err) {
       newsletterStage.innerHTML = "";
       showToast("Export obrázku A4 selhal: " + err.message);
     }
   }
-
-  // ---------- JSON backup export ----------
   jsonExportBtn.addEventListener("click", () => {
     if (allNotes.length === 0) { showToast("Není co exportovat"); return; }
     const sorted = [...allNotes].sort((a, b) => (a.datum < b.datum ? 1 : -1));
@@ -3981,7 +3421,6 @@
     showToast("Export stažen");
   });
 
-  // ---------- Import textu z webu (typicky recepty) ----------
   const HTML_PROXIES = [
     (u) => "https://api.allorigins.win/raw?url=" + encodeURIComponent(u),
     (u) => "https://corsproxy.io/?url=" + encodeURIComponent(u),
