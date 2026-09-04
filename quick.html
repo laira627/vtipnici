@@ -35,10 +35,19 @@
   // ve chvili, kdy prohlizec zjistuje, jestli je stranka "instalovatelna".
   if (new URLSearchParams(location.search).get("termin") === "1") {
     document.getElementById("manifestLink").href = "manifest-quick-termin.json";
+    // Ikona "Termín na zítra" má od 4. 9. 2026 žluté pozadí (na rozdíl od
+    // zeleného u běžného Zápisu) - ať jde na první pohled poznat, která
+    // zástupná ikona na ploše je která. Přepnutí platí jak pro ikonu na
+    // ploše (manifest výše), tak pro ikonu v záložce prohlížeče (favicony
+    // níže) - obojí musí být nastaveno co nejdřív v <head>, viz komentář výše.
+    document.addEventListener("DOMContentLoaded", () => {
+      document.getElementById("favicon32Link").href = "favicon-32-quick-yellow.png";
+      document.getElementById("favicon16Link").href = "favicon-16-quick-yellow.png";
+    });
   }
 </script>
-<link rel="icon" type="image/png" sizes="32x32" href="favicon-32-quick.png">
-<link rel="icon" type="image/png" sizes="16x16" href="favicon-16-quick.png">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32-quick.png" id="favicon32Link">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16-quick.png" id="favicon16Link">
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ctext%20y%3D%22.9em%22%20font-size%3D%2290%22%3E%F0%9F%93%8C%3C/text%3E%3C/svg%3E">
 <style>
   :root {

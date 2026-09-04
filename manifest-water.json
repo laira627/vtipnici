@@ -1,0 +1,12 @@
+{
+  "name": "Voda — Vtipníci",
+  "short_name": "Voda",
+  "start_url": "water.html",
+  "display": "standalone",
+  "background_color": "#dceefb",
+  "theme_color": "#1f93d1",
+  "icons": [
+    { "src": "icon-192-water.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512-water.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

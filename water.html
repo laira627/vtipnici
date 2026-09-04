@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Voda — Vtipníci</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Voda">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#dceefb" id="themeColorMeta">
+<link rel="manifest" href="manifest-water.json">
+<script>
+  // Nastavit tmavý/světlý režim co nejdřív (ještě před vykreslením stránky),
+  // ať appka na chvilku nebliká světlým vzhledem. Volba: uložená preference
+  // uživatele (localStorage, sdílená s hlavní appkou) > systémové nastavení
+  // telefonu (prefers-color-scheme).
+  (function () {
+    try {
+      const saved = localStorage.getItem("vtipnici-theme");
+      const theme = saved || (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+      document.documentElement.setAttribute("data-theme", theme);
+    } catch (e) {}
+  })();
+</script>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ctext%20y%3D%22.9em%22%20font-size%3D%2290%22%3E%F0%9F%92%A7%3C/text%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #dceefb;
+    --paper: #ffffff;
+    --ink: #2b2620;
+    --ink-soft: #6b6155;
+    --line: #e3e9ef;
+    --accent: #3d6fa8;
+    --accent-dark: #2c527f;
+    --accent-soft: #e5eefa;
+    --shadow: 0 1px 3px rgba(43,38,32,0.06), 0 4px 16px rgba(43,38,32,0.05);
+    --toast-bg: #2b2620;
+    --toast-ink: #ffffff;
+    --water-purple: #8a5ea8;
+    --water-blue: #3d6fa8;
+    --water-green: #3f8f5f;
+  }
+  /* ---------- Tmavý režim ----------
+     Přepíná se atributem data-theme="dark" na <html> (viz applyTheme() v JS).
+     Sdílí preferenci (localStorage klíč "vtipnici-theme") s hlavní appkou. */
+  html[data-theme="dark"] {
+    --bg: #0f0c09;
+    --paper: #241e17;
+    --ink: #f2e9db;
+    --ink-soft: #b6a894;
+    --line: #3a3125;
+    --accent: #7fb0e8;
+    --accent-dark: #a9cbf3;
+    --accent-soft: #223347;
+    --shadow: 0 1px 3px rgba(0,0,0,0.45), 0 6px 24px rgba(0,0,0,0.4);
+    --toast-bg: #100d0a;
+    --toast-ink: #f2e9db;
+    --water-purple: #c9a3e0;
+    --water-blue: #7fb0e8;
+    --water-green: #6fcf97;
+  }
+  * { box-sizing: border-box; }
+  html { color-scheme: light; }
+  html[data-theme="dark"] { color-scheme: dark; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    min-height: 100%;
+  }
+  input, select, textarea, button { font-family: inherit; }
+
+  .card {
+    background: var(--paper);
+    border-radius: 20px;
+    padding: 28px 24px;
+    width: 100%;
+    max-width: 420px;
+    box-shadow: var(--shadow);
+  }
+  h1 { font-size: 22px; margin: 0 0 4px; font-weight: 700; text-align: center; }
+  p.sub { color: var(--ink-soft); font-size: 13px; margin: 0 0 22px; text-align: center; }
+
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: var(--ink-soft); }
+  input[type=email], input[type=password] {
+    width: 100%;
+    padding: 13px 14px;
+    border-radius: 11px;
+    border: 1.5px solid var(--line);
+    font-size: 16px;
+    background: var(--paper);
+    color: var(--ink);
+    outline: none;
+  }
+  input:focus { border-color: var(--accent); }
+
+  .btn {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    background: var(--accent); color: #fff; border: none; padding: 14px 20px;
+    border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer;
+    width: 100%; margin-top: 4px;
+  }
+  .btn:active { background: var(--accent-dark); transform: scale(0.98); }
+
+  .link-row { text-align: center; margin-top: 20px; }
+  .link-row a { color: var(--ink-soft); font-size: 13px; text-decoration: none; }
+  .link-row a:hover { color: var(--accent-dark); }
+
+  #loginError { color: #b3261e; font-size: 13px; margin-top: 10px; min-height: 18px; text-align: center; }
+
+  .theme-toggle-btn {
+    position: fixed; top: 14px; right: 14px;
+    width: 36px; height: 36px; border-radius: 50%;
+    background: var(--paper); border: 1.5px solid var(--line); color: var(--ink);
+    font-size: 16px; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; box-shadow: var(--shadow); z-index: 100;
+  }
+
+  #entryScreen { display: none; }
+
+  .water-date {
+    text-align: center;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--ink-soft);
+    margin-bottom: 24px;
+    text-transform: capitalize;
+  }
+
+  /* Velká tlačítka pro rychlé zaznamenání vypitého množství - cílená na
+     dotykové ovládání na mobilu (Samsung S23 a podobné), ať se dají mačkat
+     opakovaně bez přesného míření. Klidně i vícekrát rychle za sebou - viz
+     JS níže, každý klik se počítá zvlášť atomickým Firestore increment(). */
+  .water-buttons {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 24px;
+  }
+  .water-btn {
+    background: var(--accent-soft);
+    border: 2px solid var(--accent);
+    color: var(--accent-dark);
+    border-radius: 16px;
+    padding: 22px 6px;
+    font-size: 17px;
+    font-weight: 800;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    transition: transform .08s, background .1s;
+  }
+  .water-btn .water-btn-icon { font-size: 26px; line-height: 1; }
+  .water-btn:active {
+    background: var(--accent);
+    color: #fff;
+    transform: scale(0.94);
+  }
+
+  .water-total-card {
+    background: var(--accent-soft);
+    border-radius: 14px;
+    padding: 16px;
+    text-align: center;
+  }
+  .water-total-label {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--ink-soft);
+    margin-bottom: 6px;
+  }
+  .water-total-value {
+    font-size: 34px;
+    font-weight: 800;
+    line-height: 1.1;
+    color: var(--ink);
+  }
+  .water-total-goal {
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    margin-top: 4px;
+  }
+
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    background: var(--toast-bg); color: var(--toast-ink); padding: 12px 22px; border-radius: 10px;
+    font-size: 14.5px; font-weight: 600; opacity: 0; pointer-events: none;
+    transition: opacity .2s, transform .2s; z-index: 200;
+  }
+  .toast.visible { opacity: 1; transform: translateX(-50%) translateY(-6px); }
+</style>
+</head>
+<body>
+
+<button class="theme-toggle-btn" id="themeToggleBtn" type="button" title="Přepnout tmavý/světlý režim" aria-label="Přepnout tmavý/světlý režim">🌙</button>
+
+<!-- LOGIN -->
+<div class="card" id="loginScreen">
+  <h1>💧 Voda</h1>
+  <p class="sub">Přihlaš se jednou, appka si tě pak pamatuje</p>
+  <form id="loginForm">
+    <div class="field">
+      <label for="loginEmail">E-mail</label>
+      <input type="email" id="loginEmail" autocomplete="username" required>
+    </div>
+    <div class="field">
+      <label for="loginPassword">Heslo</label>
+      <input type="password" id="loginPassword" autocomplete="current-password" required>
+    </div>
+    <button type="submit" class="btn">Přihlásit se</button>
+    <div id="loginError"></div>
+  </form>
+</div>
+
+<!-- WATER ENTRY -->
+<div class="card" id="entryScreen">
+  <h1>💧 Voda</h1>
+  <div class="water-date" id="waterDate"></div>
+
+  <div class="water-buttons">
+    <button type="button" class="water-btn" data-amount="100"><span class="water-btn-icon">💧</span>+100 ml</button>
+    <button type="button" class="water-btn" data-amount="250"><span class="water-btn-icon">💧</span>+250 ml</button>
+    <button type="button" class="water-btn" data-amount="500"><span class="water-btn-icon">💧</span>+500 ml</button>
+  </div>
+
+  <div class="water-total-card">
+    <div class="water-total-label">Dnes vypito</div>
+    <div class="water-total-value" id="waterTotalValue">0 ml</div>
+    <div class="water-total-goal" id="waterTotalGoal"></div>
+  </div>
+
+  <div class="link-row">
+    <a href="index.html">Otevřít celou aplikaci →</a>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import {
+    getAuth, signInWithEmailAndPassword, onAuthStateChanged, setPersistence, browserLocalPersistence
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import {
+    initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
+    doc, setDoc, onSnapshot, increment
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyCeOsvSECUhxjCQ7y2fFv3ybkxw2vsHwEo",
+    authDomain: "vtipnici.firebaseapp.com",
+    projectId: "vtipnici",
+    storageBucket: "vtipnici.firebasestorage.app",
+    messagingSenderId: "803980056829",
+    appId: "1:803980056829:web:1358b51db8b3e706e50694"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = initializeFirestore(app, {
+    localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+  });
+
+  const WATER_COL = "vodaDny";
+  const WATER_GOAL_ML = 2000;
+
+  const loginScreen = document.getElementById("loginScreen");
+  const entryScreen = document.getElementById("entryScreen");
+  const loginForm = document.getElementById("loginForm");
+  const loginError = document.getElementById("loginError");
+  const themeToggleBtn = document.getElementById("themeToggleBtn");
+  const themeColorMeta = document.getElementById("themeColorMeta");
+  const waterDateEl = document.getElementById("waterDate");
+  const waterTotalValue = document.getElementById("waterTotalValue");
+  const waterTotalGoal = document.getElementById("waterTotalGoal");
+  const toast = document.getElementById("toast");
+
+  let currentUid = null;
+  let unsubToday = null;
+
+  function showToast(msg) {
+    toast.textContent = msg;
+    toast.classList.add("visible");
+    setTimeout(() => toast.classList.remove("visible"), 1400);
+  }
+
+  // ---------- Tmavý / světlý režim ----------
+  function applyTheme(theme) {
+    document.documentElement.setAttribute("data-theme", theme);
+    themeColorMeta.setAttribute("content", theme === "dark" ? "#0f0c09" : "#dceefb");
+    themeToggleBtn.textContent = theme === "dark" ? "☀️" : "🌙";
+    themeToggleBtn.title = theme === "dark" ? "Přepnout na světlý režim" : "Přepnout na tmavý režim";
+  }
+  function getCurrentTheme() {
+    return document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
+  }
+  applyTheme(getCurrentTheme());
+  themeToggleBtn.addEventListener("click", () => {
+    const next = getCurrentTheme() === "dark" ? "light" : "dark";
+    localStorage.setItem("vtipnici-theme", next);
+    applyTheme(next);
+  });
+  if (window.matchMedia) {
+    window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (e) => {
+      if (!localStorage.getItem("vtipnici-theme")) applyTheme(e.matches ? "dark" : "light");
+    });
+  }
+
+  // new Date().toISOString() je v UTC, ne v místním čase - kolem půlnoci by
+  // appka "myslela", že je ještě včera. Tohle vrátí dnešní datum podle
+  // místního času.
+  function localTodayStr() {
+    const d = new Date();
+    const tzOffsetMs = d.getTimezoneOffset() * 60000;
+    return new Date(d.getTime() - tzOffsetMs).toISOString().slice(0, 10);
+  }
+
+  const CZ_DAY_NAMES_FULL = ["neděle", "pondělí", "úterý", "středa", "čtvrtek", "pátek", "sobota"];
+  const CZ_MONTHS_GEN = ["ledna","února","března","dubna","května","června",
+    "července","srpna","září","října","listopadu","prosince"];
+
+  // Statický (needitovatelný) údaj o dnešním datu - appka podle zadání jen
+  // zobrazuje aktuální den, nedovoluje zapisovat vodu na jiné datum.
+  function renderStaticDate() {
+    const now = new Date();
+    const dayName = CZ_DAY_NAMES_FULL[now.getDay()];
+    waterDateEl.textContent = `${dayName.charAt(0).toUpperCase()}${dayName.slice(1)} ${now.getDate()}. ${CZ_MONTHS_GEN[now.getMonth()]} ${now.getFullYear()}`;
+  }
+
+  function renderTotal(ml) {
+    waterTotalValue.textContent = Math.round(ml || 0).toLocaleString("cs-CZ") + " ml";
+    const remaining = WATER_GOAL_ML - (ml || 0);
+    waterTotalGoal.textContent = remaining > 0
+      ? `Do cíle ${WATER_GOAL_ML.toLocaleString("cs-CZ")} ml zbývá ${Math.round(remaining).toLocaleString("cs-CZ")} ml`
+      : `Cíl ${WATER_GOAL_ML.toLocaleString("cs-CZ")} ml splněn 🎉`;
+  }
+
+  function subscribeToday(uid) {
+    const todayStr = localTodayStr();
+    const ref = doc(db, WATER_COL, `${uid}_${todayStr}`);
+    if (unsubToday) unsubToday();
+    // onSnapshot z lokální (offline) cache odráží i právě odeslané, ještě
+    // nepotvrzené zápisy (pending writes) - díky tomu se součet na obrazovce
+    // aktualizuje OKAMŽITĚ po každém kliknutí, i když appka klikne na
+    // tlačítko vícekrát rychle za sebou v rámci jednoho zobrazení stránky.
+    // Každý klik posílá vlastní atomický increment(), takže se žádný
+    // připočtený mililitr neztratí, ani když appka zápisy posílá rychleji,
+    // než je Firestore stihne potvrdit ze serveru.
+    unsubToday = onSnapshot(ref, (snap) => {
+      const data = snap.data();
+      renderTotal(data ? data.ml : 0);
+    }, (err) => {
+      console.error("Chyba při načítání vody:", err);
+    });
+  }
+
+  async function addWater(amountMl) {
+    if (!currentUid) return;
+    const todayStr = localTodayStr();
+    const ref = doc(db, WATER_COL, `${currentUid}_${todayStr}`);
+    try {
+      await setDoc(ref, {
+        uid: currentUid,
+        datum: todayStr,
+        ml: increment(amountMl)
+      }, { merge: true });
+    } catch (err) {
+      showToast("Chyba: " + err.message);
+      return;
+    }
+    showToast(`+${amountMl} ml přidáno`);
+  }
+
+  document.querySelectorAll(".water-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      addWater(Number(btn.dataset.amount));
+    });
+  });
+
+  await setPersistence(auth, browserLocalPersistence).catch(() => {});
+
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+      currentUid = user.uid;
+      loginScreen.style.display = "none";
+      entryScreen.style.display = "block";
+      renderStaticDate();
+      subscribeToday(user.uid);
+    } else {
+      currentUid = null;
+      loginScreen.style.display = "block";
+      entryScreen.style.display = "none";
+      if (unsubToday) { unsubToday(); unsubToday = null; }
+    }
+  });
+
+  loginForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    loginError.textContent = "";
+    const email = document.getElementById("loginEmail").value.trim();
+    const password = document.getElementById("loginPassword").value;
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+    } catch (err) {
+      loginError.textContent = "Nesprávný e-mail nebo heslo.";
+    }
+  });
+</script>
+</body>
+</html>

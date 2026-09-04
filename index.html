@@ -44,6 +44,9 @@
     --cream-card-border: #e8c896;
     --cream-card-bg2: #fdf3d9;
     --cream-card-border2: #e8c14a;
+    --water-blue: #3d6fa8;
+    --water-purple: #8a5ea8;
+    --water-green: #3f8f5f;
   }
   html[data-theme="dark"] {
     --bg: #0f0c09;
@@ -65,6 +68,9 @@
     --cream-card-border: #4a3c26;
     --cream-card-bg2: #2f2717;
     --cream-card-border2: #5c4a22;
+    --water-blue: #7fb0e8;
+    --water-purple: #c9a3e0;
+    --water-green: #6fcf97;
   }
   * { box-sizing: border-box; }
   html { color-scheme: light; }
@@ -167,6 +173,12 @@
   .search-clear-btn:hover { background: var(--accent-soft); color: var(--accent-dark); }
   .menu-search-wrap { padding: 10px 14px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 8px; }
   .menu-search-wrap .search-box { flex: 1; min-width: 0; }
+  .water-color-blue { color: var(--water-blue); }
+  .water-color-purple { color: var(--water-purple); }
+  .water-color-green { color: var(--water-green); }
+  .water-widget { padding: 10px 16px; border: none; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; background: transparent; width: 100%; cursor: pointer; text-align: left; margin: 0; border-radius: 0; }
+  .water-widget:hover { background: var(--accent-soft); }
+  .water-widget-icon { font-size: 18px; line-height: 1; flex-shrink: 0; }
   .notes-list { flex: 1; overflow-y: auto; padding: 8px; }
   .note-row { background: var(--paper); border: 1px solid var(--line); border-left-width: 4px; border-radius: 10px; padding: 11px 12px; margin-bottom: 8px; cursor: pointer; position: relative; }
   .note-row.active { background: var(--accent-soft); border-color: var(--accent); }
@@ -370,6 +382,11 @@
   .stat-day-percent.stat-good { color: #3f8f5f; }
   .stat-day-percent.stat-mid { color: #b8873a; }
   .stat-day-percent.stat-low { color: #b5502f; }
+  .stat-today-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+  .stat-today-row .stat-today-card { flex: 1 1 200px; margin-bottom: 0; }
+  .stat-today-water { font-size: 40px; font-weight: 800; line-height: 1.1; }
+  .stat-day-header { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--ink-soft); background: var(--panel); }
+  .stat-day-water { min-width: 62px; text-align: right; font-weight: 700; }
   .back-btn { display: none; }
   @media (max-width: 900px) {
     .columns { grid-template-columns: 100%; }
@@ -465,6 +482,7 @@
           <button class="icon-btn small" id="logoutBtn" type="button" title="Odhlásit" aria-label="Odhlásit"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg></button>
         </div>
       </div>
+      <button class="water-widget" id="waterHeaderWidget" type="button" title="Otevřít Vodu" aria-label="Otevřít Vodu"></button>
       <div class="menu-search-wrap">
         <div class="search-box">
           <input type="text" id="menuSearchInput" placeholder="Hledat ve všech poznámkách…">
@@ -688,7 +706,7 @@
     query, where, orderBy, onSnapshot, serverTimestamp, writeBatch, getDocs
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-  const APP_VERSION = "18";
+  const APP_VERSION = "19";
   document.querySelectorAll(".app-version-badge").forEach(el => {
     el.textContent = "v" + APP_VERSION;
   });
@@ -712,6 +730,8 @@
   const FOLDERS_COL = "slozky";
   const STATS_COL = "statistikaDny";
   const STATS_FORMULA_VERSION = 2;
+  const WATER_COL = "vodaDny";
+  const WATER_GOAL_ML = 2000;
 
   const DEFAULT_FOLDERS = [
     { nazev: "Hláška", barva: "#b5502f", poradi: 0 },
@@ -765,6 +785,7 @@
   const menuSearchInput = document.getElementById("menuSearchInput");
   const menuSearchClearBtn = document.getElementById("menuSearchClearBtn");
   const menuQuickAddBtn = document.getElementById("menuQuickAddBtn");
+  const waterHeaderWidget = document.getElementById("waterHeaderWidget");
 
   const notesColTitle = document.getElementById("notesColTitle");
   const notesList = document.getElementById("notesList");
@@ -822,6 +843,8 @@
   let unsubNotes = null, unsubFolders = null;
   let statsDays = new Map();
   let unsubStats = null;
+  let waterDays = new Map();
+  let unsubWater = null;
   let notesLoaded = false, statsLoaded = false, statsFinalizing = false;
   let trackingStartDate = null;
   let statsFormulaVersion = 1;
@@ -1159,6 +1182,7 @@
       subscribeFolders(user.uid);
       subscribeNotes(user.uid);
       subscribeStats(user.uid);
+      subscribeWater(user.uid);
       if (window.innerWidth <= 900) {
         calendarViewMode = "day";
         localStorage.setItem("calendarViewMode", "day");
@@ -1171,10 +1195,13 @@
       if (unsubNotes) { unsubNotes(); unsubNotes = null; }
       if (unsubFolders) { unsubFolders(); unsubFolders = null; }
       if (unsubStats) { unsubStats(); unsubStats = null; }
+      if (unsubWater) { unsubWater(); unsubWater = null; }
       statsDays = new Map();
+      waterDays = new Map();
       notesLoaded = false;
       statsLoaded = false;
       trackingStartDate = null;
+      renderWaterHeaderWidget();
     }
   });
 
@@ -1541,6 +1568,63 @@
       console.error("Chyba při načítání statistiky:", err);
     });
   }
+
+  // ---------- Voda ----------
+  // Appka jen ČTE kolekci "vodaDny" (zápisy dělá samostatná stránka
+  // water.html přes atomický Firestore increment() - viz tam). Dokumenty
+  // mají stejný tvar ID jako "statistikaDny" ("<uid>_<datum>"), takže appka
+  // je může jednoduše načíst celé najednou stejným vzorem jako subscribeStats.
+  function subscribeWater(uid) {
+    const q = query(collection(db, WATER_COL), where("uid", "==", uid));
+    unsubWater = onSnapshot(q, (snapshot) => {
+      const fresh = new Map();
+      snapshot.docs.forEach(d => {
+        const data = d.data();
+        if (data.datum) fresh.set(data.datum, data.ml || 0);
+      });
+      waterDays = fresh;
+      renderWaterHeaderWidget();
+      if (view.type === "statistika") renderNotes();
+    }, (err) => {
+      console.error("Chyba při načítání vody:", err);
+    });
+  }
+
+  function formatMl(ml) {
+    return Math.round(ml || 0).toLocaleString("cs-CZ") + " ml";
+  }
+
+  // Barevný stav podle vypitého množství (ml) za den - sdílené pravidlo pro
+  // widget v menu i dlaždici ve Statistice: fialová 0-1499 / modrá 1500-2000
+  // / zelená nad 2000 (cíl splněn a překročen).
+  function waterColorState(drunkMl) {
+    if (drunkMl > WATER_GOAL_ML) return "green";
+    if (drunkMl >= 1500) return "blue";
+    return "purple";
+  }
+
+  function renderWaterHeaderWidget() {
+    if (!waterHeaderWidget) return;
+    if (!currentUid) { waterHeaderWidget.innerHTML = ""; waterHeaderWidget.style.display = "none"; return; }
+    waterHeaderWidget.style.display = "flex";
+    const drunk = waterDays.get(localTodayStr()) || 0;
+    const remaining = WATER_GOAL_ML - drunk;
+    const state = waterColorState(drunk);
+    let icon, text;
+    if (state === "green") {
+      icon = "💚"; text = "Děkuji";
+    } else if (state === "blue") {
+      icon = "💧"; text = `Vypij ještě ${formatMl(remaining)}`;
+    } else {
+      icon = "👿"; text = `Vypij ještě ${formatMl(remaining)}`;
+    }
+    waterHeaderWidget.className = `water-widget water-color-${state}`;
+    waterHeaderWidget.innerHTML = `<span class="water-widget-icon">${icon}</span><span>${escapeHtml(text)}</span>`;
+  }
+
+  waterHeaderWidget.addEventListener("click", () => {
+    window.location.href = "water.html";
+  });
 
   function computeStatsForDay(dateStr, notes) {
     const withTermin = notes.filter(n => n.termin);
@@ -2403,6 +2487,7 @@
     const todayStr = localTodayStr();
     const trackingStarted = trackingStartDate && todayStr >= trackingStartDate;
     const todayStats = trackingStarted ? computeStatsForDay(todayStr, allNotes) : null;
+    const todayWaterMl = waterDays.get(todayStr) || 0;
 
     const dailyDates = [];
     for (let i = 0; i < 14; i++) dailyDates.push(addDaysToIsoDate(todayStr, -i));
@@ -2412,21 +2497,26 @@
       const isToday = dateStr === todayStr;
       const beforeTracking = !trackingStartDate || dateStr < trackingStartDate;
       const stats = beforeTracking ? null : (isToday ? todayStats : statsDays.get(dateStr));
+      const waterMl = waterDays.get(dateStr) || 0;
+      const waterHtml = `<span class="stat-day-water water-color-${waterColorState(waterMl)}">${waterMl ? formatMl(waterMl) : "–"}</span>`;
       if (!stats) {
         return `<div class="stat-day-row stat-day-empty">
           <span class="stat-day-date">${isToday ? "Dnes" : formatDate(dateStr)}</span>
           <span class="stat-day-frac">–</span>
           <span class="stat-day-percent">—</span>
+          ${waterHtml}
         </div>`;
       }
       return `<div class="stat-day-row ${isToday ? "stat-day-today" : ""}">
         <span class="stat-day-date">${isToday ? "Dnes" : formatDate(dateStr)}</span>
         <span class="stat-day-frac">${stats.citatel}/${stats.jmenovatel}</span>
         <span class="stat-day-percent ${statPercentClass(stats.citatel, stats.jmenovatel)}">${statPercentText(stats.citatel, stats.jmenovatel)}</span>
+        ${waterHtml}
       </div>`;
     };
 
     let html = "";
+    html += `<div class="stat-today-row">`;
     if (!trackingStarted) {
       const startLabel = trackingStartDate ? formatDate(trackingStartDate) : "zítra";
       html += `<div class="stat-today-card">
@@ -2440,10 +2530,24 @@
         <div class="stat-today-frac">${todayStats.citatel} z ${todayStats.jmenovatel} termínovaných poznámek</div>
       </div>`;
     }
+    html += `<div class="stat-today-card">
+      <div class="stat-today-label">💧 Vypito dnes</div>
+      <div class="stat-today-water water-color-${waterColorState(todayWaterMl)}">${formatMl(todayWaterMl)}</div>
+      <div class="stat-today-frac">Cíl ${formatMl(WATER_GOAL_ML)}</div>
+    </div>`;
+    html += `</div>`;
 
     html += `<div class="dashboard-group">
       <div class="dashboard-group-label"><span class="folder-dot" style="background:#4a90d9"></span>Posledních 14 dní</div>
-      <div class="stat-day-list">${dailyDates.map(dailyRowHtml).join("")}</div>
+      <div class="stat-day-list">
+        <div class="stat-day-row stat-day-header">
+          <span class="stat-day-date">Datum</span>
+          <span class="stat-day-frac">Splněno</span>
+          <span class="stat-day-percent">%</span>
+          <span class="stat-day-water">💧 Vypito</span>
+        </div>
+        ${dailyDates.map(dailyRowHtml).join("")}
+      </div>
     </div>`;
 
     const weekBuckets = new Map();
@@ -2455,20 +2559,37 @@
       bucket.jmenovatel += stats.jmenovatel;
       weekBuckets.set(monday, bucket);
     });
-    const weekKeys = Array.from(weekBuckets.keys()).sort((a, b) => (a < b ? 1 : a > b ? -1 : 0));
+    const weekWaterBuckets = new Map();
+    waterDays.forEach((ml, dateStr) => {
+      if (dateStr >= oldestDailyDate) return;
+      const monday = mondayOfIsoWeek(dateStr);
+      weekWaterBuckets.set(monday, (weekWaterBuckets.get(monday) || 0) + ml);
+    });
+    const weekKeys = Array.from(new Set([...weekBuckets.keys(), ...weekWaterBuckets.keys()]))
+      .sort((a, b) => (a < b ? 1 : a > b ? -1 : 0));
     if (weekKeys.length > 0) {
       const weekRows = weekKeys.map(monday => {
         const sunday = addDaysToIsoDate(monday, 6);
-        const bucket = weekBuckets.get(monday);
+        const bucket = weekBuckets.get(monday) || { citatel: 0, jmenovatel: 0 };
+        const weekWaterMl = weekWaterBuckets.get(monday) || 0;
         return `<div class="stat-day-row">
           <span class="stat-day-date">${formatDate(monday)} – ${formatDate(sunday)}</span>
           <span class="stat-day-frac">${bucket.citatel}/${bucket.jmenovatel}</span>
           <span class="stat-day-percent ${statPercentClass(bucket.citatel, bucket.jmenovatel)}">${statPercentText(bucket.citatel, bucket.jmenovatel)}</span>
+          <span class="stat-day-water">${weekWaterMl ? formatMl(weekWaterMl) : "–"}</span>
         </div>`;
       }).join("");
       html += `<div class="dashboard-group">
         <div class="dashboard-group-label"><span class="folder-dot" style="background:#4a90d9"></span>Souhrn dřívějších týdnů</div>
-        <div class="stat-day-list">${weekRows}</div>
+        <div class="stat-day-list">
+          <div class="stat-day-row stat-day-header">
+            <span class="stat-day-date">Týden</span>
+            <span class="stat-day-frac">Splněno</span>
+            <span class="stat-day-percent">%</span>
+            <span class="stat-day-water">💧 Vypito</span>
+          </div>
+          ${weekRows}
+        </div>
       </div>`;
     }
 
