@@ -1,0 +1,12 @@
+{
+  "name": "Půst — Vtipníci",
+  "short_name": "Půst",
+  "start_url": "fasting.html",
+  "display": "standalone",
+  "background_color": "#fbecd8",
+  "theme_color": "#c97a1f",
+  "icons": [
+    { "src": "icon-192-fasting.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512-fasting.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

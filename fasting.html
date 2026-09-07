@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Půst — Vtipníci</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Půst">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#fbecd8" id="themeColorMeta">
+<link rel="manifest" href="manifest-fasting.json">
+<script>
+  // Nastavit tmavý/světlý režim co nejdřív (ještě před vykreslením stránky),
+  // ať appka na chvilku nebliká světlým vzhledem. Volba: uložená preference
+  // uživatele (localStorage, sdílená s hlavní appkou i water.html) > systémové
+  // nastavení telefonu (prefers-color-scheme).
+  (function () {
+    try {
+      const saved = localStorage.getItem("vtipnici-theme");
+      const theme = saved || (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+      document.documentElement.setAttribute("data-theme", theme);
+    } catch (e) {}
+  })();
+</script>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32-fasting.png">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16-fasting.png">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ctext%20y%3D%22.9em%22%20font-size%3D%2290%22%3E%E2%8F%B3%3C/text%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #fbecd8;
+    --paper: #ffffff;
+    --ink: #2b2620;
+    --ink-soft: #6b6155;
+    --line: #ede3d5;
+    --accent: #c97a1f;
+    --accent-dark: #a5620f;
+    --accent-soft: #faeada;
+    --shadow: 0 1px 3px rgba(43,38,32,0.06), 0 4px 16px rgba(43,38,32,0.05);
+    --toast-bg: #2b2620;
+    --toast-ink: #ffffff;
+    --fasting-amber: #c97a1f;
+    --fasting-green: #3f8f5f;
+  }
+  /* ---------- Tmavý režim ----------
+     Přepíná se atributem data-theme="dark" na <html> (viz applyTheme() v JS).
+     Sdílí preferenci (localStorage klíč "vtipnici-theme") s hlavní appkou i water.html. */
+  html[data-theme="dark"] {
+    --bg: #120d08;
+    --paper: #241e17;
+    --ink: #f2e9db;
+    --ink-soft: #b6a894;
+    --line: #3a3125;
+    --accent: #e0a545;
+    --accent-dark: #f0c179;
+    --accent-soft: #362a1a;
+    --shadow: 0 1px 3px rgba(0,0,0,0.45), 0 6px 24px rgba(0,0,0,0.4);
+    --toast-bg: #100d0a;
+    --toast-ink: #f2e9db;
+    --fasting-amber: #e0a545;
+    --fasting-green: #6fcf97;
+  }
+  * { box-sizing: border-box; }
+  html { color-scheme: light; }
+  html[data-theme="dark"] { color-scheme: dark; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    min-height: 100%;
+  }
+  input, select, textarea, button { font-family: inherit; }
+
+  .card {
+    background: var(--paper);
+    border-radius: 20px;
+    padding: 28px 24px;
+    width: 100%;
+    max-width: 420px;
+    box-shadow: var(--shadow);
+  }
+  h1 { font-size: 22px; margin: 0 0 4px; font-weight: 700; text-align: center; }
+  p.sub { color: var(--ink-soft); font-size: 13px; margin: 0 0 22px; text-align: center; }
+
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: var(--ink-soft); }
+  input[type=email], input[type=password] {
+    width: 100%;
+    padding: 13px 14px;
+    border-radius: 11px;
+    border: 1.5px solid var(--line);
+    font-size: 16px;
+    background: var(--paper);
+    color: var(--ink);
+    outline: none;
+  }
+  input:focus { border-color: var(--accent); }
+
+  .btn {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    background: var(--accent); color: #fff; border: none; padding: 15px 20px;
+    border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer;
+    width: 100%; margin-top: 4px;
+  }
+  .btn:active { background: var(--accent-dark); transform: scale(0.98); }
+  .btn-end { background: var(--fasting-green); }
+  .btn-end:active { background: #2f7248; }
+  html[data-theme="dark"] .btn-end:active { background: #4fae76; }
+
+  .link-row { text-align: center; margin-top: 20px; }
+  .link-row a { color: var(--ink-soft); font-size: 13px; text-decoration: none; }
+  .link-row a:hover { color: var(--accent-dark); }
+
+  #loginError { color: #b3261e; font-size: 13px; margin-top: 10px; min-height: 18px; text-align: center; }
+
+  .theme-toggle-btn {
+    position: fixed; top: 14px; right: 14px;
+    width: 36px; height: 36px; border-radius: 50%;
+    background: var(--paper); border: 1.5px solid var(--line); color: var(--ink);
+    font-size: 16px; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; box-shadow: var(--shadow); z-index: 100;
+  }
+
+  #entryScreen { display: none; }
+
+  .fast-goal-note {
+    text-align: center;
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    margin-bottom: 20px;
+  }
+
+  .fast-status-card {
+    background: var(--accent-soft);
+    border-radius: 16px;
+    padding: 22px 18px;
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  .fast-status-label {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--ink-soft);
+    margin-bottom: 8px;
+  }
+  .fast-status-value {
+    font-size: 30px;
+    font-weight: 800;
+    line-height: 1.15;
+    color: var(--accent);
+  }
+  .fast-status-value.fast-done { color: var(--fasting-green); }
+  .fast-status-sub {
+    font-size: 13px;
+    color: var(--ink-soft);
+    margin-top: 8px;
+  }
+
+  .fast-idle-card {
+    background: var(--panel, var(--accent-soft));
+    border-radius: 14px;
+    padding: 16px;
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  .fast-idle-label {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--ink-soft);
+    margin-bottom: 6px;
+  }
+  .fast-idle-value {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .fast-idle-value.fast-done { color: var(--fasting-green); }
+  .fast-idle-value.fast-notdone { color: #b5502f; }
+
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    background: var(--toast-bg); color: var(--toast-ink); padding: 12px 22px; border-radius: 10px;
+    font-size: 14.5px; font-weight: 600; opacity: 0; pointer-events: none;
+    transition: opacity .2s, transform .2s; z-index: 200;
+  }
+  .toast.visible { opacity: 1; transform: translateX(-50%) translateY(-6px); }
+</style>
+</head>
+<body>
+
+<button class="theme-toggle-btn" id="themeToggleBtn" type="button" title="Přepnout tmavý/světlý režim" aria-label="Přepnout tmavý/světlý režim">🌙</button>
+
+<!-- LOGIN -->
+<div class="card" id="loginScreen">
+  <h1>⏳ Půst</h1>
+  <p class="sub">Přihlaš se jednou, appka si tě pak pamatuje</p>
+  <form id="loginForm">
+    <div class="field">
+      <label for="loginEmail">E-mail</label>
+      <input type="email" id="loginEmail" autocomplete="username" required>
+    </div>
+    <div class="field">
+      <label for="loginPassword">Heslo</label>
+      <input type="password" id="loginPassword" autocomplete="current-password" required>
+    </div>
+    <button type="submit" class="btn">Přihlásit se</button>
+    <div id="loginError"></div>
+  </form>
+</div>
+
+<!-- FASTING ENTRY -->
+<div class="card" id="entryScreen">
+  <h1>⏳ Půst</h1>
+  <div class="fast-goal-note" id="fastGoalNote"></div>
+
+  <div id="fastActiveBlock" style="display:none;">
+    <div class="fast-status-card">
+      <div class="fast-status-label">Půst běží</div>
+      <div class="fast-status-value" id="fastStatusValue">–</div>
+      <div class="fast-status-sub" id="fastStatusSub"></div>
+    </div>
+    <button type="button" class="btn btn-end" id="endFastBtn">⏹ Ukončit půst</button>
+  </div>
+
+  <div id="fastIdleBlock" style="display:none;">
+    <div class="fast-idle-card" id="fastIdleCard" style="display:none;">
+      <div class="fast-idle-label">Poslední půst</div>
+      <div class="fast-idle-value" id="fastIdleValue"></div>
+    </div>
+    <button type="button" class="btn" id="startFastBtn">▶️ Začít půst</button>
+  </div>
+
+  <div class="link-row">
+    <a href="index.html">Otevřít celou aplikaci →</a>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import {
+    getAuth, signInWithEmailAndPassword, onAuthStateChanged, setPersistence, browserLocalPersistence
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import {
+    initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
+    collection, addDoc, updateDoc, doc, query, where, onSnapshot
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyCeOsvSECUhxjCQ7y2fFv3ybkxw2vsHwEo",
+    authDomain: "vtipnici.firebaseapp.com",
+    projectId: "vtipnici",
+    storageBucket: "vtipnici.firebasestorage.app",
+    messagingSenderId: "803980056829",
+    appId: "1:803980056829:web:1358b51db8b3e706e50694"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = initializeFirestore(app, {
+    localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+  });
+
+  const FASTING_COL = "pustDny";
+  // Cíl 13:11 (13 hodin 11 minut bez jídla), vyjádřený v minutách - stejná
+  // hodnota jako v index.html (FASTING_GOAL_MIN).
+  const FASTING_GOAL_MIN = 13 * 60 + 11;
+
+  const loginScreen = document.getElementById("loginScreen");
+  const entryScreen = document.getElementById("entryScreen");
+  const loginForm = document.getElementById("loginForm");
+  const loginError = document.getElementById("loginError");
+  const themeToggleBtn = document.getElementById("themeToggleBtn");
+  const themeColorMeta = document.getElementById("themeColorMeta");
+  const fastGoalNote = document.getElementById("fastGoalNote");
+  const fastActiveBlock = document.getElementById("fastActiveBlock");
+  const fastStatusValue = document.getElementById("fastStatusValue");
+  const fastStatusSub = document.getElementById("fastStatusSub");
+  const endFastBtn = document.getElementById("endFastBtn");
+  const fastIdleBlock = document.getElementById("fastIdleBlock");
+  const fastIdleCard = document.getElementById("fastIdleCard");
+  const fastIdleValue = document.getElementById("fastIdleValue");
+  const startFastBtn = document.getElementById("startFastBtn");
+  const toast = document.getElementById("toast");
+
+  let currentUid = null;
+  let unsubFasting = null;
+  let fastingRecords = [];
+  let tickTimer = null;
+
+  function showToast(msg) {
+    toast.textContent = msg;
+    toast.classList.add("visible");
+    setTimeout(() => toast.classList.remove("visible"), 1600);
+  }
+
+  // ---------- Tmavý / světlý režim ----------
+  function applyTheme(theme) {
+    document.documentElement.setAttribute("data-theme", theme);
+    themeColorMeta.setAttribute("content", theme === "dark" ? "#120d08" : "#fbecd8");
+    themeToggleBtn.textContent = theme === "dark" ? "☀️" : "🌙";
+    themeToggleBtn.title = theme === "dark" ? "Přepnout na světlý režim" : "Přepnout na tmavý režim";
+  }
+  function getCurrentTheme() {
+    return document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
+  }
+  applyTheme(getCurrentTheme());
+  themeToggleBtn.addEventListener("click", () => {
+    const next = getCurrentTheme() === "dark" ? "light" : "dark";
+    localStorage.setItem("vtipnici-theme", next);
+    applyTheme(next);
+  });
+  if (window.matchMedia) {
+    window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (e) => {
+      if (!localStorage.getItem("vtipnici-theme")) applyTheme(e.matches ? "dark" : "light");
+    });
+  }
+
+  // new Date().toISOString() je v UTC, ne v místním čase - kolem půlnoci by
+  // appka "myslela", že je ještě včera. Tohle vrátí datum podle místního času.
+  function localDateStr(d) {
+    const tzOffsetMs = d.getTimezoneOffset() * 60000;
+    return new Date(d.getTime() - tzOffsetMs).toISOString().slice(0, 10);
+  }
+  function localTodayStr() {
+    return localDateStr(new Date());
+  }
+
+  function formatFastDurationMin(minutes) {
+    const m = Math.max(0, Math.round(minutes));
+    const h = Math.floor(m / 60);
+    const mm = m % 60;
+    return `${h} h ${String(mm).padStart(2, "0")} min`;
+  }
+
+  function formatFastClock(ms) {
+    return new Date(ms).toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" });
+  }
+
+  function formatFastDate(isoDate) {
+    if (!isoDate) return "";
+    const [y, m, d] = isoDate.split("-");
+    return `${d}.${m}.${y}`;
+  }
+
+  fastGoalNote.textContent = `Cíl: ${formatFastDurationMin(FASTING_GOAL_MIN)} bez jídla`;
+
+  function activeFastingRecord() {
+    return fastingRecords.find(r => r.konecMs == null) || null;
+  }
+
+  function lastCompletedFastingRecord() {
+    const completed = fastingRecords.filter(r => r.konecMs != null).sort((a, b) => b.startMs - a.startMs);
+    return completed[0] || null;
+  }
+
+  // Na rozdíl od widgetu v hlavním menu appky (index.html), který ukazuje
+  // záměrně STATICKOU hodnotu (viz tam), je tahle stránka svým účelem přímo
+  // obrazovka pro sledování půstu - proto se tu zbývající/uplynulý čas
+  // průběžně obnovuje (jednou za 30 s), ne jen při načtení/změně dat.
+  function renderFastingState() {
+    const active = activeFastingRecord();
+    if (active) {
+      fastActiveBlock.style.display = "block";
+      fastIdleBlock.style.display = "none";
+      const elapsedMin = (Date.now() - active.startMs) / 60000;
+      const goalMin = active.cilMin || FASTING_GOAL_MIN;
+      const remainingMin = goalMin - elapsedMin;
+      const doneNow = remainingMin <= 0;
+      fastStatusValue.textContent = doneNow
+        ? "Cíl splněn ✅"
+        : `Zbývá ${formatFastDurationMin(remainingMin)}`;
+      fastStatusValue.classList.toggle("fast-done", doneNow);
+      fastStatusSub.textContent = `Od ${formatFastClock(active.startMs)} · uplynulo ${formatFastDurationMin(elapsedMin)}`;
+    } else {
+      fastActiveBlock.style.display = "none";
+      fastIdleBlock.style.display = "block";
+      const last = lastCompletedFastingRecord();
+      if (last) {
+        fastIdleCard.style.display = "block";
+        fastIdleValue.textContent = formatFastDurationMin(last.delkaMin || 0);
+        fastIdleValue.classList.toggle("fast-done", !!last.splneno);
+        fastIdleValue.classList.toggle("fast-notdone", !last.splneno);
+        fastIdleCard.querySelector(".fast-idle-label").textContent =
+          `Poslední půst (${formatFastDate(last.datum)})${last.splneno ? " – cíl splněn" : " – cíl nesplněn"}`;
+      } else {
+        fastIdleCard.style.display = "none";
+      }
+    }
+  }
+
+  function subscribeFasting(uid) {
+    const q = query(collection(db, FASTING_COL), where("uid", "==", uid));
+    if (unsubFasting) unsubFasting();
+    unsubFasting = onSnapshot(q, (snapshot) => {
+      fastingRecords = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderFastingState();
+    }, (err) => {
+      console.error("Chyba při načítání půstu:", err);
+    });
+  }
+
+  startFastBtn.addEventListener("click", async () => {
+    if (!currentUid) return;
+    if (activeFastingRecord()) { showToast("Půst už běží"); return; }
+    startFastBtn.disabled = true;
+    const startMs = Date.now();
+    const newRecord = {
+      uid: currentUid,
+      datum: localDateStr(new Date(startMs)),
+      startMs,
+      konecMs: null,
+      cilMin: FASTING_GOAL_MIN,
+      delkaMin: null,
+      splneno: null
+    };
+    try {
+      const ref = await addDoc(collection(db, FASTING_COL), newRecord);
+      if (!fastingRecords.some(r => r.id === ref.id)) {
+        fastingRecords = [{ id: ref.id, ...newRecord }, ...fastingRecords];
+        renderFastingState();
+      }
+      showToast("Půst začal");
+    } catch (err) {
+      showToast("Chyba: " + err.message);
+    } finally {
+      startFastBtn.disabled = false;
+    }
+  });
+
+  endFastBtn.addEventListener("click", async () => {
+    const active = activeFastingRecord();
+    if (!active) return;
+    endFastBtn.disabled = true;
+    const konecMs = Date.now();
+    const delkaMin = Math.round((konecMs - active.startMs) / 60000);
+    const goalMin = active.cilMin || FASTING_GOAL_MIN;
+    const splneno = delkaMin >= goalMin;
+    try {
+      await updateDoc(doc(db, FASTING_COL, active.id), { konecMs, delkaMin, splneno });
+      fastingRecords = fastingRecords.map(r => r.id === active.id ? { ...r, konecMs, delkaMin, splneno } : r);
+      renderFastingState();
+      showToast(splneno ? `Půst ukončen, cíl splněn (${formatFastDurationMin(delkaMin)}) 🎉` : `Půst ukončen (${formatFastDurationMin(delkaMin)})`);
+    } catch (err) {
+      showToast("Chyba: " + err.message);
+    } finally {
+      endFastBtn.disabled = false;
+    }
+  });
+
+  await setPersistence(auth, browserLocalPersistence).catch(() => {});
+
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+      currentUid = user.uid;
+      loginScreen.style.display = "none";
+      entryScreen.style.display = "block";
+      subscribeFasting(user.uid);
+      if (tickTimer) clearInterval(tickTimer);
+      tickTimer = setInterval(renderFastingState, 30000);
+    } else {
+      currentUid = null;
+      loginScreen.style.display = "block";
+      entryScreen.style.display = "none";
+      if (unsubFasting) { unsubFasting(); unsubFasting = null; }
+      if (tickTimer) { clearInterval(tickTimer); tickTimer = null; }
+      fastingRecords = [];
+    }
+  });
+
+  loginForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    loginError.textContent = "";
+    const email = document.getElementById("loginEmail").value.trim();
+    const password = document.getElementById("loginPassword").value;
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+    } catch (err) {
+      loginError.textContent = "Nesprávný e-mail nebo heslo.";
+    }
+  });
+</script>
+</body>
+</html>
