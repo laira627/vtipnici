@@ -398,6 +398,8 @@
   .stat-today-water { font-size: 40px; font-weight: 800; line-height: 1.1; }
   .stat-day-header { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--ink-soft); background: var(--panel); }
   .stat-day-water { min-width: 62px; text-align: right; font-weight: 700; }
+  .stat-day-fasting { min-width: 34px; text-align: center; font-size: 15px; }
+  .stat-day-fasting-icon.stat-day-fasting-none { color: var(--ink-soft); font-size: 13.5px; }
   .stat-today-fasting { font-size: 26px; font-weight: 800; line-height: 1.2; }
   .stat-fast-list { background: var(--paper); border-radius: 14px; box-shadow: var(--shadow); overflow: hidden; }
   .stat-fast-row { display: flex; align-items: center; gap: 10px; padding: 9px 16px; border-bottom: 1px solid var(--line); font-size: 13.5px; flex-wrap: wrap; }
@@ -759,8 +761,12 @@
   const WATER_COL = "vodaDny";
   const WATER_GOAL_ML = 2000;
   const FASTING_COL = "pustDny";
-  // Cíl 13:11 (13 hodin 11 minut bez jídla), vyjádřený v minutách.
-  const FASTING_GOAL_MIN = 13 * 60 + 11;
+  // Cíl: 13 hodin bez jídla (zbylých 11 hodin dne je okno, kdy se smí jíst),
+  // vyjádřeno v minutách. Appka ukládá tuhle hodnotu do každého založeného
+  // půstu zvlášť (pole cilMin), takže případná budoucí změna cíle - stačí
+  // přepsat tuhle konstantu, žádné uživatelské rozhraní pro to není potřeba
+  // - zpětně nezmění vyhodnocení už uložených půstů.
+  const FASTING_GOAL_MIN = 13 * 60;
 
   const DEFAULT_FOLDERS = [
     { nazev: "Hláška", barva: "#b5502f", poradi: 0 },
@@ -2617,6 +2623,24 @@
     const activeFast = activeFastingRecord();
     const completedFasts = fastingRecords.filter(r => r.konecMs != null).sort((a, b) => b.startMs - a.startMs);
     const lastCompletedFast = completedFasts[0] || null;
+    // Pro sloupec "Půst" v tabulce "Posledních 14 dní" - jeden půst na den
+    // (appka předpokládá nejvýš jeden běžící/dokončený půst začínající daný
+    // den, viz Datový model), takže při víc záznamech na stejné datum (mělo
+    // by být vzácné) appka bere ten s nejnovějším startem.
+    const fastingByDate = new Map();
+    fastingRecords.forEach(r => {
+      if (!r.datum) return;
+      const existing = fastingByDate.get(r.datum);
+      if (!existing || r.startMs > existing.startMs) fastingByDate.set(r.datum, r);
+    });
+    const fastingIconHtmlForDate = (dateStr) => {
+      const rec = fastingByDate.get(dateStr);
+      if (!rec) return `<span class="stat-day-fasting-icon stat-day-fasting-none">–</span>`;
+      if (rec.konecMs == null) return `<span class="stat-day-fasting-icon" title="Půst probíhá">⏳</span>`;
+      return rec.splneno
+        ? `<span class="stat-day-fasting-icon" title="Cíl splněn">✅</span>`
+        : `<span class="stat-day-fasting-icon" title="Cíl nesplněn">❌</span>`;
+    };
 
     const dailyDates = [];
     for (let i = 0; i < 14; i++) dailyDates.push(addDaysToIsoDate(todayStr, -i));
@@ -2628,12 +2652,14 @@
       const stats = beforeTracking ? null : (isToday ? todayStats : statsDays.get(dateStr));
       const waterMl = waterDays.get(dateStr) || 0;
       const waterHtml = `<span class="stat-day-water water-color-${waterColorState(waterMl)}">${waterMl ? formatMl(waterMl) : "–"}</span>`;
+      const fastingHtml = `<span class="stat-day-fasting">${fastingIconHtmlForDate(dateStr)}</span>`;
       if (!stats) {
         return `<div class="stat-day-row stat-day-empty">
           <span class="stat-day-date">${isToday ? "Dnes" : formatDate(dateStr)}</span>
           <span class="stat-day-frac">–</span>
           <span class="stat-day-percent">—</span>
           ${waterHtml}
+          ${fastingHtml}
         </div>`;
       }
       return `<div class="stat-day-row ${isToday ? "stat-day-today" : ""}">
@@ -2641,6 +2667,7 @@
         <span class="stat-day-frac">${stats.citatel}/${stats.jmenovatel}</span>
         <span class="stat-day-percent ${statPercentClass(stats.citatel, stats.jmenovatel)}">${statPercentText(stats.citatel, stats.jmenovatel)}</span>
         ${waterHtml}
+        ${fastingHtml}
       </div>`;
     };
 
@@ -2696,6 +2723,7 @@
           <span class="stat-day-frac">Splněno</span>
           <span class="stat-day-percent">%</span>
           <span class="stat-day-water">💧 Vypito</span>
+          <span class="stat-day-fasting">Půst</span>
         </div>
         ${dailyDates.map(dailyRowHtml).join("")}
       </div>

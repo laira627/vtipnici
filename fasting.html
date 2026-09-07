@@ -272,9 +272,12 @@
   });
 
   const FASTING_COL = "pustDny";
-  // Cíl 13:11 (13 hodin 11 minut bez jídla), vyjádřený v minutách - stejná
-  // hodnota jako v index.html (FASTING_GOAL_MIN).
-  const FASTING_GOAL_MIN = 13 * 60 + 11;
+  // Cíl: 13 hodin bez jídla (zbylých 11 hodin dne je okno, kdy se smí jíst),
+  // vyjádřeno v minutách - stejná hodnota jako v index.html
+  // (FASTING_GOAL_MIN). Appka ji ukládá do každého založeného půstu zvlášť
+  // (pole cilMin), takže budoucí změnu cíle stačí udělat přepsáním týhle
+  // konstanty - žádné uživatelské rozhraní pro to není potřeba.
+  const FASTING_GOAL_MIN = 13 * 60;
 
   const loginScreen = document.getElementById("loginScreen");
   const entryScreen = document.getElementById("entryScreen");
