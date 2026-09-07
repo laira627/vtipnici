@@ -695,6 +695,9 @@
       <div class="modal-sub" style="margin:6px 0 0;">Nech prázdné, pokud půst ještě běží.</div>
     </div>
     <div class="modal-sub" id="fastingEditStatus"></div>
+    <div class="row-btns calendar-quick-edit-btns">
+      <button class="btn-mini calendar-quick-edit-delete-btn" id="fastingEditDeleteBtn" type="button">🗑 Smazat natrvalo</button>
+    </div>
     <div class="row-btns">
       <button class="btn btn-secondary" id="fastingEditCancelBtn" type="button">Zrušit</button>
       <button class="btn" id="fastingEditSaveBtn" type="button">Uložit</button>
@@ -764,7 +767,7 @@
     query, where, orderBy, onSnapshot, serverTimestamp, writeBatch, getDocs
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-  const APP_VERSION = "22";
+  const APP_VERSION = "23";
   document.querySelectorAll(".app-version-badge").forEach(el => {
     el.textContent = "v" + APP_VERSION;
   });
@@ -844,6 +847,7 @@
   const fastingEditStatus = document.getElementById("fastingEditStatus");
   const fastingEditCancelBtn = document.getElementById("fastingEditCancelBtn");
   const fastingEditSaveBtn = document.getElementById("fastingEditSaveBtn");
+  const fastingEditDeleteBtn = document.getElementById("fastingEditDeleteBtn");
   const columnsEl = document.getElementById("columns");
 
   const foldersList = document.getElementById("foldersList");
@@ -1859,8 +1863,28 @@
     }
   }
 
+  async function deleteFastingRecord() {
+    const rec = fastingRecords.find(r => r.id === fastingEditId);
+    if (!rec) { closeFastingEditModal(); return; }
+    if (!confirm("Natrvalo smazat tento záznam půstu? Tuto akci nelze vrátit zpět.")) return;
+    fastingEditStatus.textContent = "Mazání…";
+    fastingEditSaveBtn.disabled = true;
+    fastingEditDeleteBtn.disabled = true;
+    try {
+      await deleteDoc(doc(db, FASTING_COL, rec.id));
+      closeFastingEditModal();
+    } catch (err) {
+      console.error("Chyba při mazání záznamu půstu:", err);
+      fastingEditStatus.textContent = "Chyba při mazání.";
+    } finally {
+      fastingEditSaveBtn.disabled = false;
+      fastingEditDeleteBtn.disabled = false;
+    }
+  }
+
   fastingEditCancelBtn.addEventListener("click", () => closeFastingEditModal());
   fastingEditSaveBtn.addEventListener("click", () => { saveFastingEdit(); });
+  fastingEditDeleteBtn.addEventListener("click", () => { deleteFastingRecord(); });
   fastingEditModal.addEventListener("click", (e) => {
     if (e.target === fastingEditModal) closeFastingEditModal();
   });
