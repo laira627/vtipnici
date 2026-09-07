@@ -378,9 +378,9 @@
   .stat-today-card { background: var(--paper); border-radius: 14px; padding: 18px 20px; margin-bottom: 20px; box-shadow: var(--shadow); text-align: center; }
   .stat-today-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-soft); margin-bottom: 6px; }
   .stat-today-percent { font-size: 40px; font-weight: 800; line-height: 1.1; color: var(--ink); }
-  .stat-today-percent.stat-good { color: #3f8f5f; }
-  .stat-today-percent.stat-mid { color: #b8873a; }
-  .stat-today-percent.stat-low { color: #b5502f; }
+  .stat-today-percent.stat-good { color: var(--water-green); }
+  .stat-today-percent.stat-mid { color: var(--water-blue); }
+  .stat-today-percent.stat-low { color: var(--water-purple); }
   .stat-today-frac { font-size: 13px; color: var(--ink-soft); margin-top: 4px; }
   .stat-day-list { background: var(--paper); border-radius: 14px; box-shadow: var(--shadow); overflow: hidden; }
   .stat-day-row { display: flex; align-items: center; gap: 10px; padding: 9px 16px; border-bottom: 1px solid var(--line); font-size: 13.5px; }
@@ -390,9 +390,9 @@
   .stat-day-date { flex: 1 1 auto; }
   .stat-day-frac { color: var(--ink-soft); min-width: 46px; text-align: right; }
   .stat-day-percent { min-width: 52px; text-align: right; font-weight: 700; }
-  .stat-day-percent.stat-good { color: #3f8f5f; }
-  .stat-day-percent.stat-mid { color: #b8873a; }
-  .stat-day-percent.stat-low { color: #b5502f; }
+  .stat-day-percent.stat-good { color: var(--water-green); }
+  .stat-day-percent.stat-mid { color: var(--water-blue); }
+  .stat-day-percent.stat-low { color: var(--water-purple); }
   .stat-today-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
   .stat-today-row .stat-today-card { flex: 1 1 200px; margin-bottom: 0; }
   .stat-today-water { font-size: 40px; font-weight: 800; line-height: 1.1; }
@@ -767,7 +767,7 @@
     query, where, orderBy, onSnapshot, serverTimestamp, writeBatch, getDocs
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-  const APP_VERSION = "23";
+  const APP_VERSION = "24";
   document.querySelectorAll(".app-version-badge").forEach(el => {
     el.textContent = "v" + APP_VERSION;
   });
@@ -1679,11 +1679,15 @@
   }
 
   // Barevný stav podle vypitého množství (ml) za den - sdílené pravidlo pro
-  // widget v menu i dlaždici ve Statistice: fialová 0-1499 / modrá 1500-2000
-  // / zelená nad 2000 (cíl splněn a překročen).
+  // widget v menu i dlaždici ve Statistice, stejná paleta jako u procenta
+  // splnění termínů (viz statPercentClass níže): fialová pod 60 % cíle
+  // (< 1200 ml), modrá 60 % až 1999 ml, zelená od 2000 ml (přesně dosažený
+  // nebo překročený cíl WATER_GOAL_ML - horní hranice zelené je záměrně
+  // vázaná na cíl samotný, ne na obecných 90 % jako u procent, na výslovné
+  // přání Iri 7. 9. 2026).
   function waterColorState(drunkMl) {
-    if (drunkMl > WATER_GOAL_ML) return "green";
-    if (drunkMl >= 1500) return "blue";
+    if (drunkMl >= WATER_GOAL_ML) return "green";
+    if (drunkMl >= WATER_GOAL_ML * 0.6) return "blue";
     return "purple";
   }
 
@@ -1753,6 +1757,21 @@
   // po minutách - na rozdíl od stránky fasting.html, kde se hodnota průběžně
   // obnovuje, viz tam. Iri tohle výslovně takhle chtěla (menu je jen souhrn,
   // ne primární obrazovka pro sledování).
+  // Barevný stav podle uplynulé doby (v minutách) BĚŽÍCÍHO půstu - stejná
+  // paleta jako u vody/procent (viz waterColorState/statPercentClass výše,
+  // recyklované CSS třídy .water-color-purple/blue/green): fialová pod 10
+  // hodin, modrá 10 hodin až těsně pod cíl, zelená od dosažení cíle výš.
+  // Na rozdíl od univerzálního pravidla 60/90 % zadala Iri 7. 9. 2026 pro
+  // půst rovnou pevné hodiny (10 h) pro fialovou/modrou hranici - zelená
+  // hranice je (stejně jako u vody) vázaná přímo na cíl (`goalMin`, ne na
+  // pevných 90 %), takže se automaticky přizpůsobí, i kdyby se
+  // `FASTING_GOAL_MIN` v budoucnu změnil.
+  function fastingProgressColorState(elapsedMin, goalMin) {
+    if (elapsedMin >= goalMin) return "green";
+    if (elapsedMin >= 10 * 60) return "blue";
+    return "purple";
+  }
+
   function renderFastingHeaderWidget() {
     if (!fastingHeaderWidget) return;
     const active = currentUid ? activeFastingRecord() : null;
@@ -1765,15 +1784,16 @@
     const elapsedMin = (Date.now() - active.startMs) / 60000;
     const goalMin = active.cilMin || FASTING_GOAL_MIN;
     const remainingMin = goalMin - elapsedMin;
-    let icon, text, state;
+    const colorState = fastingProgressColorState(elapsedMin, goalMin);
+    let icon, text;
     if (remainingMin <= 0) {
-      icon = "✅"; state = "done";
+      icon = "✅";
       text = `Cíl splněn, půst běží ${formatFastDurationMin(elapsedMin)}`;
     } else {
-      icon = "⏳"; state = "progress";
+      icon = "⏳";
       text = `Půst: zbývá ${formatFastDurationMin(remainingMin)} do cíle`;
     }
-    fastingHeaderWidget.className = `fasting-widget fasting-color-${state}`;
+    fastingHeaderWidget.className = `fasting-widget water-color-${colorState}`;
     fastingHeaderWidget.innerHTML = `<span class="fasting-widget-icon">${icon}</span><span>${escapeHtml(text)}</span>`;
   }
 
@@ -2758,11 +2778,17 @@
     return Math.round((citatel / jmenovatel) * 100) + "%";
   }
 
+  // Stejná 3barevná paleta jako u pití vody (viz waterColorState výše):
+  // fialová pod 60 %, modrá 60-90 %, zelená nad 90 % (na přání Iri 7. 9.
+  // 2026 - dřív appka měla jiné, dvouhraniční prahy 50 %/100 % a jiné barvy
+  // - zelenou/oranžovou/červenou). Nezastropováno na 100 % - viz „bonusové“
+  // dokončení popsané u vzorce Statistiky, zůstává beze změny, jen nad 90 %
+  // (tedy i nad 100 %) je pořád zelená.
   function statPercentClass(citatel, jmenovatel) {
     if (!jmenovatel) return "";
     const pct = (citatel / jmenovatel) * 100;
-    if (pct >= 100) return "stat-good";
-    if (pct >= 50) return "stat-mid";
+    if (pct > 90) return "stat-good";
+    if (pct >= 60) return "stat-mid";
     return "stat-low";
   }
 
@@ -2848,9 +2874,10 @@
       const goalMin = activeFast.cilMin || FASTING_GOAL_MIN;
       const remainingMin = goalMin - elapsedMin;
       const doneNow = remainingMin <= 0;
+      const activeColorState = fastingProgressColorState(elapsedMin, goalMin);
       html += `<div class="stat-today-card">
         <div class="stat-today-label">🍽️ Půst</div>
-        <div class="stat-today-fasting ${doneNow ? "fasting-color-done" : "fasting-color-progress"}">${doneNow ? "Cíl splněn ✅" : formatFastDurationMin(remainingMin) + " do cíle"}</div>
+        <div class="stat-today-fasting water-color-${activeColorState}">${doneNow ? "Cíl splněn ✅" : formatFastDurationMin(remainingMin) + " do cíle"}</div>
         <div class="stat-today-frac">Od ${formatFastClock(activeFast.startMs)} · zatím ${formatFastDurationMin(elapsedMin)}</div>
       </div>`;
     } else if (lastCompletedFast) {
