@@ -412,6 +412,10 @@
   .stat-fast-status.stat-good { color: #3f8f5f; }
   .stat-fast-status.stat-low { color: #b5502f; }
   .stat-fast-status.stat-active { color: var(--fasting-amber); }
+  .stat-fast-status-icon { display: none; font-size: 16px; }
+  .stat-fast-edit-btn { background: none; border: none; cursor: pointer; font-size: 15px; padding: 4px 2px; line-height: 1; color: var(--ink-soft); flex-shrink: 0; }
+  .stat-fast-edit-btn:hover { color: var(--ink); }
+  .stat-fast-row.stat-day-header .stat-fast-edit-btn { visibility: hidden; }
   .back-btn { display: none; }
   @media (max-width: 900px) {
     .columns { grid-template-columns: 100%; }
@@ -438,6 +442,12 @@
     .calendar-note-action-btn { font-size: 13px; padding: 4px 5px; }
     .editor-wrap { overflow-y: auto; -webkit-overflow-scrolling: touch; }
     .editor-wrap #quillContainer { flex: none; overflow-y: visible; }
+    .stat-fast-row { padding: 8px 10px; gap: 6px; font-size: 12.5px; }
+    .stat-fast-times { min-width: 88px; font-size: 12px; }
+    .stat-fast-duration { min-width: 46px; }
+    .stat-fast-status { min-width: 22px; text-align: center; }
+    .stat-fast-status-text { display: none; }
+    .stat-fast-status-icon { display: inline; }
   }
   .app-version-badge { color: #b7afa1; font-size: 11px; font-weight: 600; margin-left: 6px; vertical-align: middle; letter-spacing: .02em; }
   .columns.view-termin .col-notes, .columns.view-calendar .col-notes, .columns.view-dashboard .col-notes { position: relative; z-index: 0; }
@@ -672,6 +682,26 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="fastingEditModal">
+  <div class="modal-card" id="fastingEditCard">
+    <h3>✏️ Upravit půst</h3>
+    <div class="field">
+      <label for="fastingEditStart">Začátek</label>
+      <input type="datetime-local" id="fastingEditStart">
+    </div>
+    <div class="field">
+      <label for="fastingEditEnd">Konec</label>
+      <input type="datetime-local" id="fastingEditEnd">
+      <div class="modal-sub" style="margin:6px 0 0;">Nech prázdné, pokud půst ještě běží.</div>
+    </div>
+    <div class="modal-sub" id="fastingEditStatus"></div>
+    <div class="row-btns">
+      <button class="btn btn-secondary" id="fastingEditCancelBtn" type="button">Zrušit</button>
+      <button class="btn" id="fastingEditSaveBtn" type="button">Uložit</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <div class="modal-overlay" id="pdfRangeModal">
@@ -734,7 +764,7 @@
     query, where, orderBy, onSnapshot, serverTimestamp, writeBatch, getDocs
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-  const APP_VERSION = "21";
+  const APP_VERSION = "22";
   document.querySelectorAll(".app-version-badge").forEach(el => {
     el.textContent = "v" + APP_VERSION;
   });
@@ -808,6 +838,12 @@
   const calendarQuickEditDeleteBtn = document.getElementById("calendarQuickEditDeleteBtn");
   const calendarQuickEditOpenBtn = document.getElementById("calendarQuickEditOpenBtn");
   const calendarQuickEditCloseBtn = document.getElementById("calendarQuickEditCloseBtn");
+  const fastingEditModal = document.getElementById("fastingEditModal");
+  const fastingEditStart = document.getElementById("fastingEditStart");
+  const fastingEditEnd = document.getElementById("fastingEditEnd");
+  const fastingEditStatus = document.getElementById("fastingEditStatus");
+  const fastingEditCancelBtn = document.getElementById("fastingEditCancelBtn");
+  const fastingEditSaveBtn = document.getElementById("fastingEditSaveBtn");
   const columnsEl = document.getElementById("columns");
 
   const foldersList = document.getElementById("foldersList");
@@ -897,6 +933,7 @@
   let undoToastTimer = null;
   let calendarQuickEditNoteId = null;
   let calendarQuickEditSaveTimer = null;
+  let fastingEditId = null;
   let lastFocusIsQuill = false;
   let lastFocusEl = null;
   let lastFocusCursor = null;
@@ -1738,6 +1775,97 @@
 
   fastingHeaderWidget.addEventListener("click", () => {
     window.location.href = "fasting.html";
+  });
+
+  // Ruční úprava data/času začátku a konce půstu ze Statistiky (přidáno na
+  // žádost Iri 7. 9. 2026). "datetime-local" input pracuje s místním časem
+  // prohlížeče bez časové zóny, což přesně odpovídá tomu, jak appka časy
+  // ukládá (startMs/konecMs jsou obyčejné epoch ms, zobrazované/needitované
+  // vždy v místním čase - viz formatFastClock výše) - žádný převod mezi
+  // časovými zónami se tu tedy neřeší.
+  function msToDatetimeLocalValue(ms) {
+    const d = new Date(ms);
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
+  function datetimeLocalValueToMs(value) {
+    if (!value) return null;
+    const ms = new Date(value).getTime();
+    return Number.isNaN(ms) ? null : ms;
+  }
+
+  function openFastingEditModal(id) {
+    const rec = fastingRecords.find(r => r.id === id);
+    if (!rec) return;
+    fastingEditId = id;
+    fastingEditStart.value = msToDatetimeLocalValue(rec.startMs);
+    fastingEditEnd.value = rec.konecMs != null ? msToDatetimeLocalValue(rec.konecMs) : "";
+    fastingEditStatus.textContent = "";
+    fastingEditModal.classList.add("visible");
+  }
+
+  function closeFastingEditModal() {
+    fastingEditId = null;
+    fastingEditModal.classList.remove("visible");
+  }
+
+  async function saveFastingEdit() {
+    const rec = fastingRecords.find(r => r.id === fastingEditId);
+    if (!rec) { closeFastingEditModal(); return; }
+    const startMs = datetimeLocalValueToMs(fastingEditStart.value);
+    if (startMs == null) {
+      fastingEditStatus.textContent = "Vyplň platný začátek.";
+      return;
+    }
+    const endRaw = fastingEditEnd.value;
+    const endMs = endRaw ? datetimeLocalValueToMs(endRaw) : null;
+    if (endRaw && endMs == null) {
+      fastingEditStatus.textContent = "Neplatný konec.";
+      return;
+    }
+    if (endMs != null && endMs <= startMs) {
+      fastingEditStatus.textContent = "Konec musí být po začátku.";
+      return;
+    }
+    // Pokud se konec smaže (půst se tím vrací do stavu "probíhá"), appka
+    // nedovolí mít rozběhlé dva půsty najednou - jinak by widget i stránka
+    // fasting.html nevěděly, který z aktivních záznamů zobrazit.
+    if (endMs == null && rec.konecMs != null) {
+      const otherActive = fastingRecords.find(r => r.id !== rec.id && r.konecMs == null);
+      if (otherActive) {
+        fastingEditStatus.textContent = "Už běží jiný půst - nejdřív ho uprav nebo ukonči.";
+        return;
+      }
+    }
+    const goalMin = rec.cilMin || FASTING_GOAL_MIN;
+    const patch = {
+      startMs,
+      datum: localDateStr(new Date(startMs)),
+      konecMs: endMs,
+      delkaMin: endMs != null ? Math.round((endMs - startMs) / 60000) : null,
+      splneno: endMs != null ? ((endMs - startMs) / 60000) >= goalMin : null,
+    };
+    fastingEditStatus.textContent = "Ukládání…";
+    fastingEditSaveBtn.disabled = true;
+    try {
+      await updateDoc(doc(db, FASTING_COL, rec.id), patch);
+      closeFastingEditModal();
+    } catch (err) {
+      console.error("Chyba při ukládání úpravy půstu:", err);
+      fastingEditStatus.textContent = "Chyba při ukládání.";
+    } finally {
+      fastingEditSaveBtn.disabled = false;
+    }
+  }
+
+  fastingEditCancelBtn.addEventListener("click", () => closeFastingEditModal());
+  fastingEditSaveBtn.addEventListener("click", () => { saveFastingEdit(); });
+  fastingEditModal.addEventListener("click", (e) => {
+    if (e.target === fastingEditModal) closeFastingEditModal();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && fastingEditModal.classList.contains("visible")) closeFastingEditModal();
   });
 
   function computeStatsForDay(dateStr, notes) {
@@ -2783,12 +2911,14 @@
           ? formatFastDurationMin((Date.now() - r.startMs) / 60000)
           : formatFastDurationMin(r.delkaMin || 0);
         const statusClass = isActive ? "stat-active" : (r.splneno ? "stat-good" : "stat-low");
-        const statusLabel = isActive ? "Probíhá" : (r.splneno ? "Cíl splněn ✅" : "Cíl nesplněn");
+        const statusText = isActive ? "Probíhá" : (r.splneno ? "Cíl splněn" : "Cíl nesplněn");
+        const statusIcon = isActive ? "⏳" : (r.splneno ? "✅" : "❌");
         return `<div class="stat-fast-row ${isActive ? "stat-fast-active-row" : ""}">
           <span class="stat-fast-date">${escapeHtml(dateLabel)}</span>
           <span class="stat-fast-times">${escapeHtml(startClock)}–${escapeHtml(endClock)}</span>
           <span class="stat-fast-duration">${durationLabel}</span>
-          <span class="stat-fast-status ${statusClass}">${statusLabel}</span>
+          <span class="stat-fast-status ${statusClass}"><span class="stat-fast-status-text">${escapeHtml(statusText)}</span><span class="stat-fast-status-icon">${statusIcon}</span></span>
+          <button class="stat-fast-edit-btn" type="button" data-fast-id="${escapeHtml(r.id)}" title="Upravit čas" aria-label="Upravit čas půstu">✏️</button>
         </div>`;
       }).join("");
       html += `<div class="dashboard-group">
@@ -2799,6 +2929,7 @@
             <span class="stat-fast-times">Start–konec</span>
             <span class="stat-fast-duration">Délka</span>
             <span class="stat-fast-status">Cíl</span>
+            <button class="stat-fast-edit-btn" type="button" tabindex="-1" aria-hidden="true">✏️</button>
           </div>
           ${fastRows}
         </div>
@@ -2806,6 +2937,9 @@
     }
 
     notesList.innerHTML = html;
+    notesList.querySelectorAll(".stat-fast-edit-btn[data-fast-id]").forEach(btn => {
+      btn.addEventListener("click", () => openFastingEditModal(btn.dataset.fastId));
+    });
   }
 
   function goToNoteInFolder(id) {
