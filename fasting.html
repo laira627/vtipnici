@@ -41,6 +41,8 @@
     --toast-ink: #ffffff;
     --fasting-amber: #c97a1f;
     --fasting-green: #3f8f5f;
+    --fasting-blue: #3d6fa8;
+    --fasting-purple: #8a5ea8;
   }
   /* ---------- Tmavý režim ----------
      Přepíná se atributem data-theme="dark" na <html> (viz applyTheme() v JS).
@@ -59,6 +61,8 @@
     --toast-ink: #f2e9db;
     --fasting-amber: #e0a545;
     --fasting-green: #6fcf97;
+    --fasting-blue: #7fb0e8;
+    --fasting-purple: #c9a3e0;
   }
   * { box-sizing: border-box; }
   html { color-scheme: light; }
@@ -156,7 +160,9 @@
     line-height: 1.15;
     color: var(--accent);
   }
-  .fast-status-value.fast-done { color: var(--fasting-green); }
+  .fast-status-value.fast-color-purple { color: var(--fasting-purple); }
+  .fast-status-value.fast-color-blue { color: var(--fasting-blue); }
+  .fast-status-value.fast-color-green { color: var(--fasting-green); }
   .fast-status-sub {
     font-size: 13px;
     color: var(--ink-soft);
@@ -255,15 +261,10 @@
     initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
     collection, addDoc, updateDoc, doc, query, where, onSnapshot
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
-  const firebaseConfig = {
-    apiKey: "AIzaSyCeOsvSECUhxjCQ7y2fFv3ybkxw2vsHwEo",
-    authDomain: "vtipnici.firebaseapp.com",
-    projectId: "vtipnici",
-    storageBucket: "vtipnici.firebasestorage.app",
-    messagingSenderId: "803980056829",
-    appId: "1:803980056829:web:1358b51db8b3e706e50694"
-  };
+  // Bug-5: firebaseConfig i FASTING_GOAL_MIN jsou teď sdílené z jednoho
+  // místa (viz shared-config.js) - dřív byly zkopírované zvlášť tady a v
+  // index.html, což jednou reálně vedlo k rozjetým hodnotám cíle.
+  import { firebaseConfig, FASTING_GOAL_MIN } from "./shared-config.js";
 
   const app = initializeApp(firebaseConfig);
   const auth = getAuth(app);
@@ -272,12 +273,6 @@
   });
 
   const FASTING_COL = "pustDny";
-  // Cíl: 13 hodin bez jídla (zbylých 11 hodin dne je okno, kdy se smí jíst),
-  // vyjádřeno v minutách - stejná hodnota jako v index.html
-  // (FASTING_GOAL_MIN). Appka ji ukládá do každého založeného půstu zvlášť
-  // (pole cilMin), takže budoucí změnu cíle stačí udělat přepsáním týhle
-  // konstanty - žádné uživatelské rozhraní pro to není potřeba.
-  const FASTING_GOAL_MIN = 13 * 60;
 
   const loginScreen = document.getElementById("loginScreen");
   const entryScreen = document.getElementById("entryScreen");
@@ -367,6 +362,17 @@
     return completed[0] || null;
   }
 
+  // Barevný stav podle uplynulé doby (v minutách) BĚŽÍCÍHO půstu - stejná
+  // paleta a stejná logika jako widget v hlavním menu appky (viz
+  // fastingProgressColorState v index.html) a jako u vody/procent ve
+  // Statistice: fialová pod 10 hodin, modrá 10 hodin až těsně pod cíl,
+  // zelená od dosažení cíle výš (na žádost Iri 9. 9. 2026).
+  function fastColorState(elapsedMin, goalMin) {
+    if (elapsedMin >= goalMin) return "green";
+    if (elapsedMin >= 10 * 60) return "blue";
+    return "purple";
+  }
+
   // Na rozdíl od widgetu v hlavním menu appky (index.html), který ukazuje
   // záměrně STATICKOU hodnotu (viz tam), je tahle stránka svým účelem přímo
   // obrazovka pro sledování půstu - proto se tu zbývající/uplynulý čas
@@ -383,7 +389,9 @@
       fastStatusValue.textContent = doneNow
         ? "Cíl splněn ✅"
         : `Zbývá ${formatFastDurationMin(remainingMin)}`;
-      fastStatusValue.classList.toggle("fast-done", doneNow);
+      const colorState = fastColorState(elapsedMin, goalMin);
+      fastStatusValue.classList.remove("fast-color-purple", "fast-color-blue", "fast-color-green");
+      fastStatusValue.classList.add(`fast-color-${colorState}`);
       fastStatusSub.textContent = `Od ${formatFastClock(active.startMs)} · uplynulo ${formatFastDurationMin(elapsedMin)}`;
     } else {
       fastActiveBlock.style.display = "none";
@@ -449,9 +457,15 @@
     const delkaMin = Math.round((konecMs - active.startMs) / 60000);
     const goalMin = active.cilMin || FASTING_GOAL_MIN;
     const splneno = delkaMin >= goalMin;
+    // Na žádost Iri (9. 9. 2026): dokud půst běží, appka ho eviduje pod
+    // datem, kdy ZAČAL (pole "datum" se nastaví jen jednou při založení -
+    // viz výš). Po ukončení se ale "datum" přepíše na den DOKONČENÍ - u
+    // půstu přes půlnoc (začátek večer, konec ráno) tak po ukončení
+    // spadne do dnešního dne, ne do včerejška, kdy začal.
+    const datum = localDateStr(new Date(konecMs));
     try {
-      await updateDoc(doc(db, FASTING_COL, active.id), { konecMs, delkaMin, splneno });
-      fastingRecords = fastingRecords.map(r => r.id === active.id ? { ...r, konecMs, delkaMin, splneno } : r);
+      await updateDoc(doc(db, FASTING_COL, active.id), { konecMs, delkaMin, splneno, datum });
+      fastingRecords = fastingRecords.map(r => r.id === active.id ? { ...r, konecMs, delkaMin, splneno, datum } : r);
       renderFastingState();
       showToast(splneno ? `Půst ukončen, cíl splněn (${formatFastDurationMin(delkaMin)}) 🎉` : `Půst ukončen (${formatFastDurationMin(delkaMin)})`);
     } catch (err) {

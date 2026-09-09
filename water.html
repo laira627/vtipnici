@@ -23,8 +23,8 @@
     } catch (e) {}
   })();
 </script>
-<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32-water.png">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16-water.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ctext%20y%3D%22.9em%22%20font-size%3D%2290%22%3E%F0%9F%92%A7%3C/text%3E%3C/svg%3E">
 <style>
   :root {
@@ -260,15 +260,9 @@
     initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
     doc, setDoc, onSnapshot, increment
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
-  const firebaseConfig = {
-    apiKey: "AIzaSyCeOsvSECUhxjCQ7y2fFv3ybkxw2vsHwEo",
-    authDomain: "vtipnici.firebaseapp.com",
-    projectId: "vtipnici",
-    storageBucket: "vtipnici.firebasestorage.app",
-    messagingSenderId: "803980056829",
-    appId: "1:803980056829:web:1358b51db8b3e706e50694"
-  };
+  // Bug-5: firebaseConfig i WATER_GOAL_ML jsou teď sdílené z jednoho místa,
+  // viz shared-config.js.
+  import { firebaseConfig, WATER_GOAL_ML } from "./shared-config.js";
 
   const app = initializeApp(firebaseConfig);
   const auth = getAuth(app);
@@ -277,7 +271,6 @@
   });
 
   const WATER_COL = "vodaDny";
-  const WATER_GOAL_ML = 2000;
 
   const loginScreen = document.getElementById("loginScreen");
   const entryScreen = document.getElementById("entryScreen");

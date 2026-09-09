@@ -275,15 +275,8 @@
     initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
     collection, addDoc, query, where, onSnapshot, serverTimestamp
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
-  const firebaseConfig = {
-    apiKey: "AIzaSyCeOsvSECUhxjCQ7y2fFv3ybkxw2vsHwEo",
-    authDomain: "vtipnici.firebaseapp.com",
-    projectId: "vtipnici",
-    storageBucket: "vtipnici.firebasestorage.app",
-    messagingSenderId: "803980056829",
-    appId: "1:803980056829:web:1358b51db8b3e706e50694"
-  };
+  // Bug-5: firebaseConfig je teď sdílená z jednoho místa, viz shared-config.js.
+  import { firebaseConfig } from "./shared-config.js";
 
   const app = initializeApp(firebaseConfig);
   const auth = getAuth(app);

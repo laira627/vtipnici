@@ -22,7 +22,7 @@
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20100%20100%22%3E%3Ctext%20y%3D%22.9em%22%20font-size%3D%2290%22%3E%F0%9F%93%8C%3C/text%3E%3C/svg%3E">
-<link href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" rel="stylesheet" integrity="sha384-ecIckRi4QlKYya/FQUbBUjS4qp65jF/J87Guw5uzTbO1C1Jfa/6kYmd6dXUF6D7i" crossorigin="anonymous">
 <style>
   :root {
     --bg: #dceefb;
@@ -754,8 +754,8 @@
 
 <div id="newsletterStage"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js" integrity="sha384-utBUCeG4SYaCm4m7GQZYr8Hy8Fpy3V4KGjBZaf4WTKOcwhCYpt/0PfeEe3HNlwx8" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js" integrity="sha384-ZZ1pncU3bQe8y31yfZdMFdSpttDoPmOZg2wguVK9almUodir1PghgT0eY7Mrty8H" crossorigin="anonymous"></script>
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
   import {
@@ -764,22 +764,19 @@
   import {
     initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
     collection, addDoc, updateDoc, deleteDoc, doc, setDoc,
-    query, where, orderBy, onSnapshot, serverTimestamp, writeBatch, getDocs
+    query, where, orderBy, onSnapshot, serverTimestamp, writeBatch
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  // Bug-5 (9. 9. 2026): firebaseConfig i cíle WATER_GOAL_ML/FASTING_GOAL_MIN
+  // bývaly zkopírované zvlášť v index.html, quick.html, water.html a
+  // fasting.html - u FASTING_GOAL_MIN se to jednou reálně rozešlo (dvě různé
+  // hodnoty cíle na dvou stránkách). Teď je to jedno sdílené místo pravdy,
+  // viz shared-config.js.
+  import { firebaseConfig, FASTING_GOAL_MIN, WATER_GOAL_ML } from "./shared-config.js";
 
-  const APP_VERSION = "24";
+  const APP_VERSION = "25";
   document.querySelectorAll(".app-version-badge").forEach(el => {
     el.textContent = "v" + APP_VERSION;
   });
-
-  const firebaseConfig = {
-    apiKey: "AIzaSyCeOsvSECUhxjCQ7y2fFv3ybkxw2vsHwEo",
-    authDomain: "vtipnici.firebaseapp.com",
-    projectId: "vtipnici",
-    storageBucket: "vtipnici.firebasestorage.app",
-    messagingSenderId: "803980056829",
-    appId: "1:803980056829:web:1358b51db8b3e706e50694"
-  };
 
   const app = initializeApp(firebaseConfig);
   const auth = getAuth(app);
@@ -792,14 +789,7 @@
   const STATS_COL = "statistikaDny";
   const STATS_FORMULA_VERSION = 2;
   const WATER_COL = "vodaDny";
-  const WATER_GOAL_ML = 2000;
   const FASTING_COL = "pustDny";
-  // Cíl: 13 hodin bez jídla (zbylých 11 hodin dne je okno, kdy se smí jíst),
-  // vyjádřeno v minutách. Appka ukládá tuhle hodnotu do každého založeného
-  // půstu zvlášť (pole cilMin), takže případná budoucí změna cíle - stačí
-  // přepsat tuhle konstantu, žádné uživatelské rozhraní pro to není potřeba
-  // - zpětně nezmění vyhodnocení už uložených půstů.
-  const FASTING_GOAL_MIN = 13 * 60;
 
   const DEFAULT_FOLDERS = [
     { nazev: "Hláška", barva: "#b5502f", poradi: 0 },
@@ -927,6 +917,10 @@
   let notesLoaded = false, statsLoaded = false, statsFinalizing = false;
   let trackingStartDate = null;
   let statsFormulaVersion = 1;
+  // Bug-1 (9. 9. 2026): kam až se stihl dokončit přepočet na nový vzorec
+  // statistiky (viz finalizeMissingStatsDays níže) - null znamená "ještě
+  // nezačalo/není potřeba".
+  let statsFormulaRecomputedUpTo = null;
   let view = { type: "all" };
   let selectedNoteId = null;
   let currentTags = [];
@@ -1164,11 +1158,30 @@
     }, true);
   }
 
+  // Bezpečnost: povolené schéma odkazů v editoru (Security-5, 9. 9. 2026).
+  // Dřív normalizeUrlValue propustila JAKÉKOLI schéma s dvojtečkou
+  // (regulárka /^[a-zA-Z][a-zA-Z0-9+.-]*:/), tedy i "javascript:" nebo
+  // "data:" - poznámka (i cizí, např. naimportovaná z webu) tak mohla
+  // obsahovat odkaz, který by po kliknutí spustil libovolný JS v kontextu
+  // appky (XSS). Teď appka povoluje jen neškodná schémata pro běžné
+  // odkazy/kontakty a cokoli jiného s dvojtečkou zahodí (vrátí "").
+  const ALLOWED_URL_SCHEMES = new Set(["http:", "https:", "mailto:", "tel:", "sms:"]);
+
   function normalizeUrlValue(raw) {
     const trimmed = (raw || "").trim();
     if (!trimmed) return "";
-    if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(trimmed) || trimmed.startsWith("#") || trimmed.startsWith("/")) {
+    if (trimmed.startsWith("#") || trimmed.startsWith("/")) {
       return trimmed;
+    }
+    if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(trimmed)) {
+      let scheme = null;
+      try {
+        scheme = new URL(trimmed).protocol;
+      } catch (e) {
+        const m = trimmed.match(/^([a-zA-Z][a-zA-Z0-9+.-]*):/);
+        scheme = m ? m[1].toLowerCase() + ":" : null;
+      }
+      return (scheme && ALLOWED_URL_SCHEMES.has(scheme)) ? trimmed : "";
     }
     return "https://" + trimmed;
   }
@@ -1188,6 +1201,7 @@
     if (raw === null) return;
     const url = normalizeUrlValue(raw);
     if (!url) {
+      if (raw.trim()) showToast("Nepovolený typ odkazu");
       quill.format("link", false, "user");
       return;
     }
@@ -1284,6 +1298,7 @@
       notesLoaded = false;
       statsLoaded = false;
       trackingStartDate = null;
+      statsFormulaRecomputedUpTo = null;
       renderWaterHeaderWidget();
       renderFastingHeaderWidget();
     }
@@ -1633,11 +1648,13 @@
       const fresh = new Map();
       let metaStart = null;
       let metaFormulaVersion = 1;
+      let metaFormulaRecomputedUpTo = null;
       snapshot.docs.forEach(d => {
         const data = d.data();
         if (data.type === "meta") {
           metaStart = data.trackingStartDate || null;
           metaFormulaVersion = data.formulaVersion || 1;
+          metaFormulaRecomputedUpTo = data.formulaRecomputedUpTo || null;
           return;
         }
         if (data.datum) fresh.set(data.datum, { citatel: data.citatel || 0, jmenovatel: data.jmenovatel || 0 });
@@ -1645,6 +1662,7 @@
       statsDays = fresh;
       trackingStartDate = metaStart;
       statsFormulaVersion = metaFormulaVersion;
+      statsFormulaRecomputedUpTo = metaFormulaRecomputedUpTo;
       statsLoaded = true;
       maybeFinalizeStats();
       if (view.type === "statistika") renderNotes();
@@ -1863,9 +1881,12 @@
       }
     }
     const goalMin = rec.cilMin || FASTING_GOAL_MIN;
+    // Stejné pravidlo jako v fasting.html (9. 9. 2026): "datum" je den
+    // začátku, dokud půst běží, a po dokončení se přepne na den dokončení
+    // (u půstu přes půlnoc jinak zůstával navždy pod dnem, kdy začal).
     const patch = {
       startMs,
-      datum: localDateStr(new Date(startMs)),
+      datum: endMs != null ? localDateStr(new Date(endMs)) : localDateStr(new Date(startMs)),
       konecMs: endMs,
       delkaMin: endMs != null ? Math.round((endMs - startMs) / 60000) : null,
       splneno: endMs != null ? ((endMs - startMs) / 60000) >= goalMin : null,
@@ -1953,22 +1974,40 @@
     }
 
     if (statsFormulaVersion < STATS_FORMULA_VERSION) {
+      // Bug-1 (9. 9. 2026): přepočet na nový vzorec jde po dávkách max. 400
+      // dní (limit Firestore batch). Appka dřív po KAŽDÉ dávce - i neúplné -
+      // rovnou zapsala formulaVersion: STATS_FORMULA_VERSION, takže když bylo
+      // sledovaných dní víc než 400, zbytek (dny za hranicí první dávky)
+      // zůstal navždy počítaný starým vzorcem - appka si "myslela", že už je
+      // hotovo. Teď appka postupuje po dávkách od formulaRecomputedUpTo (kam
+      // se stihlo minule) a formulaVersion zvýší, až když dávka dosáhne
+      // včerejška - jinak jen uloží formulaRecomputedUpTo a nechá další
+      // dávku doběhnout přes stejný mechanismus jako níž (zápis do meta
+      // dokumentu vyvolá onSnapshot a tím i další volání této funkce).
       try {
         const batch = writeBatch(db);
-        let d = trackingStartDate;
+        let d = statsFormulaRecomputedUpTo ? addDaysToIsoDate(statsFormulaRecomputedUpTo, 1) : trackingStartDate;
         let count = 0;
-        while (d <= yesterdayStr) {
+        while (d <= yesterdayStr && count < 400) {
           const stats = computeStatsForDay(d, allNotes);
           batch.set(doc(db, STATS_COL, `${currentUid}_${d}`), {
             uid: currentUid, datum: d, citatel: stats.citatel, jmenovatel: stats.jmenovatel
           });
           d = addDaysToIsoDate(d, 1);
           count++;
-          if (count >= 400) break;
         }
-        batch.set(doc(db, STATS_COL, `${currentUid}_meta`), {
-          uid: currentUid, type: "meta", trackingStartDate, formulaVersion: STATS_FORMULA_VERSION
-        }, { merge: true });
+        const caughtUp = d > yesterdayStr;
+        if (caughtUp) {
+          batch.set(doc(db, STATS_COL, `${currentUid}_meta`), {
+            uid: currentUid, type: "meta", trackingStartDate,
+            formulaVersion: STATS_FORMULA_VERSION, formulaRecomputedUpTo: null
+          }, { merge: true });
+        } else {
+          const upTo = addDaysToIsoDate(d, -1);
+          batch.set(doc(db, STATS_COL, `${currentUid}_meta`), {
+            uid: currentUid, type: "meta", trackingStartDate, formulaRecomputedUpTo: upTo
+          }, { merge: true });
+        }
         await batch.commit();
       } catch (err) {
         console.error("Chyba při přepočtu statistiky na nový vzorec:", err);
@@ -2529,16 +2568,18 @@
     goToNoteInFolder(id);
   });
 
-  async function createNoteForCalendarDay(dateStr) {
-    const targetFolder = folders.length ? folders[folders.length - 1].nazev : null;
-    if (!targetFolder) { showToast("Nejprve vytvoř složku"); return; }
-
+  // Bug-5 (9. 9. 2026): založení nové poznámky se dřív skoro identicky
+  // opakovalo na 3 místech (tlačítko "Nová poznámka", rychlé "+" v menu a
+  // klik na den v Kalendáři) - vč. jednoho případu, kdy jim chyběla kontrola
+  // na "nejdřív vytvoř složku". Teď je to jedna sdílená funkce.
+  async function createNote({ folder, termin = "", switchView = true } = {}) {
+    if (!folder) { showToast("Nejprve vytvoř složku"); return null; }
     const newNoteData = {
       datum: localTodayStr(),
-      druh: targetFolder,
+      druh: folder,
       nazev: "",
       popis: "",
-      termin: dateStr,
+      termin,
       opakovani: "",
       hodnoceni: "",
       oblibene: false,
@@ -2553,18 +2594,26 @@
       ref = await addDoc(collection(db, NOTES_COL), newNoteData);
     } catch (err) {
       showToast("Chyba při vytváření poznámky: " + err.message);
-      return;
+      return null;
     }
 
     if (!allNotes.some(n => n.id === ref.id)) {
       allNotes = [{ id: ref.id, ...newNoteData }, ...allNotes];
     }
 
-    const f = folderByName(targetFolder);
-    selectView({ type: "folder", id: f.id, nazev: f.nazev, barva: f.barva });
+    if (switchView) {
+      const f = folderByName(folder);
+      selectView({ type: "folder", id: f.id, nazev: f.nazev, barva: f.barva });
+    }
     openNote(ref.id);
     if (window.innerWidth <= 900) columnsEl.dataset.view = "editor";
     setTimeout(() => editorTitle.focus(), 150);
+    return ref.id;
+  }
+
+  async function createNoteForCalendarDay(dateStr) {
+    const targetFolder = folders.length ? folders[folders.length - 1].nazev : null;
+    await createNote({ folder: targetFolder, termin: dateStr });
   }
   function renderTrashView() {
     notesColTitle.textContent = "🗑 Koš";
@@ -3060,40 +3109,7 @@
 
   menuQuickAddBtn.addEventListener("click", async () => {
     const targetFolder = folders.length ? folders[folders.length - 1].nazev : null;
-    if (!targetFolder) { showToast("Nejprve vytvoř složku"); return; }
-
-    const newNoteData = {
-      datum: localTodayStr(),
-      druh: targetFolder,
-      nazev: "",
-      popis: "",
-      termin: "",
-      opakovani: "",
-      hodnoceni: "",
-      oblibene: false,
-      stitky: [],
-      uid: currentUid,
-      vytvoreno: serverTimestamp(),
-      upraveno: serverTimestamp()
-    };
-
-    let ref;
-    try {
-      ref = await addDoc(collection(db, NOTES_COL), newNoteData);
-    } catch (err) {
-      showToast("Chyba při vytváření poznámky: " + err.message);
-      return;
-    }
-
-    if (!allNotes.some(n => n.id === ref.id)) {
-      allNotes = [{ id: ref.id, ...newNoteData }, ...allNotes];
-    }
-
-    const f = folderByName(targetFolder);
-    selectView({ type: "folder", id: f.id, nazev: f.nazev, barva: f.barva });
-    openNote(ref.id);
-    if (window.innerWidth <= 900) columnsEl.dataset.view = "editor";
-    setTimeout(() => editorTitle.focus(), 150);
+    await createNote({ folder: targetFolder });
   });
 
   async function toggleFavorite(id) {
@@ -3280,42 +3296,11 @@
     if (view.type === "folder") targetFolder = view.nazev;
     else if (view.type === "termin" || view.type === "calendar") targetFolder = folders.length ? folders[folders.length - 1].nazev : null;
     else targetFolder = folders[0] ? folders[0].nazev : null;
-    if (!targetFolder) { showToast("Nejprve vytvoř složku"); return; }
-
-    const newNoteData = {
-      datum: localTodayStr(),
-      druh: targetFolder,
-      nazev: "",
-      popis: "",
+    await createNote({
+      folder: targetFolder,
       termin: view.type === "calendar" ? localTodayStr() : "",
-      opakovani: "",
-      hodnoceni: "",
-      oblibene: false,
-      stitky: [],
-      uid: currentUid,
-      vytvoreno: serverTimestamp(),
-      upraveno: serverTimestamp()
-    };
-
-    let ref;
-    try {
-      ref = await addDoc(collection(db, NOTES_COL), newNoteData);
-    } catch (err) {
-      showToast("Chyba při vytváření poznámky: " + err.message);
-      return;
-    }
-
-    if (!allNotes.some(n => n.id === ref.id)) {
-      allNotes = [{ id: ref.id, ...newNoteData }, ...allNotes];
-    }
-
-    if (view.type !== "folder") {
-      const f = folderByName(targetFolder);
-      selectView({ type: "folder", id: f.id, nazev: f.nazev, barva: f.barva });
-    }
-    openNote(ref.id);
-    if (window.innerWidth <= 900) columnsEl.dataset.view = "editor";
-    setTimeout(() => editorTitle.focus(), 150);
+      switchView: view.type !== "folder"
+    });
   });
 
   function openNote(id) {
@@ -3630,6 +3615,31 @@
       showToast("Chyba: " + err.message);
     }
   }
+
+  // Bug-3/Bug-4 (9. 9. 2026): appka ukládala rozpracované věci jen po 700ms
+  // (hlavní editor), 700ms (rychlá úprava v Kalendáři) nebo 5s (nenávratné
+  // smazání po kliknutí na koš, viz deleteNoteRow/pendingDeletes výše) - když
+  // uživatel zavřel/přepnul kartu dřív, poslední rozepsaná změna nebo čerstvé
+  // smazání se ztratily. Appka teď při skrytí/zavření stránky vše rozpracované
+  // ihned dokončí místo čekání na uplynutí časovače.
+  function flushPendingWorkBeforeLeaving() {
+    if (saveTimer) {
+      clearTimeout(saveTimer);
+      saveTimer = null;
+      saveCurrentNote();
+    }
+    flushCalendarQuickEditSave();
+    pendingDeletes.forEach((entry, id) => {
+      clearTimeout(entry.timeoutId);
+      finalizeDeleteNote(id);
+    });
+  }
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") flushPendingWorkBeforeLeaving();
+  });
+  window.addEventListener("pagehide", () => {
+    flushPendingWorkBeforeLeaving();
+  });
 
   backToFolders.addEventListener("click", () => columnsEl.dataset.view = "folders");
   backToNotes.addEventListener("click", () => columnsEl.dataset.view = "notes");
