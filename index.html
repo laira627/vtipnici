@@ -767,7 +767,7 @@
   // viz shared-config.js.
   import { firebaseConfig, FASTING_GOAL_MIN, WATER_GOAL_ML } from "./shared-config.js";
 
-  const APP_VERSION = "26";
+  const APP_VERSION = "28";
   document.querySelectorAll(".app-version-badge").forEach(el => {
     el.textContent = "v" + APP_VERSION;
   });
@@ -2458,19 +2458,13 @@
   async function changeTerminForNote(id, newDate) {
     if (!newDate) return;
     try {
-      const n = allNotes.find(x => x.id === id);
       const payload = { termin: newDate, upraveno: serverTimestamp() };
-      // Nová/dosud nedatovaná poznámka dostávající termín tímto způsobem
-      // (tlačítko "zítra", ruční výběr v rychlé úpravě) automaticky dostane
-      // i čas dle aktuální hodiny, pokud ještě žádný nemá.
-      if (!n || !Number.isInteger(n.terminCas)) {
-        payload.terminCas = new Date().getHours();
-      }
+      // Pozor: na rozdíl od editoru/nové poznámky se tu čas AUTOMATICKY
+      // nedoplňuje aktuální hodinou (zrušeno 10. 9. 2026 na žádost Iri) -
+      // změna termínu z Kalendáře (tlačítko "zítra" i ruční výběr data)
+      // se čas dřívějšího nastavení pole terminCas vůbec nedotýká.
       await updateDoc(doc(db, NOTES_COL, id), payload);
       allNotes = allNotes.map(x => x.id === id ? { ...x, ...payload } : x);
-      if (calendarQuickEditNoteId === id) {
-        calendarQuickEditCas.value = String(payload.terminCas != null ? payload.terminCas : n.terminCas);
-      }
       renderNotes();
       showToast("Termín změněn");
     } catch (err) {
@@ -2882,19 +2876,25 @@
     const activeFast = activeFastingRecord();
     const completedFasts = fastingRecords.filter(r => r.konecMs != null).sort((a, b) => b.startMs - a.startMs);
     const lastCompletedFast = completedFasts[0] || null;
-    // Pro sloupec "Půst" v tabulce "Posledních 14 dní" - jeden půst na den
-    // (appka předpokládá nejvýš jeden běžící/dokončený půst začínající daný
-    // den, viz Datový model), takže při víc záznamech na stejné datum (mělo
-    // by být vzácné) appka bere ten s nejnovějším startem.
+    // Pro sloupec "Půst" v tabulce "Posledních 14 dní" - může se stát, že
+    // pro jeden den existuje víc záznamů (běžně vzácné, ale možné - třeba
+    // nesplněný půst brzy ráno a pak ještě jeden začatý týž den večer).
+    // Místo "vyhrává nejnovější start" appka bere pro daný den nejlepší
+    // dosažený výsledek bez ohledu na pořadí: ✅ má přednost před ⏳, a ⏳
+    // před ❌ (domluveno 10. 9. 2026) - fajfka tedy ukáže, že se ten den
+    // cíl splnil, i kdyby pozdější/probíhající půst ten den zrovna
+    // nevycházel nebo ještě neskončil.
     const fastingByDate = new Map();
     fastingRecords.forEach(r => {
       if (!r.datum) return;
+      const rank = r.konecMs == null ? 1 : (r.splneno ? 2 : 0); // 2=splněno, 1=probíhá, 0=nesplněno
       const existing = fastingByDate.get(r.datum);
-      if (!existing || r.startMs > existing.startMs) fastingByDate.set(r.datum, r);
+      if (!existing || rank > existing.rank) fastingByDate.set(r.datum, { rec: r, rank });
     });
     const fastingIconHtmlForDate = (dateStr) => {
-      const rec = fastingByDate.get(dateStr);
-      if (!rec) return `<span class="stat-day-fasting-icon stat-day-fasting-none">–</span>`;
+      const entry = fastingByDate.get(dateStr);
+      if (!entry) return `<span class="stat-day-fasting-icon stat-day-fasting-none">–</span>`;
+      const rec = entry.rec;
       if (rec.konecMs == null) return `<span class="stat-day-fasting-icon" title="Půst probíhá">⏳</span>`;
       return rec.splneno
         ? `<span class="stat-day-fasting-icon" title="Cíl splněn">✅</span>`
