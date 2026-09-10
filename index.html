@@ -248,6 +248,7 @@
   .editor-topbar { padding: 12px 20px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .editor-topbar select { max-width: 150px; padding: 7px 9px; font-size: 13px; }
   .editor-topbar input[type=date] { padding: 7px 9px; font-size: 13px; max-width: 145px; }
+  .editor-topbar select#editorTerminCas { max-width: 78px; }
   .editor-topbar .spacer { flex: 1; }
   .editor-topbar-icon { font-size: 15px; opacity: .8; line-height: 1; flex-shrink: 0; }
   .editor-title-row { margin: 14px 20px 0; padding: 10px 16px 4px; background: var(--accent-soft); border: 1.5px solid var(--accent); border-radius: 12px; display: flex; align-items: flex-end; gap: 8px; }
@@ -312,6 +313,7 @@
   .calendar-quick-edit-folder { margin-bottom: 14px; }
   .calendar-quick-edit-termin-row { display: flex; gap: 6px; align-items: center; }
   .calendar-quick-edit-termin-row input[type=date] { flex: 1; min-width: 0; }
+  .calendar-quick-edit-termin-row select#calendarQuickEditCas { flex: 0 0 78px; }
   .calendar-quick-edit-repeat { font-size: 12.5px; color: var(--ink-soft); margin-top: 6px; }
   .calendar-quick-edit-repeat:empty { display: none; }
   .calendar-quick-edit-status { min-height: 16px; margin: -6px 0 10px; }
@@ -320,7 +322,6 @@
   .calendar-quick-edit-delete-btn:hover { background: #fce8e6; color: var(--danger); border-color: #fce8e6; }
   .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--toast-bg); color: var(--toast-ink); padding: 11px 20px; border-radius: 10px; font-size: 14px; font-weight: 600; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; z-index: 200; display: flex; align-items: center; gap: 10px; }
   .toast.visible { opacity: 1; transform: translateX(-50%) translateY(-6px); pointer-events: auto; }
-  .modal-card.termin-summary-card { background: var(--cream-card-bg2); border: 2px solid var(--cream-card-border2); max-width: 400px; }
   .toast-undo-btn { background: transparent; border: 1.5px solid rgba(255,255,255,0.5); color: var(--toast-ink); border-radius: 7px; padding: 4px 11px; font-size: 12.5px; font-weight: 700; cursor: pointer; white-space: nowrap; }
   .toast-undo-btn:hover { background: rgba(255,255,255,0.18); }
   #newsletterStage { position: fixed; left: -99999px; top: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
@@ -576,6 +577,7 @@
           <select id="editorFolder"></select>
           <input type="date" id="editorDate" title="Datum poznámky" aria-label="Datum poznámky">
           <input type="date" id="editorTermin" title="Termín (nepovinné)" aria-label="Termín (nepovinné)">
+          <select id="editorTerminCas" title="Čas termínu" aria-label="Čas termínu"></select>
           <button class="icon-btn small" id="editorTerminTomorrowBtn" type="button" title="Nastavit termín na zítřek" aria-label="Nastavit termín na zítřek">zítra</button>
           <span class="editor-topbar-icon" title="Opakování">🔁</span>
           <select id="editorOpakovani" title="Opakování" aria-label="Opakování">
@@ -629,15 +631,6 @@
 </div>
 
 <div id="printArea"></div>
-<div class="modal-overlay" id="terminSummaryModal">
-  <div class="modal-card termin-summary-card">
-    <h3>📌 Termíny na dnes</h3>
-    <p class="modal-sub" id="terminSummaryModalText"></p>
-    <div class="row-btns">
-      <button class="btn" id="terminSummaryModalCloseBtn" type="button">Zavřít</button>
-    </div>
-  </div>
-</div>
 
 <div class="modal-overlay" id="trashPreviewModal">
   <div class="modal-card trash-preview-card">
@@ -659,6 +652,7 @@
       <label for="calendarQuickEditTermin">Termín</label>
       <div class="calendar-quick-edit-termin-row">
         <input type="date" id="calendarQuickEditTermin">
+        <select id="calendarQuickEditCas" title="Čas termínu" aria-label="Čas termínu"></select>
         <button class="btn-mini" id="calendarQuickEditTerminTomorrowBtn" type="button">zítra</button>
       </div>
       <div class="calendar-quick-edit-repeat" id="calendarQuickEditRepeat"></div>
@@ -773,7 +767,7 @@
   // viz shared-config.js.
   import { firebaseConfig, FASTING_GOAL_MIN, WATER_GOAL_ML } from "./shared-config.js";
 
-  const APP_VERSION = "25";
+  const APP_VERSION = "26";
   document.querySelectorAll(".app-version-badge").forEach(el => {
     el.textContent = "v" + APP_VERSION;
   });
@@ -810,9 +804,6 @@
   const themeToggleBtn = document.getElementById("themeToggleBtn");
   const themeColorMeta = document.getElementById("themeColorMeta");
   const toast = document.getElementById("toast");
-  const terminSummaryModal = document.getElementById("terminSummaryModal");
-  const terminSummaryModalText = document.getElementById("terminSummaryModalText");
-  const terminSummaryModalCloseBtn = document.getElementById("terminSummaryModalCloseBtn");
   const trashPreviewModal = document.getElementById("trashPreviewModal");
   const trashPreviewTitle = document.getElementById("trashPreviewTitle");
   const trashPreviewMeta = document.getElementById("trashPreviewMeta");
@@ -823,6 +814,7 @@
   const calendarQuickEditModal = document.getElementById("calendarQuickEditModal");
   const calendarQuickEditFolderLabel = document.getElementById("calendarQuickEditFolderLabel");
   const calendarQuickEditTermin = document.getElementById("calendarQuickEditTermin");
+  const calendarQuickEditCas = document.getElementById("calendarQuickEditCas");
   const calendarQuickEditRepeat = document.getElementById("calendarQuickEditRepeat");
   const calendarQuickEditTerminTomorrowBtn = document.getElementById("calendarQuickEditTerminTomorrowBtn");
   const calendarQuickEditNazev = document.getElementById("calendarQuickEditNazev");
@@ -866,6 +858,7 @@
   const editorFolder = document.getElementById("editorFolder");
   const editorDate = document.getElementById("editorDate");
   const editorTermin = document.getElementById("editorTermin");
+  const editorTerminCas = document.getElementById("editorTerminCas");
   const editorTerminTomorrowBtn = document.getElementById("editorTerminTomorrowBtn");
   const editorOpakovani = document.getElementById("editorOpakovani");
   const emojiPickerBtn = document.getElementById("emojiPickerBtn");
@@ -1000,6 +993,43 @@
     const c = RATING_COLORS[hodnoceni];
     if (!c) return "";
     return `<span class="rating-badge" style="background:${c.bg};color:${c.text};" title="Hodnocení ${hodnoceni}">${hodnoceni}</span>`;
+  }
+
+  // ---------- Čas termínu (jen celé hodiny, "od") ----------
+  // Pole čas u termínu je <select> s hodinami 0–23 ("00:00"–"23:00"), plus
+  // prázdná volba (bez zadaného času). Používá se v hlavním editoru i v
+  // rychlé úpravě z Kalendáře - obě pole se naplní stejným seznamem voleb.
+  const HOUR_SELECT_OPTIONS_HTML = '<option value="">--:--</option>' +
+    Array.from({ length: 24 }, (_, h) => {
+      const label = String(h).padStart(2, "0") + ":00";
+      return `<option value="${h}">${label}</option>`;
+    }).join("");
+
+  function formatHour(h) {
+    return String(h).padStart(2, "0") + ":00";
+  }
+
+  editorTerminCas.innerHTML = HOUR_SELECT_OPTIONS_HTML;
+  calendarQuickEditCas.innerHTML = HOUR_SELECT_OPTIONS_HTML;
+
+  // Existující poznámky, které měly termín ještě předtím, než appka uměla
+  // zadávat i čas, čas nemají uložený vůbec (n.terminCas je undefined) -
+  // takové se berou, jako by měly čas 20:00 (viz probrané zadání z 10. 9.
+  // 2026). Nově vznikající poznámky s termínem dostávají čas rovnou při
+  // vytvoření/úpravě (viz createNote, editorTermin/editorTerminTomorrowBtn,
+  // changeTerminForNote), takže sem spadají hlavně ty starší.
+  function effectiveTerminCas(n) {
+    if (!n || !n.termin) return null;
+    return Number.isInteger(n.terminCas) ? n.terminCas : 20;
+  }
+
+  // Řazení podle termínu, které bere v potaz i čas (v rámci stejného dne
+  // termínu jde dřív ta poznámka, co má dřívější čas). Očekává, že obě
+  // poznámky termín mají - o to, jestli ho vůbec mají, se stará volající.
+  function compareByTerminThenCas(a, b) {
+    if (a.termin < b.termin) return -1;
+    if (a.termin > b.termin) return 1;
+    return effectiveTerminCas(a) - effectiveTerminCas(b);
   }
 
   function stripHtml(html) {
@@ -1635,7 +1665,6 @@
         if (!stillOpen) closeCalendarQuickEdit();
       }
       autoPurgeOldTrash();
-      runDailyDialogs();
       maybeFinalizeStats();
       if (view.type === "statistika") renderNotes();
     }, (err) => {
@@ -2042,36 +2071,6 @@
     }
   }
 
-  function tryShowTerminSummaryModal() {
-    const now = new Date();
-    if (now.getHours() < 6) return false;
-    const todayStr = localTodayStr();
-    if (localStorage.getItem("terminSummaryShownDate") === todayStr) return false;
-    const todays = visibleNotes().filter(n => n.termin === todayStr);
-    const overdue = visibleNotes().filter(n => n.termin && n.termin < todayStr);
-    if (todays.length === 0 && overdue.length === 0) return false;
-    localStorage.setItem("terminSummaryShownDate", todayStr);
-    const todayCount = todays.length;
-    const overdueCount = overdue.length;
-    const todayWord = todayCount === 1 ? "termín" : todayCount < 5 ? "termíny" : "termínů";
-    const overdueWord = overdueCount === 1 ? "termín" : overdueCount < 5 ? "termíny" : "termínů";
-    const parts = [];
-    if (todayCount > 0) parts.push(`dnes máš ${todayCount} ${todayWord}`);
-    if (overdueCount > 0) parts.push(`po termínu ${overdueCount} ${overdueWord}`);
-    const text = parts.join(", ");
-    terminSummaryModalText.textContent = text.charAt(0).toUpperCase() + text.slice(1);
-    terminSummaryModal.classList.add("visible");
-    return true;
-  }
-
-  function runDailyDialogs() {
-    tryShowTerminSummaryModal();
-  }
-
-  terminSummaryModalCloseBtn.addEventListener("click", () => {
-    terminSummaryModal.classList.remove("visible");
-  });
-
   function currentViewNotes() {
     let list;
     const base = visibleNotes();
@@ -2192,7 +2191,7 @@
       ? `<span class="note-row-repeat" title="Opakování: ${escapeHtml(opakovaniLabel)}">🔁 ${escapeHtml(opakovaniLabel)}</span>`
       : "";
     const terminHtml = (showTermin && n.termin)
-      ? `<div class="note-row-meta note-row-termin">📌 ${formatDate(n.termin)}${opakovaniBadgeHtml}</div>`
+      ? `<div class="note-row-meta note-row-termin">📌 ${formatDate(n.termin)} ${formatHour(effectiveTerminCas(n))}${opakovaniBadgeHtml}</div>`
       : "";
     const rowClasses = ["note-row", extraClasses, isActive ? "active" : "", urgencyClass]
       .filter(Boolean).join(" ");
@@ -2230,11 +2229,7 @@
     list.sort((a, b) => {
       const aHas = !!a.termin;
       const bHas = !!b.termin;
-      if (aHas && bHas) {
-        if (a.termin < b.termin) return -1;
-        if (a.termin > b.termin) return 1;
-        return 0;
-      }
+      if (aHas && bHas) return compareByTerminThenCas(a, b);
       if (aHas !== bHas) return aHas ? -1 : 1;
       if (a.datum > b.datum) return -1;
       if (a.datum < b.datum) return 1;
@@ -2278,7 +2273,7 @@
     const color = folder ? folder.barva : "#999";
     const title = noteTitle(n);
     const truncated = title.length > maxLen ? title.slice(0, maxLen) + "…" : title;
-    const dateLabelHtml = (showDate && n.termin) ? `<span class="calendar-note-overdue-date">${formatDate(n.termin)}</span>` : "";
+    const dateLabelHtml = (showDate && n.termin) ? `<span class="calendar-note-overdue-date">${formatDate(n.termin)} ${formatHour(effectiveTerminCas(n))}</span>` : "";
     const actionsHtml = compact ? "" : `<div class="calendar-note-chip-actions">
       <button class="calendar-note-action-btn calendar-note-delete-btn" data-id="${n.id}" type="button" title="Smazat" aria-label="Smazat">${TRASH_ICON_SVG}</button>
     </div>`;
@@ -2299,7 +2294,11 @@
       if (dateStr < todayStr) overdueNotes = overdueNotes.concat(notes);
     });
     if (overdueNotes.length === 0) return "";
-    overdueNotes.sort((a, b) => (a.termin < b.termin ? -1 : a.termin > b.termin ? 1 : (a.druh || "").localeCompare(b.druh || "", "cs")));
+    overdueNotes.sort((a, b) => {
+      const c = compareByTerminThenCas(a, b);
+      if (c !== 0) return c;
+      return (a.druh || "").localeCompare(b.druh || "", "cs");
+    });
     const chips = overdueNotes.map(n => calendarNoteChipHtml(n, 60, false, { showDate: true })).join("");
     return `<div class="calendar-day calendar-day-overdue calendar-overdue-box">
       <div class="calendar-day-num">⏰ Prošlé</div>
@@ -2312,7 +2311,11 @@
     const todayStr = localTodayStr();
     const isToday = dateStr === todayStr;
     const notesToday = (notesByDate.get(dateStr) || []).slice()
-      .sort((a, b) => (a.druh || "").localeCompare(b.druh || "", "cs"));
+      .sort((a, b) => {
+        const c = compareByTerminThenCas(a, b);
+        if (c !== 0) return c;
+        return (a.druh || "").localeCompare(b.druh || "", "cs");
+      });
     const maxLen = compact ? 14 : 60;
     const chips = notesToday.map(n => calendarNoteChipHtml(n, maxLen, compact)).join("");
     const isOverdueDay = highlightOverdueDay && dateStr < todayStr && notesToday.length > 0;
@@ -2455,12 +2458,34 @@
   async function changeTerminForNote(id, newDate) {
     if (!newDate) return;
     try {
-      await updateDoc(doc(db, NOTES_COL, id), { termin: newDate, upraveno: serverTimestamp() });
-      allNotes = allNotes.map(x => x.id === id ? { ...x, termin: newDate } : x);
+      const n = allNotes.find(x => x.id === id);
+      const payload = { termin: newDate, upraveno: serverTimestamp() };
+      // Nová/dosud nedatovaná poznámka dostávající termín tímto způsobem
+      // (tlačítko "zítra", ruční výběr v rychlé úpravě) automaticky dostane
+      // i čas dle aktuální hodiny, pokud ještě žádný nemá.
+      if (!n || !Number.isInteger(n.terminCas)) {
+        payload.terminCas = new Date().getHours();
+      }
+      await updateDoc(doc(db, NOTES_COL, id), payload);
+      allNotes = allNotes.map(x => x.id === id ? { ...x, ...payload } : x);
+      if (calendarQuickEditNoteId === id) {
+        calendarQuickEditCas.value = String(payload.terminCas != null ? payload.terminCas : n.terminCas);
+      }
       renderNotes();
       showToast("Termín změněn");
     } catch (err) {
       showToast("Chyba při změně termínu: " + err.message);
+    }
+  }
+
+  async function changeTerminCasForNote(id, hourValue) {
+    try {
+      const terminCas = hourValue === "" ? null : parseInt(hourValue, 10);
+      await updateDoc(doc(db, NOTES_COL, id), { terminCas, upraveno: serverTimestamp() });
+      allNotes = allNotes.map(x => x.id === id ? { ...x, terminCas } : x);
+      renderNotes();
+    } catch (err) {
+      showToast("Chyba při změně času termínu: " + err.message);
     }
   }
 
@@ -2481,6 +2506,7 @@
     clearTimeout(calendarQuickEditSaveTimer);
     calendarQuickEditFolderLabel.innerHTML = noteFolderBadgeHtml(n);
     calendarQuickEditTermin.value = n.termin || "";
+    calendarQuickEditCas.value = n.termin ? String(effectiveTerminCas(n)) : "";
     calendarQuickEditRepeat.innerHTML = n.opakovani
       ? `🔁 Opakování: ${escapeHtml(OPAKOVANI_SHORT_LABELS[n.opakovani] || n.opakovani)}`
       : "";
@@ -2533,6 +2559,11 @@
     changeTerminForNote(calendarQuickEditNoteId, calendarQuickEditTermin.value);
     calendarQuickEditStatus.textContent = "Uloženo";
   });
+  calendarQuickEditCas.addEventListener("change", () => {
+    if (!calendarQuickEditNoteId) return;
+    changeTerminCasForNote(calendarQuickEditNoteId, calendarQuickEditCas.value);
+    calendarQuickEditStatus.textContent = "Uloženo";
+  });
   calendarQuickEditTerminTomorrowBtn.addEventListener("click", () => {
     if (!calendarQuickEditNoteId) return;
     const tomorrow = addDaysToIsoDate(localTodayStr(), 1);
@@ -2580,6 +2611,7 @@
       nazev: "",
       popis: "",
       termin,
+      terminCas: termin ? new Date().getHours() : null,
       opakovani: "",
       hodnoceni: "",
       oblibene: false,
@@ -2792,7 +2824,7 @@
     const nextWeekMonday = addDaysToIsoDate(thisWeekMonday, 7);
     const nextWeekSunday = addDaysToIsoDate(thisWeekMonday, 13);
 
-    const byTerminAsc = (a, b) => (a.termin < b.termin ? -1 : a.termin > b.termin ? 1 : 0);
+    const byTerminAsc = compareByTerminThenCas;
 
     const overdueToday = withTermin.filter(n => n.termin <= todayStr).sort(byTerminAsc);
     const tomorrow = withTermin.filter(n => n.termin === tomorrowStr).sort(byTerminAsc);
@@ -3166,6 +3198,10 @@
   // Nová kopie má aktuální datum vzniku (`datum`) a termín posunutý podle zvoleného
   // parametru opakování (zítra/týden/2 týdny/měsíc/rok), počítaný od DNEŠKA (dne smazání),
   // ne od původního (třeba už prošlého) termínu - stejná logika jako tlačítko "zítra".
+  // Čas termínu (terminCas) se ale přebírá z původní poznámky beze změny - jen datum
+  // se počítá nově, čas zůstává stejný jako uživatel/ka měl/a nastavený předtím (domluveno
+  // 10. 9. 2026). U starších poznámek bez uloženého času se použije stejný výchozí
+  // 20:00 jako všude jinde (effectiveTerminCas).
   // Kopie si nese stejné opakování dál, takže řetězec opakování pokračuje i příště.
   async function createRepeatCopy(note) {
     const todayStr = localTodayStr();
@@ -3177,6 +3213,7 @@
       nazev: note.nazev || "",
       popis: note.popis || "",
       termin: nextTermin,
+      terminCas: effectiveTerminCas(note),
       opakovani: note.opakovani,
       hodnoceni: note.hodnoceni || "",
       oblibene: !!note.oblibene,
@@ -3314,6 +3351,7 @@
     editorFolder.value = n.druh || "";
     editorDate.value = n.datum || "";
     editorTermin.value = n.termin || "";
+    editorTerminCas.value = n.termin ? String(effectiveTerminCas(n)) : "";
     editorOpakovani.value = n.opakovani || "";
     editorTitle.value = n.nazev || "";
     editorHodnoceni.value = n.hodnoceni || "";
@@ -3394,9 +3432,16 @@
 
   editorFolder.addEventListener("change", () => scheduleSave());
   editorDate.addEventListener("change", () => scheduleSave());
-  editorTermin.addEventListener("change", () => scheduleSave());
+  editorTermin.addEventListener("change", () => {
+    if (editorTermin.value && !editorTerminCas.value) {
+      editorTerminCas.value = String(new Date().getHours());
+    }
+    scheduleSave();
+  });
+  editorTerminCas.addEventListener("change", () => scheduleSave());
   editorTerminTomorrowBtn.addEventListener("click", () => {
     editorTermin.value = addDaysToIsoDate(localTodayStr(), 1);
+    if (!editorTerminCas.value) editorTerminCas.value = String(new Date().getHours());
     scheduleSave();
   });
   editorOpakovani.addEventListener("change", () => scheduleSave());
@@ -3601,6 +3646,7 @@
         druh: editorFolder.value,
         datum: editorDate.value,
         termin: editorTermin.value,
+        terminCas: editorTerminCas.value !== "" ? parseInt(editorTerminCas.value, 10) : null,
         opakovani: editorOpakovani.value,
         hodnoceni: editorHodnoceni.value,
         nazev: editorTitle.value,

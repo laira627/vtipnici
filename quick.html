@@ -238,8 +238,16 @@
       <input type="text" id="nazev" required placeholder="Název poznámky" autofocus>
     </div>
     <div class="field">
-      <label for="termin">Termín (nepovinné)</label>
-      <input type="date" id="termin">
+      <div class="row2">
+        <div>
+          <label for="termin">Termín (nepovinné)</label>
+          <input type="date" id="termin">
+        </div>
+        <div>
+          <label for="terminCas">Čas</label>
+          <select id="terminCas"></select>
+        </div>
+      </div>
       <div class="field-inline-btns">
         <button type="button" id="terminTodayBtn">Dnes</button>
         <button type="button" id="terminTomorrowBtn">Zítra</button>
@@ -334,6 +342,7 @@
   const popisEl = document.getElementById("popis");
   const stitkyEl = document.getElementById("stitky");
   const terminEl = document.getElementById("termin");
+  const terminCasEl = document.getElementById("terminCas");
   const terminTodayBtn = document.getElementById("terminTodayBtn");
   const terminTomorrowBtn = document.getElementById("terminTomorrowBtn");
   const micBtn = document.getElementById("micBtn");
@@ -372,8 +381,25 @@
   }
 
   // ---------- Tlačítka "Dnes"/"Zítra" u pole Termín ----------
-  terminTodayBtn.addEventListener("click", () => { terminEl.value = localTodayStr(); });
-  terminTomorrowBtn.addEventListener("click", () => { terminEl.value = localTomorrowStr(); });
+  // Pole Čas je select s celými hodinami 00:00–23:00 (plus prázdná volba).
+  // Jakmile se termín poprvé vyplní (tlačítkem, ručně, nebo hlasem - viz
+  // dále), a čas ještě nebyl zadaný, appka ho rovnou doplní podle aktuální
+  // hodiny - viz probrané zadání z 10. 9. 2026.
+  terminCasEl.innerHTML = '<option value="">--:--</option>' +
+    Array.from({ length: 24 }, (_, h) => {
+      const label = String(h).padStart(2, "0") + ":00";
+      return `<option value="${h}">${label}</option>`;
+    }).join("");
+
+  function autoFillTerminCas() {
+    if (terminEl.value && !terminCasEl.value) {
+      terminCasEl.value = String(new Date().getHours());
+    }
+  }
+
+  terminTodayBtn.addEventListener("click", () => { terminEl.value = localTodayStr(); autoFillTerminCas(); });
+  terminTomorrowBtn.addEventListener("click", () => { terminEl.value = localTomorrowStr(); autoFillTerminCas(); });
+  terminEl.addEventListener("change", autoFillTerminCas);
 
   // ---------- Auto-vyplnění Název z Popis ----------
   // Dokud je pole Název prázdné, odvodí se z první věty (do tečky/vykřičníku/
@@ -435,8 +461,36 @@
     if (micInterim) micInterim.textContent = text || "";
   }
 
+  // ---------- Rozpoznání "dnes"/"zítra" jako prvního slova diktovky ----------
+  // Domluveno 10. 9. 2026: appka reaguje jen na úplně první zachycený úsek
+  // diktování (tj. dokud je Popis ještě prázdný) - pokud začíná slovem
+  // "dnes" nebo "zítra", rovnou podle toho nastaví pole Termín (i čas, viz
+  // autoFillTerminCas). Slovo samotné přitom zůstává zapsané i v Popisu,
+  // appka ho odtud nemaže.
+  function extractLeadingTerminWord(text) {
+    const m = text.trim().match(/^(\p{L}+)[,.]?\s*/u);
+    if (!m) return null;
+    const word = m[1].toLowerCase();
+    if (word === "dnes") return "dnes";
+    if (word === "zítra" || word === "zitra") return "zitra";
+    return null;
+  }
+
+  function maybeApplyVoiceTermin(text) {
+    if (popisEl.value.trim()) return; // popis už něco obsahuje - appka do termínu nezasahuje
+    const word = extractLeadingTerminWord(text);
+    if (word === "dnes") {
+      terminEl.value = localTodayStr();
+      autoFillTerminCas();
+    } else if (word === "zitra") {
+      terminEl.value = localTomorrowStr();
+      autoFillTerminCas();
+    }
+  }
+
   function commitDraft() {
     if (draftText) {
+      maybeApplyVoiceTermin(draftText);
       const sep = popisEl.value.trim() ? " " : "";
       popisEl.value = popisEl.value.trim() + sep + draftText;
       popisEl.dispatchEvent(new Event("input"));
@@ -568,6 +622,7 @@
       subscribeFolders(user.uid);
       if (terminMode) {
         terminEl.value = localTomorrowStr();
+        autoFillTerminCas();
         setTimeout(() => {
           popisEl.focus();
           if (SpeechRecognitionCtor && micBtn && micBtn.style.display !== "none") {
@@ -664,10 +719,11 @@
     if (!datum || !druh || !nazev) return;
 
     const termin = terminEl.value;
+    const terminCas = termin && terminCasEl.value !== "" ? parseInt(terminCasEl.value, 10) : null;
 
     try {
       await addDoc(collection(db, NOTES_COL), {
-        datum, druh, popis, nazev, stitky, termin,
+        datum, druh, popis, nazev, stitky, termin, terminCas,
         oblibene: false,
         uid: currentUid,
         vytvoreno: serverTimestamp(),
@@ -677,6 +733,7 @@
       popisEl.value = "";
       stitkyEl.value = "";
       terminEl.value = "";
+      terminCasEl.value = "";
       resetDate();
       nazevEl.focus();
       showToast("Uloženo ✓");
