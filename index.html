@@ -314,8 +314,8 @@
   .calendar-quick-edit-termin-row { display: flex; gap: 6px; align-items: center; }
   .calendar-quick-edit-termin-row input[type=date] { flex: 1; min-width: 0; }
   .calendar-quick-edit-termin-row select#calendarQuickEditCas { flex: 0 0 78px; }
-  .calendar-quick-edit-repeat { font-size: 12.5px; color: var(--ink-soft); margin-top: 6px; }
-  .calendar-quick-edit-repeat:empty { display: none; }
+  .calendar-quick-edit-repeat { font-size: 12.5px; margin-top: 6px; width: 100%; }
+  .calendar-quick-edit-folder { width: 100%; }
   .calendar-quick-edit-status { min-height: 16px; margin: -6px 0 10px; }
   .calendar-quick-edit-btns { margin-bottom: 8px; }
   .calendar-quick-edit-btns .btn-mini { flex: 1 1 auto; text-align: center; }
@@ -647,7 +647,10 @@
 
 <div class="modal-overlay" id="calendarQuickEditModal">
   <div class="modal-card calendar-quick-edit-card">
-    <div id="calendarQuickEditFolderLabel" class="calendar-quick-edit-folder"></div>
+    <div class="field">
+      <label for="calendarQuickEditFolder">Složka</label>
+      <select id="calendarQuickEditFolder" class="calendar-quick-edit-folder" title="Složka" aria-label="Složka"></select>
+    </div>
     <div class="field">
       <label for="calendarQuickEditTermin">Termín</label>
       <div class="calendar-quick-edit-termin-row">
@@ -655,7 +658,14 @@
         <select id="calendarQuickEditCas" title="Čas termínu" aria-label="Čas termínu"></select>
         <button class="btn-mini" id="calendarQuickEditTerminTomorrowBtn" type="button">zítra</button>
       </div>
-      <div class="calendar-quick-edit-repeat" id="calendarQuickEditRepeat"></div>
+      <select id="calendarQuickEditRepeat" class="calendar-quick-edit-repeat" title="Opakování" aria-label="Opakování">
+        <option value="">Bez opakování</option>
+        <option value="zitra">Opakovat: zítra</option>
+        <option value="tyden">Opakovat: týden</option>
+        <option value="2tydny">Opakovat: 2 týdny</option>
+        <option value="mesic">Opakovat: měsíc</option>
+        <option value="rok">Opakovat: rok</option>
+      </select>
     </div>
     <div class="field">
       <label for="calendarQuickEditNazev">Název</label>
@@ -767,7 +777,7 @@
   // viz shared-config.js.
   import { firebaseConfig, FASTING_GOAL_MIN, WATER_GOAL_ML } from "./shared-config.js";
 
-  const APP_VERSION = "28";
+  const APP_VERSION = "30";
   document.querySelectorAll(".app-version-badge").forEach(el => {
     el.textContent = "v" + APP_VERSION;
   });
@@ -812,7 +822,7 @@
   const trashPreviewPurgeBtn = document.getElementById("trashPreviewPurgeBtn");
   const trashPreviewCloseBtn = document.getElementById("trashPreviewCloseBtn");
   const calendarQuickEditModal = document.getElementById("calendarQuickEditModal");
-  const calendarQuickEditFolderLabel = document.getElementById("calendarQuickEditFolderLabel");
+  const calendarQuickEditFolder = document.getElementById("calendarQuickEditFolder");
   const calendarQuickEditTermin = document.getElementById("calendarQuickEditTermin");
   const calendarQuickEditCas = document.getElementById("calendarQuickEditCas");
   const calendarQuickEditRepeat = document.getElementById("calendarQuickEditRepeat");
@@ -1422,15 +1432,15 @@
     const terminOverdueCount = notesForCounts.filter(n => n.termin && n.termin < todayStr).length;
     const terminTodayCount = notesForCounts.filter(n => n.termin === todayStr).length;
     let html = "";
-    html += `<div class="folder-row ${view.type === "termin" ? "active" : ""}" data-view="termin">
-      <span class="folder-name">📌 Termín</span>
+    html += `<div class="folder-row ${view.type === "calendar" ? "active" : ""}" data-view="calendar">
+      <span class="folder-name">📅 Kalendář</span>
       <span class="termin-badges">
         ${terminOverdueCount > 0 ? `<span class="termin-badge termin-badge-overdue" title="Po termínu">${terminOverdueCount}</span>` : ""}
         ${terminTodayCount > 0 ? `<span class="termin-badge termin-badge-today" title="Dnes">${terminTodayCount}</span>` : ""}
       </span>
     </div>`;
-    html += `<div class="folder-row ${view.type === "calendar" ? "active" : ""}" data-view="calendar">
-      <span class="folder-name">📅 Kalendář</span>
+    html += `<div class="folder-row ${view.type === "termin" ? "active" : ""}" data-view="termin">
+      <span class="folder-name">📌 Termín</span>
     </div>`;
     html += `<div class="folder-row ${view.type === "dashboard" ? "active" : ""}" data-view="dashboard">
       <span class="folder-name">🏠 Dashboard</span>
@@ -2498,12 +2508,11 @@
     calendarQuickEditNoteId = id;
     calendarQuickEditPendingFields = null;
     clearTimeout(calendarQuickEditSaveTimer);
-    calendarQuickEditFolderLabel.innerHTML = noteFolderBadgeHtml(n);
+    calendarQuickEditFolder.innerHTML = folders.map(f => `<option value="${escapeHtml(f.nazev)}">${folderIconPrefix(f)}${escapeHtml(f.nazev)}</option>`).join("");
+    calendarQuickEditFolder.value = n.druh || "";
     calendarQuickEditTermin.value = n.termin || "";
     calendarQuickEditCas.value = n.termin ? String(effectiveTerminCas(n)) : "";
-    calendarQuickEditRepeat.innerHTML = n.opakovani
-      ? `🔁 Opakování: ${escapeHtml(OPAKOVANI_SHORT_LABELS[n.opakovani] || n.opakovani)}`
-      : "";
+    calendarQuickEditRepeat.value = n.opakovani || "";
     calendarQuickEditNazev.value = n.nazev || "";
     calendarQuickEditPopis.value = htmlToShareText(n.popis || "", { markdown: false });
     calendarQuickEditStatus.textContent = "";
@@ -2548,6 +2557,32 @@
     return (text || "").split("\n").map(line => `<p>${escapeHtml(line)}</p>`).join("");
   }
 
+  calendarQuickEditFolder.addEventListener("change", async () => {
+    if (!calendarQuickEditNoteId) return;
+    const id = calendarQuickEditNoteId;
+    const newFolder = calendarQuickEditFolder.value;
+    try {
+      await updateDoc(doc(db, NOTES_COL, id), { druh: newFolder, upraveno: serverTimestamp() });
+      allNotes = allNotes.map(x => x.id === id ? { ...x, druh: newFolder } : x);
+      if (calendarQuickEditNoteId === id) calendarQuickEditStatus.textContent = "Uloženo";
+      renderFolders();
+      renderCalendarView();
+    } catch (err) {
+      showToast("Chyba: " + err.message);
+    }
+  });
+  calendarQuickEditRepeat.addEventListener("change", async () => {
+    if (!calendarQuickEditNoteId) return;
+    const id = calendarQuickEditNoteId;
+    const newRepeat = calendarQuickEditRepeat.value;
+    try {
+      await updateDoc(doc(db, NOTES_COL, id), { opakovani: newRepeat, upraveno: serverTimestamp() });
+      allNotes = allNotes.map(x => x.id === id ? { ...x, opakovani: newRepeat } : x);
+      if (calendarQuickEditNoteId === id) calendarQuickEditStatus.textContent = "Uloženo";
+    } catch (err) {
+      showToast("Chyba: " + err.message);
+    }
+  });
   calendarQuickEditTermin.addEventListener("change", () => {
     if (!calendarQuickEditNoteId || !calendarQuickEditTermin.value) return;
     changeTerminForNote(calendarQuickEditNoteId, calendarQuickEditTermin.value);
@@ -2597,7 +2632,7 @@
   // opakovalo na 3 místech (tlačítko "Nová poznámka", rychlé "+" v menu a
   // klik na den v Kalendáři) - vč. jednoho případu, kdy jim chyběla kontrola
   // na "nejdřív vytvoř složku". Teď je to jedna sdílená funkce.
-  async function createNote({ folder, termin = "", switchView = true } = {}) {
+  async function createNote({ folder, termin = "", switchView = true, openInCalendarDialog = false } = {}) {
     if (!folder) { showToast("Nejprve vytvoř složku"); return null; }
     const newNoteData = {
       datum: localTodayStr(),
@@ -2625,6 +2660,16 @@
 
     if (!allNotes.some(n => n.id === ref.id)) {
       allNotes = [{ id: ref.id, ...newNoteData }, ...allNotes];
+    }
+
+    // Přidání poznámky z Kalendáře (tlačítko "+" vpravo nahoře) - poznámka se
+    // založí rovnou s dnešním termínem a otevře se v rychlém dialogu Kalendáře
+    // (stejná pole jako u editace), místo přepnutí do hlavního editoru.
+    if (openInCalendarDialog) {
+      renderFolders();
+      renderCalendarView();
+      openCalendarQuickEdit(ref.id);
+      return ref.id;
     }
 
     if (switchView) {
@@ -3333,9 +3378,17 @@
     if (view.type === "folder") targetFolder = view.nazev;
     else if (view.type === "termin" || view.type === "calendar") targetFolder = folders.length ? folders[folders.length - 1].nazev : null;
     else targetFolder = folders[0] ? folders[0].nazev : null;
+    if (view.type === "calendar") {
+      await createNote({
+        folder: targetFolder,
+        termin: localTodayStr(),
+        openInCalendarDialog: true
+      });
+      return;
+    }
     await createNote({
       folder: targetFolder,
-      termin: view.type === "calendar" ? localTodayStr() : "",
+      termin: "",
       switchView: view.type !== "folder"
     });
   });
