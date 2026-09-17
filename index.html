@@ -377,6 +377,13 @@
   .dashboard-tile { flex: 1 1 180px; max-width: 280px; margin-bottom: 0; }
   .dashboard-tile.termin-dash-tile { flex: 0 0 280px; width: 280px; }
   .stat-today-card { background: var(--paper); border-radius: 14px; padding: 18px 20px; margin-bottom: 20px; box-shadow: var(--shadow); text-align: center; }
+  .stat-clickable-card { cursor: pointer; transition: transform .12s ease, box-shadow .12s ease; }
+  .stat-clickable-card:hover, .stat-clickable-card:focus-visible { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,.12); outline: none; }
+  .stat-chart-card { background: var(--paper); border-radius: 14px; padding: 16px 18px 8px; box-shadow: var(--shadow); }
+  .stat-chart-card svg { display: block; }
+  .stat-chart-legend { display: flex; flex-wrap: wrap; gap: 16px; justify-content: center; padding: 10px 0 4px; font-size: 12.5px; color: var(--ink-soft); }
+  .stat-chart-legend-item { display: flex; align-items: center; gap: 6px; font-weight: 600; }
+  .stat-chart-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
   .stat-today-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-soft); margin-bottom: 6px; }
   .stat-today-percent { font-size: 40px; font-weight: 800; line-height: 1.1; color: var(--ink); }
   .stat-today-percent.stat-good { color: var(--water-green); }
@@ -777,7 +784,7 @@
   // viz shared-config.js.
   import { firebaseConfig, FASTING_GOAL_MIN, WATER_GOAL_ML } from "./shared-config.js";
 
-  const APP_VERSION = "30";
+  const APP_VERSION = "31";
   document.querySelectorAll(".app-version-badge").forEach(el => {
     el.textContent = "v" + APP_VERSION;
   });
@@ -1318,7 +1325,14 @@
       subscribeStats(user.uid);
       subscribeWater(user.uid);
       subscribeFasting(user.uid);
-      if (window.innerWidth <= 900) {
+      // Odkaz "Otevřít celou aplikaci" z water.html/fasting.html vede sem s
+      // "?view=statistika" v URL - appka v tom případě rovnou otevře záložku
+      // Statistika místo výchozího chování (na mobilu jinak Kalendář, viz
+      // níže). Přidáno 17. 9. 2026 na žádost Iri.
+      const initialViewParam = new URLSearchParams(window.location.search).get("view");
+      if (initialViewParam === "statistika") {
+        selectView({ type: "statistika" });
+      } else if (window.innerWidth <= 900) {
         calendarViewMode = "day";
         localStorage.setItem("calendarViewMode", "day");
         selectView({ type: "calendar" });
@@ -1831,10 +1845,20 @@
 
   function renderFastingHeaderWidget() {
     if (!fastingHeaderWidget) return;
-    const active = currentUid ? activeFastingRecord() : null;
-    if (!active) {
+    if (!currentUid) {
       fastingHeaderWidget.innerHTML = "";
       fastingHeaderWidget.style.display = "none";
+      return;
+    }
+    const active = activeFastingRecord();
+    if (!active) {
+      // Když zrovna neběží žádný půst, appka dřív widget úplně schovala.
+      // Od 17. 9. 2026 (na žádost Iri) místo toho nabízí zahájení - kliknutí
+      // ale půst samo nezakládá, jen otevře fasting.html (stejný listener
+      // jako níž), založení zůstává manuální krok na téhle stránce.
+      fastingHeaderWidget.style.display = "flex";
+      fastingHeaderWidget.className = "fasting-widget";
+      fastingHeaderWidget.innerHTML = `<span class="fasting-widget-icon">⏳</span><span>Zahájit půst</span>`;
       return;
     }
     fastingHeaderWidget.style.display = "flex";
@@ -1848,7 +1872,7 @@
       text = `Cíl splněn, půst běží ${formatFastDurationMin(elapsedMin)}`;
     } else {
       icon = "⏳";
-      text = `Půst: zbývá ${formatFastDurationMin(remainingMin)} do cíle`;
+      text = `Půst: zbývá ${formatFastDurationMin(remainingMin)}`;
     }
     fastingHeaderWidget.className = `fasting-widget water-color-${colorState}`;
     fastingHeaderWidget.innerHTML = `<span class="fasting-widget-icon">${icon}</span><span>${escapeHtml(text)}</span>`;
@@ -2912,6 +2936,73 @@
     return "stat-low";
   }
 
+  // Vykreslí graf týdenního trendu (tři spojnice - termíny/voda/půst) jako
+  // ručně sestavené SVG (appka nemá žádnou grafovou knihovnu, viz jinde v
+  // souboru). viewBox má pevnou šířku 1000 jednotek bez ohledu na počet
+  // týdnů - spolu s preserveAspectRatio="none" a width="100%" na <svg> se
+  // tím graf vždy roztáhne přes celou dostupnou šířku karty. `weeks` je pole
+  // vzestupně seřazené podle data (nejstarší týden vlevo), každá položka má
+  // {monday, sunday, terminPct, waterPct, fastingPct} - kterákoli z *Pct
+  // hodnot smí být `null`, pokud pro daný týden neexistují data; spojnice se
+  // v takovém místě přeruší (žádný bod, žádná čára), místo aby klesla na 0 %.
+  function buildWeeklyTrendChartSvg(weeks) {
+    const W = 1000, H = 260;
+    const padL = 36, padR = 14, padT = 16, padB = 30;
+    const plotW = W - padL - padR;
+    const plotH = H - padT - padB;
+    const n = weeks.length;
+    const allVals = weeks.flatMap(w => [w.terminPct, w.waterPct, w.fastingPct]).filter(v => v != null);
+    const maxVal = allVals.length ? Math.max(100, ...allVals) : 100;
+    const yMax = Math.ceil(maxVal / 20) * 20;
+    const xFor = (i) => n <= 1 ? padL + plotW / 2 : padL + (plotW * i) / (n - 1);
+    const yFor = (v) => padT + plotH - (plotH * Math.min(v, yMax)) / yMax;
+
+    let gridSvg = "";
+    for (let g = 0; g <= yMax; g += 20) {
+      const y = yFor(g);
+      gridSvg += `<line x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" stroke="var(--line)" stroke-width="1"/>`;
+      gridSvg += `<text x="${padL - 6}" y="${y + 4}" font-size="12" text-anchor="end" fill="var(--ink-soft)">${g}%</text>`;
+    }
+
+    const buildLine = (key, color) => {
+      const segments = [];
+      let current = [];
+      weeks.forEach((w, i) => {
+        const v = w[key];
+        if (v == null) {
+          if (current.length) { segments.push(current); current = []; }
+          return;
+        }
+        current.push([xFor(i), yFor(v)]);
+      });
+      if (current.length) segments.push(current);
+      const linesSvg = segments.map(seg =>
+        `<polyline points="${seg.map(p => p.join(",")).join(" ")}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`
+      ).join("");
+      const dotsSvg = weeks.map((w, i) => {
+        const v = w[key];
+        if (v == null) return "";
+        const [x, y] = [xFor(i), yFor(v)];
+        return `<circle cx="${x}" cy="${y}" r="3.5" fill="${color}"><title>${formatDate(w.monday)} – ${formatDate(w.sunday)}: ${Math.round(v)}%</title></circle>`;
+      }).join("");
+      return linesSvg + dotsSvg;
+    };
+
+    const labelStep = Math.max(1, Math.ceil(n / 8));
+    const xLabelsSvg = weeks.map((w, i) => {
+      if (i % labelStep !== 0 && i !== n - 1) return "";
+      return `<text x="${xFor(i)}" y="${H - padB + 20}" font-size="11" text-anchor="middle" fill="var(--ink-soft)">${formatDate(w.monday).slice(0, 6)}</text>`;
+    }).join("");
+
+    return `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" preserveAspectRatio="none" role="img" aria-label="Graf týdenní úspěšnosti termínů, vody a půstu">
+      ${gridSvg}
+      ${xLabelsSvg}
+      ${buildLine("terminPct", "var(--water-purple)")}
+      ${buildLine("waterPct", "var(--water-blue)")}
+      ${buildLine("fastingPct", "var(--water-green)")}
+    </svg>`;
+  }
+
   function renderStatistikaView() {
     notesColTitle.textContent = "📊 Statistika";
     const todayStr = localTodayStr();
@@ -2990,7 +3081,7 @@
         <div class="stat-today-frac">${todayStats.citatel} z ${todayStats.jmenovatel} termínovaných poznámek</div>
       </div>`;
     }
-    html += `<div class="stat-today-card">
+    html += `<div class="stat-today-card stat-clickable-card" data-nav="water.html" role="button" tabindex="0" title="Otevřít Vodu">
       <div class="stat-today-label">💧 Vypito dnes</div>
       <div class="stat-today-water water-color-${waterColorState(todayWaterMl)}">${formatMl(todayWaterMl)}</div>
       <div class="stat-today-frac">Cíl ${formatMl(WATER_GOAL_ML)}</div>
@@ -3001,19 +3092,19 @@
       const remainingMin = goalMin - elapsedMin;
       const doneNow = remainingMin <= 0;
       const activeColorState = fastingProgressColorState(elapsedMin, goalMin);
-      html += `<div class="stat-today-card">
+      html += `<div class="stat-today-card stat-clickable-card" data-nav="fasting.html" role="button" tabindex="0" title="Otevřít Půst">
         <div class="stat-today-label">🍽️ Půst</div>
         <div class="stat-today-fasting water-color-${activeColorState}">${doneNow ? "Cíl splněn ✅" : formatFastDurationMin(remainingMin) + " do cíle"}</div>
         <div class="stat-today-frac">Od ${formatFastClock(activeFast.startMs)} · zatím ${formatFastDurationMin(elapsedMin)}</div>
       </div>`;
     } else if (lastCompletedFast) {
-      html += `<div class="stat-today-card">
+      html += `<div class="stat-today-card stat-clickable-card" data-nav="fasting.html" role="button" tabindex="0" title="Otevřít Půst">
         <div class="stat-today-label">🍽️ Půst</div>
         <div class="stat-today-fasting ${lastCompletedFast.splneno ? "fasting-color-done" : "fasting-color-progress"}">${formatFastDurationMin(lastCompletedFast.delkaMin || 0)}</div>
         <div class="stat-today-frac">Poslední půst ${formatDate(lastCompletedFast.datum)} ${lastCompletedFast.splneno ? "– cíl splněn 🎉" : "– cíl nesplněn"}</div>
       </div>`;
     } else {
-      html += `<div class="stat-today-card">
+      html += `<div class="stat-today-card stat-clickable-card" data-nav="fasting.html" role="button" tabindex="0" title="Otevřít Půst">
         <div class="stat-today-label">🍽️ Půst</div>
         <div class="stat-today-frac">Zatím žádný záznam. Cíl ${formatFastDurationMin(FASTING_GOAL_MIN)}.</div>
       </div>`;
@@ -3034,6 +3125,10 @@
       </div>
     </div>`;
 
+    // Týdenní trend (nahradil tabulku "Souhrn dřívějších týdnů" 17. 9. 2026
+    // na žádost Iri) - tři spojnice trendu (termíny/voda/půst) v jednom
+    // grafu, jen za UPLYNULÉ týdny (stejné omezení < oldestDailyDate jako
+    // dřív u tabulky, aby se nemíchal rozjetý aktuální týden s uzavřenými).
     const weekBuckets = new Map();
     statsDays.forEach((stats, dateStr) => {
       if (dateStr >= oldestDailyDate) return;
@@ -3049,30 +3144,45 @@
       const monday = mondayOfIsoWeek(dateStr);
       weekWaterBuckets.set(monday, (weekWaterBuckets.get(monday) || 0) + ml);
     });
-    const weekKeys = Array.from(new Set([...weekBuckets.keys(), ...weekWaterBuckets.keys()]))
-      .sort((a, b) => (a < b ? 1 : a > b ? -1 : 0));
-    if (weekKeys.length > 0) {
-      const weekRows = weekKeys.map(monday => {
-        const sunday = addDaysToIsoDate(monday, 6);
-        const bucket = weekBuckets.get(monday) || { citatel: 0, jmenovatel: 0 };
+    // Půst: na rozdíl od termínů/vody appka nesčítá minuty, ale dny, kdy byl
+    // cíl toho dne splněn (podle stejné mapy fastingByDate jako sloupec
+    // "Půst" v denní tabulce výš) - % = (počet splněných dní v týdnu) * 100
+    // / 7, přesně dle zadání Iri (3 splněné dny v týdnu = 43 %). Týden se do
+    // grafu zahrne, jen pokud v něm začal aspoň jeden půst - jinak by týdny
+    // před zavedením funkce Půst (7. 9. 2026) vycházely mylně jako 0 %
+    // "nesplněno", místo aby se u nich prostě nekreslila žádná hodnota.
+    const weekFastingBuckets = new Map();
+    fastingByDate.forEach((entry, dateStr) => {
+      if (dateStr >= oldestDailyDate) return;
+      const monday = mondayOfIsoWeek(dateStr);
+      const bucket = weekFastingBuckets.get(monday) || { success: 0 };
+      if (entry.rank === 2) bucket.success += 1;
+      weekFastingBuckets.set(monday, bucket);
+    });
+    const weekKeysAsc = Array.from(new Set([...weekBuckets.keys(), ...weekWaterBuckets.keys(), ...weekFastingBuckets.keys()]))
+      .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+    if (weekKeysAsc.length > 0) {
+      const weeks = weekKeysAsc.map(monday => {
+        const bucket = weekBuckets.get(monday);
         const weekWaterMl = weekWaterBuckets.get(monday) || 0;
-        return `<div class="stat-day-row">
-          <span class="stat-day-date">${formatDate(monday)} – ${formatDate(sunday)}</span>
-          <span class="stat-day-frac">${bucket.citatel}/${bucket.jmenovatel}</span>
-          <span class="stat-day-percent ${statPercentClass(bucket.citatel, bucket.jmenovatel)}">${statPercentText(bucket.citatel, bucket.jmenovatel)}</span>
-          <span class="stat-day-water">${weekWaterMl ? formatMl(weekWaterMl) : "–"}</span>
-        </div>`;
-      }).join("");
+        const fastingBucket = weekFastingBuckets.get(monday);
+        return {
+          monday,
+          sunday: addDaysToIsoDate(monday, 6),
+          terminPct: bucket && bucket.jmenovatel > 0 ? (bucket.citatel / bucket.jmenovatel) * 100 : null,
+          waterPct: weekWaterMl > 0 ? (weekWaterMl / (WATER_GOAL_ML * 7)) * 100 : null,
+          fastingPct: fastingBucket ? (fastingBucket.success * 100) / 7 : null
+        };
+      });
       html += `<div class="dashboard-group">
-        <div class="dashboard-group-label"><span class="folder-dot" style="background:#4a90d9"></span>Souhrn dřívějších týdnů</div>
-        <div class="stat-day-list">
-          <div class="stat-day-row stat-day-header">
-            <span class="stat-day-date">Týden</span>
-            <span class="stat-day-frac">Splněno</span>
-            <span class="stat-day-percent">%</span>
-            <span class="stat-day-water">💧 Vypito</span>
+        <div class="dashboard-group-label"><span class="folder-dot" style="background:#4a90d9"></span>Trend po týdnech</div>
+        <div class="stat-chart-card">
+          ${buildWeeklyTrendChartSvg(weeks)}
+          <div class="stat-chart-legend">
+            <span class="stat-chart-legend-item"><span class="stat-chart-dot" style="background:var(--water-purple)"></span>Termínové poznámky</span>
+            <span class="stat-chart-legend-item"><span class="stat-chart-dot" style="background:var(--water-blue)"></span>Vypito</span>
+            <span class="stat-chart-legend-item"><span class="stat-chart-dot" style="background:var(--water-green)"></span>Půst</span>
           </div>
-          ${weekRows}
         </div>
       </div>`;
     }
@@ -3116,6 +3226,12 @@
     notesList.innerHTML = html;
     notesList.querySelectorAll(".stat-fast-edit-btn[data-fast-id]").forEach(btn => {
       btn.addEventListener("click", () => openFastingEditModal(btn.dataset.fastId));
+    });
+    notesList.querySelectorAll(".stat-clickable-card[data-nav]").forEach(card => {
+      card.addEventListener("click", () => { window.location.href = card.dataset.nav; });
+      card.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); window.location.href = card.dataset.nav; }
+      });
     });
   }
 
@@ -3357,11 +3473,32 @@
     }
   }
 
+  // Oprava 17. 9. 2026 (nahlásila Iri - ve Statistice v tabulce "Posledních
+  // 14 dní" zmizely počty splněných termínovaných poznámek pro několik dní).
+  // Příčina: computeStatsForDay počítá "citatel" (kolik poznámek s termínem
+  // bylo ten den dokončeno) z toho, že poznámka je v allNotes se smazano:true
+  // a smazanoKdy toho dne - jakmile autoPurgeOldTrash takovou poznámku
+  // natrvalo smaže z Firestore DŘÍV, než finalizeMissingStatsDays stihla pro
+  // její den zapsat trvalý záznam do statistikaDny, je počet pro ten den
+  // ztracený navždy (appka ho pak při doplňování chybějících dní spočítá
+  // znovu, ale už bez smazané poznámky - vyjde 0). Auto-purge proto teď
+  // NESMAZE natrvalo poznámku s termínem, dokud den jejího dokončení ještě
+  // nemá finalizovaný (persistovaný) záznam v statsDays - jakmile ho má,
+  // číslo je bezpečně uložené a poznámka se může smazat i s odstupem.
+  // Pozn.: tohle chrání jen před budoucí ztrátou - dny, které už byly takhle
+  // špatně přepočítané a uložené do Firestore (nulové), zpětně opravit nejde,
+  // protože smazané poznámky, ze kterých by se dal správný počet zjistit,
+  // už neexistují ani v koši, ani natrvalo v databázi.
   function autoPurgeOldTrash() {
     const cutoff = Date.now() - TRASH_RETENTION_DAYS * 24 * 60 * 60 * 1000;
     const toPurge = allNotes.filter(n => {
       if (!n.smazano || !n.smazanoKdy || !n.smazanoKdy.toMillis) return false;
-      return n.smazanoKdy.toMillis() < cutoff;
+      if (n.smazanoKdy.toMillis() >= cutoff) return false;
+      if (n.termin) {
+        const dayStr = localDateStr(n.smazanoKdy.toDate());
+        if (!statsDays.has(dayStr)) return false;
+      }
+      return true;
     });
     if (toPurge.length === 0) return;
     Promise.all(toPurge.map(n => deleteDoc(doc(db, NOTES_COL, n.id)))).catch(err => {
