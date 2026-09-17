@@ -3415,6 +3415,11 @@
   }
 
   async function permanentlyDeleteNote(id) {
+    const n = allNotes.find(x => x.id === id);
+    if (n && !statsSafeToPurge(n)) {
+      showToast("Tahle poznámka se ještě počítá do neuzavřené statistiky termínů - smazání natrvalo je zatím zablokované, zkuste to prosím zítra (viz Statistika).");
+      return;
+    }
     if (!confirm("Natrvalo smazat tuto poznámku? Tuto akci nelze vrátit zpět.")) return;
     try {
       await deleteDoc(doc(db, NOTES_COL, id));
@@ -3464,10 +3469,19 @@
   async function emptyTrash() {
     const items = trashNotes();
     if (items.length === 0) { showToast("Koš je prázdný"); return; }
-    if (!confirm(`Natrvalo smazat všech ${items.length} poznámek v koši? Tuto akci nelze vrátit zpět.`)) return;
+    const safeItems = items.filter(statsSafeToPurge);
+    const heldBack = items.length - safeItems.length;
+    if (safeItems.length === 0) {
+      showToast("Žádnou poznámku zatím nejde smazat natrvalo - všechny se počítají do neuzavřené statistiky termínů. Zkuste to prosím zítra.");
+      return;
+    }
+    const confirmMsg = heldBack > 0
+      ? `Natrvalo smazat ${safeItems.length} z ${items.length} poznámek v koši? (${heldBack} ${heldBack === 1 ? "zůstane" : "zůstanou"} v koši, dokud appka neuzavře jejich den ve Statistice.) Tuto akci nelze vrátit zpět.`
+      : `Natrvalo smazat všech ${items.length} poznámek v koši? Tuto akci nelze vrátit zpět.`;
+    if (!confirm(confirmMsg)) return;
     try {
-      await Promise.all(items.map(n => deleteDoc(doc(db, NOTES_COL, n.id))));
-      showToast("Koš vysypán");
+      await Promise.all(safeItems.map(n => deleteDoc(doc(db, NOTES_COL, n.id))));
+      showToast(heldBack > 0 ? `Koš vysypán (${heldBack} ${heldBack === 1 ? "poznámka zatím zůstává" : "poznámek zatím zůstává"} kvůli statistice)` : "Koš vysypán");
     } catch (err) {
       showToast("Chyba při vysypávání koše: " + err.message);
     }
@@ -3477,28 +3491,35 @@
   // 14 dní" zmizely počty splněných termínovaných poznámek pro několik dní).
   // Příčina: computeStatsForDay počítá "citatel" (kolik poznámek s termínem
   // bylo ten den dokončeno) z toho, že poznámka je v allNotes se smazano:true
-  // a smazanoKdy toho dne - jakmile autoPurgeOldTrash takovou poznámku
-  // natrvalo smaže z Firestore DŘÍV, než finalizeMissingStatsDays stihla pro
-  // její den zapsat trvalý záznam do statistikaDny, je počet pro ten den
-  // ztracený navždy (appka ho pak při doplňování chybějících dní spočítá
-  // znovu, ale už bez smazané poznámky - vyjde 0). Auto-purge proto teď
-  // NESMAZE natrvalo poznámku s termínem, dokud den jejího dokončení ještě
-  // nemá finalizovaný (persistovaný) záznam v statsDays - jakmile ho má,
-  // číslo je bezpečně uložené a poznámka se může smazat i s odstupem.
+  // a smazanoKdy toho dne - jakmile se taková poznámka natrvalo smaže z
+  // Firestore DŘÍV, než finalizeMissingStatsDays stihla pro její den zapsat
+  // trvalý záznam do statistikaDny, je počet pro ten den ztracený navždy
+  // (appka ho pak při doplňování chybějících dní spočítá znovu, ale už bez
+  // smazané poznámky - vyjde 0). Platí úplně stejně, ať poznámku smaže
+  // automatický úklid koše (autoPurgeOldTrash), nebo si to Iri smaže sama
+  // ručně (emptyTrash/permanentlyDeleteNote) - proto všechny tři cesty teď
+  // sdílejí tuhle jednu kontrolu (nahlásila Iri 17. 9. 2026, že koš mazala
+  // sama, ne appka automaticky - ochrana se tedy musela doplnit i sem).
   // Pozn.: tohle chrání jen před budoucí ztrátou - dny, které už byly takhle
   // špatně přepočítané a uložené do Firestore (nulové), zpětně opravit nejde,
   // protože smazané poznámky, ze kterých by se dal správný počet zjistit,
   // už neexistují ani v koši, ani natrvalo v databázi.
+  function statsSafeToPurge(n) {
+    if (!n.termin) return true;
+    if (!n.smazano || !n.smazanoKdy || typeof n.smazanoKdy.toDate !== "function") return true;
+    const dayStr = localDateStr(n.smazanoKdy.toDate());
+    // Den mimo sledované období appka nikdy nepočítala a nebude - nemá se
+    // tam co ztratit.
+    if (trackingStartDate && dayStr < trackingStartDate) return true;
+    return statsDays.has(dayStr);
+  }
+
   function autoPurgeOldTrash() {
     const cutoff = Date.now() - TRASH_RETENTION_DAYS * 24 * 60 * 60 * 1000;
     const toPurge = allNotes.filter(n => {
       if (!n.smazano || !n.smazanoKdy || !n.smazanoKdy.toMillis) return false;
       if (n.smazanoKdy.toMillis() >= cutoff) return false;
-      if (n.termin) {
-        const dayStr = localDateStr(n.smazanoKdy.toDate());
-        if (!statsDays.has(dayStr)) return false;
-      }
-      return true;
+      return statsSafeToPurge(n);
     });
     if (toPurge.length === 0) return;
     Promise.all(toPurge.map(n => deleteDoc(doc(db, NOTES_COL, n.id)))).catch(err => {
