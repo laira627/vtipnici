@@ -784,7 +784,7 @@
   // viz shared-config.js.
   import { firebaseConfig, FASTING_GOAL_MIN, WATER_GOAL_ML } from "./shared-config.js";
 
-  const APP_VERSION = "31";
+  const APP_VERSION = "32";
   document.querySelectorAll(".app-version-badge").forEach(el => {
     el.textContent = "v" + APP_VERSION;
   });
@@ -925,12 +925,22 @@
   let fastingRecords = [];
   let unsubFasting = null;
   let notesLoaded = false, statsLoaded = false, statsFinalizing = false;
+  // Oprava 8. 10. 2026 (v32): onSnapshot s persistentLocalCache nejdřív
+  // vrátí data z LOKÁLNÍ CACHE zařízení - na počítači/telefonu, kde appka
+  // dlouho nebyla otevřená, jsou to klidně týdny stará data. Appka dřív
+  // hned z téhle staré cache dopočítávala a NAVŽDY ukládala "chybějící" dny
+  // do statistikaDny (a přepisovala tím správné dny uložené mezitím z jiného
+  // zařízení) - výsledek 0/73, 0/74 ... 0/82 u Iri 25. 9.-4. 10. 2026.
+  // Teď se statistika zapisuje (a koš natrvalo maže) jen z dat potvrzených
+  // serverem (snapshot.metadata.fromCache === false).
+  let notesFromServer = false, statsFromServer = false;
   let trackingStartDate = null;
   let statsFormulaVersion = 1;
   // Bug-1 (9. 9. 2026): kam až se stihl dokončit přepočet na nový vzorec
   // statistiky (viz finalizeMissingStatsDays níže) - null znamená "ještě
   // nezačalo/není potřeba".
   let statsFormulaRecomputedUpTo = null;
+  let statsStaleCacheRepairDone = true;
   let view = { type: "all" };
   let selectedNoteId = null;
   let currentTags = [];
@@ -1351,6 +1361,8 @@
       fastingRecords = [];
       notesLoaded = false;
       statsLoaded = false;
+      notesFromServer = false;
+      statsFromServer = false;
       trackingStartDate = null;
       statsFormulaRecomputedUpTo = null;
       renderWaterHeaderWidget();
@@ -1671,9 +1683,10 @@
 
   function subscribeNotes(uid) {
     const q = query(collection(db, NOTES_COL), where("uid", "==", uid), orderBy("datum", "desc"));
-    unsubNotes = onSnapshot(q, (snapshot) => {
+    unsubNotes = onSnapshot(q, { includeMetadataChanges: true }, (snapshot) => {
       allNotes = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
       notesLoaded = true;
+      notesFromServer = !snapshot.metadata.fromCache;
       renderFolders();
       renderNotes();
       if (selectedNoteId) {
@@ -1697,17 +1710,19 @@
   }
   function subscribeStats(uid) {
     const q = query(collection(db, STATS_COL), where("uid", "==", uid));
-    unsubStats = onSnapshot(q, (snapshot) => {
+    unsubStats = onSnapshot(q, { includeMetadataChanges: true }, (snapshot) => {
       const fresh = new Map();
       let metaStart = null;
       let metaFormulaVersion = 1;
       let metaFormulaRecomputedUpTo = null;
+      let metaStaleCacheRepairDone = false;
       snapshot.docs.forEach(d => {
         const data = d.data();
         if (data.type === "meta") {
           metaStart = data.trackingStartDate || null;
           metaFormulaVersion = data.formulaVersion || 1;
           metaFormulaRecomputedUpTo = data.formulaRecomputedUpTo || null;
+          metaStaleCacheRepairDone = !!data.staleCacheRepairDone;
           return;
         }
         if (data.datum) fresh.set(data.datum, { citatel: data.citatel || 0, jmenovatel: data.jmenovatel || 0 });
@@ -1717,6 +1732,8 @@
       statsFormulaVersion = metaFormulaVersion;
       statsFormulaRecomputedUpTo = metaFormulaRecomputedUpTo;
       statsLoaded = true;
+      statsFromServer = !snapshot.metadata.fromCache;
+      statsStaleCacheRepairDone = metaStaleCacheRepairDone;
       maybeFinalizeStats();
       if (view.type === "statistika") renderNotes();
     }, (err) => {
@@ -2013,6 +2030,7 @@
 
   function maybeFinalizeStats() {
     if (!notesLoaded || !statsLoaded || !currentUid || statsFinalizing) return;
+    if (!notesFromServer || !statsFromServer) return;
     statsFinalizing = true;
     finalizeMissingStatsDays().finally(() => { statsFinalizing = false; });
   }
@@ -2074,6 +2092,36 @@
         await batch.commit();
       } catch (err) {
         console.error("Chyba při přepočtu statistiky na nový vzorec:", err);
+      }
+      return;
+    }
+
+    // Jednorázová oprava dnů pokažených starou cache (v32, 8. 10. 2026).
+    // Přepočítá jen dny za posledních TRASH_RETENTION_DAYS (jen u nich
+    // můžou být dokončené poznámky ještě v koši), a jen ty, které mají
+    // uložený čitatel 0 (podpis chyby) - pokud nový výpočet dá čitatel
+    // vyšší než 0 nebo nižší jmenovatel, uložený den přepíše.
+    if (!statsStaleCacheRepairDone) {
+      try {
+        const batch = writeBatch(db);
+        let d = addDaysToIsoDate(todayStr, -TRASH_RETENTION_DAYS);
+        if (d < trackingStartDate) d = trackingStartDate;
+        while (d <= yesterdayStr) {
+          const old = statsDays.get(d);
+          if (old && old.citatel === 0) {
+            const stats = computeStatsForDay(d, allNotes);
+            if (stats.citatel > 0 || stats.jmenovatel < old.jmenovatel) {
+              batch.set(doc(db, STATS_COL, `${currentUid}_${d}`), {
+                uid: currentUid, datum: d, citatel: stats.citatel, jmenovatel: stats.jmenovatel
+              });
+            }
+          }
+          d = addDaysToIsoDate(d, 1);
+        }
+        batch.set(doc(db, STATS_COL, `${currentUid}_meta`), { staleCacheRepairDone: true }, { merge: true });
+        await batch.commit();
+      } catch (err) {
+        console.error("Chyba při opravě statistiky:", err);
       }
       return;
     }
@@ -3506,6 +3554,9 @@
   // už neexistují ani v koši, ani natrvalo v databázi.
   function statsSafeToPurge(n) {
     if (!n.termin) return true;
+    // v32: bez dat potvrzených serverem nevíme jistě, co je ve statistice
+    // uložené - raději nemazat.
+    if (!notesFromServer || !statsFromServer) return false;
     if (!n.smazano || !n.smazanoKdy || typeof n.smazanoKdy.toDate !== "function") return true;
     const dayStr = localDateStr(n.smazanoKdy.toDate());
     // Den mimo sledované období appka nikdy nepočítala a nebude - nemá se
