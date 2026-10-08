@@ -784,7 +784,7 @@
   // viz shared-config.js.
   import { firebaseConfig, FASTING_GOAL_MIN, WATER_GOAL_ML } from "./shared-config.js";
 
-  const APP_VERSION = "32";
+  const APP_VERSION = "33";
   document.querySelectorAll(".app-version-badge").forEach(el => {
     el.textContent = "v" + APP_VERSION;
   });
@@ -3086,7 +3086,7 @@
     };
 
     const dailyDates = [];
-    for (let i = 0; i < 14; i++) dailyDates.push(addDaysToIsoDate(todayStr, -i));
+    for (let i = 0; i < 7; i++) dailyDates.push(addDaysToIsoDate(todayStr, -i));
     const oldestDailyDate = dailyDates[dailyDates.length - 1];
 
     const dailyRowHtml = (dateStr) => {
@@ -3159,27 +3159,18 @@
     }
     html += `</div>`;
 
-    html += `<div class="dashboard-group">
-      <div class="dashboard-group-label"><span class="folder-dot" style="background:#4a90d9"></span>Posledních 14 dní</div>
-      <div class="stat-day-list">
-        <div class="stat-day-row stat-day-header">
-          <span class="stat-day-date">Datum</span>
-          <span class="stat-day-frac">Splněno</span>
-          <span class="stat-day-percent">%</span>
-          <span class="stat-day-water">💧 Vypito</span>
-          <span class="stat-day-fasting">Půst</span>
-        </div>
-        ${dailyDates.map(dailyRowHtml).join("")}
-      </div>
-    </div>`;
-
     // Týdenní trend (nahradil tabulku "Souhrn dřívějších týdnů" 17. 9. 2026
     // na žádost Iri) - tři spojnice trendu (termíny/voda/půst) v jednom
-    // grafu, jen za UPLYNULÉ týdny (stejné omezení < oldestDailyDate jako
-    // dřív u tabulky, aby se nemíchal rozjetý aktuální týden s uzavřenými).
+    // grafu - od v33 včetně minulého a tohoto (rozpracovaného) týdne.
     const weekBuckets = new Map();
-    statsDays.forEach((stats, dateStr) => {
-      if (dateStr >= oldestDailyDate) return;
+    // v33 (8. 10. 2026, žádost Iri): graf ukazuje i minulý a tento
+    // (rozpracovaný) týden. Dnešek se do termínů přičítá živě (stejně jako
+    // dlaždice "Dnes splněno"), voda/půst tohoto týdne se dělí jen počtem
+    // dní, které z týdne zatím uběhly (včetně dneška), ne 7.
+    const termDays = new Map(statsDays);
+    if (todayStats) termDays.set(todayStr, todayStats);
+    termDays.forEach((stats, dateStr) => {
+      if (dateStr > todayStr) return;
       const monday = mondayOfIsoWeek(dateStr);
       const bucket = weekBuckets.get(monday) || { citatel: 0, jmenovatel: 0 };
       bucket.citatel += stats.citatel;
@@ -3188,7 +3179,7 @@
     });
     const weekWaterBuckets = new Map();
     waterDays.forEach((ml, dateStr) => {
-      if (dateStr >= oldestDailyDate) return;
+      if (dateStr > todayStr) return;
       const monday = mondayOfIsoWeek(dateStr);
       weekWaterBuckets.set(monday, (weekWaterBuckets.get(monday) || 0) + ml);
     });
@@ -3201,7 +3192,7 @@
     // "nesplněno", místo aby se u nich prostě nekreslila žádná hodnota.
     const weekFastingBuckets = new Map();
     fastingByDate.forEach((entry, dateStr) => {
-      if (dateStr >= oldestDailyDate) return;
+      if (dateStr > todayStr) return;
       const monday = mondayOfIsoWeek(dateStr);
       const bucket = weekFastingBuckets.get(monday) || { success: 0 };
       if (entry.rank === 2) bucket.success += 1;
@@ -3209,8 +3200,16 @@
     });
     const weekKeysAsc = Array.from(new Set([...weekBuckets.keys(), ...weekWaterBuckets.keys(), ...weekFastingBuckets.keys()]))
       .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+    const currentMonday = mondayOfIsoWeek(todayStr);
+    const daysInWeekSoFar = (monday) => {
+      if (monday !== currentMonday) return 7;
+      let n = 1, d = monday;
+      while (d < todayStr) { d = addDaysToIsoDate(d, 1); n++; }
+      return n;
+    };
     if (weekKeysAsc.length > 0) {
       const weeks = weekKeysAsc.map(monday => {
+        const daysCount = daysInWeekSoFar(monday);
         const bucket = weekBuckets.get(monday);
         const weekWaterMl = weekWaterBuckets.get(monday) || 0;
         const fastingBucket = weekFastingBuckets.get(monday);
@@ -3218,8 +3217,8 @@
           monday,
           sunday: addDaysToIsoDate(monday, 6),
           terminPct: bucket && bucket.jmenovatel > 0 ? (bucket.citatel / bucket.jmenovatel) * 100 : null,
-          waterPct: weekWaterMl > 0 ? (weekWaterMl / (WATER_GOAL_ML * 7)) * 100 : null,
-          fastingPct: fastingBucket ? (fastingBucket.success * 100) / 7 : null
+          waterPct: weekWaterMl > 0 ? (weekWaterMl / (WATER_GOAL_ML * daysCount)) * 100 : null,
+          fastingPct: fastingBucket ? (fastingBucket.success * 100) / daysCount : null
         };
       });
       html += `<div class="dashboard-group">
@@ -3234,6 +3233,20 @@
         </div>
       </div>`;
     }
+
+    html += `<div class="dashboard-group">
+      <div class="dashboard-group-label"><span class="folder-dot" style="background:#4a90d9"></span>Poslední týden</div>
+      <div class="stat-day-list">
+        <div class="stat-day-row stat-day-header">
+          <span class="stat-day-date">Datum</span>
+          <span class="stat-day-frac">Splněno</span>
+          <span class="stat-day-percent">%</span>
+          <span class="stat-day-water">💧 Vypito</span>
+          <span class="stat-day-fasting">Půst</span>
+        </div>
+        ${dailyDates.map(dailyRowHtml).join("")}
+      </div>
+    </div>`;
 
     const recentFasts = fastingRecords.slice().sort((a, b) => b.startMs - a.startMs).slice(0, 14);
     if (recentFasts.length > 0) {
