@@ -262,6 +262,12 @@
   .tag-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; font-weight: 600; background: var(--accent-soft); color: var(--accent-dark); padding: 4px 6px 4px 10px; border-radius: 999px; }
   .tag-chip button { background: transparent; border: none; cursor: pointer; color: inherit; font-size: 13px; line-height: 1; padding: 0 2px; opacity: .7; }
   .tag-chip button:hover { opacity: 1; }
+  .tag-input-wrap { position: relative; display: inline-flex; }
+  .tag-suggest { display: none; position: absolute; top: calc(100% + 4px); left: 0; min-width: 200px; max-width: 280px; background: var(--paper); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); padding: 4px; z-index: 60; }
+  .tag-suggest.visible { display: block; }
+  .tag-suggest-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; background: transparent; border: none; border-radius: 7px; padding: 9px 10px; font-size: 14px; font-weight: 600; color: var(--accent-dark); cursor: pointer; text-align: left; }
+  .tag-suggest-item:hover, .tag-suggest-item.active { background: var(--accent-soft); }
+  .tag-suggest-count { font-size: 11.5px; font-weight: 600; color: var(--ink-soft); }
   #tagInput { border: none; outline: none; background: transparent; font-size: 13px; color: var(--ink-soft); min-width: 120px; padding: 4px 2px; }
   #quillContainer { flex: 1; overflow-y: auto; border: none !important; }
   .ql-toolbar.ql-snow { border: none !important; border-bottom: 1px solid var(--line) !important; padding: 8px 20px !important; }
@@ -314,6 +320,10 @@
   .calendar-quick-edit-termin-row { display: flex; gap: 6px; align-items: center; }
   .calendar-quick-edit-termin-row input[type=date] { flex: 1; min-width: 0; }
   .calendar-quick-edit-termin-row select#calendarQuickEditCas { flex: 0 0 78px; }
+  .calendar-quick-edit-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 8px; border: 1.5px solid var(--line); border-radius: 10px; background: var(--paper); }
+  .calendar-quick-edit-tags:focus-within { border-color: var(--accent); }
+  .calendar-quick-edit-tags .tag-input-wrap { flex: 1; min-width: 120px; }
+  #calendarQuickEditTagInput { border: none; outline: none; background: transparent; font-size: 15px; color: var(--ink); width: 100%; padding: 4px 2px; }
   .calendar-quick-edit-repeat { font-size: 12.5px; margin-top: 6px; width: 100%; }
   .calendar-quick-edit-folder { width: 100%; }
   .calendar-quick-edit-status { min-height: 16px; margin: -6px 0 10px; }
@@ -457,6 +467,7 @@
     .stat-fast-status-text { display: none; }
     .stat-fast-status-icon { display: inline; }
   }
+  #pushToggleBtn.active { color: #e0a733; border-color: #e0a733; background: rgba(224,167,51,0.12); }
   .app-version-badge { color: #b7afa1; font-size: 11px; font-weight: 600; margin-left: 6px; vertical-align: middle; letter-spacing: .02em; }
   .columns.view-termin .col-notes, .columns.view-calendar .col-notes, .columns.view-dashboard .col-notes { position: relative; z-index: 0; }
   .columns.view-termin .col-notes::before, .columns.view-calendar .col-notes::before, .columns.view-dashboard .col-notes::before {
@@ -520,6 +531,7 @@
       <div class="col-head">
         <div class="brand">📓 Vtipníci <span class="app-version-badge" id="brandVersionBadge"></span></div>
         <div class="head-actions">
+          <button class="icon-btn small" id="pushToggleBtn" type="button" title="Upozornění na termíny" aria-label="Upozornění na termíny" style="display:none;">🔕</button>
           <button class="icon-btn small" id="themeToggleBtn" type="button" title="Přepnout tmavý/světlý režim" aria-label="Přepnout tmavý/světlý režim">🌙</button>
           <button class="icon-btn small" id="jsonExportBtn" title="Záloha JSON" aria-label="Záloha JSON">⬇</button>
           <button class="icon-btn small" id="logoutBtn" type="button" title="Odhlásit" aria-label="Odhlásit"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg></button>
@@ -619,7 +631,10 @@
         </div>
         <div class="editor-tags-row" id="editorTagsRow">
           <div class="tag-chips" id="tagChips"></div>
-          <input type="text" id="tagInput" placeholder="+ štítek (Enter)">
+          <span class="tag-input-wrap">
+            <input type="text" id="tagInput" placeholder="+ štítek (Enter)" autocomplete="off" autocapitalize="off">
+            <div class="tag-suggest" id="tagSuggest" role="listbox"></div>
+          </span>
         </div>
         <div id="quillContainer"></div>
         <div class="editor-import-row" id="editorImportRow">
@@ -677,6 +692,16 @@
     <div class="field">
       <label for="calendarQuickEditNazev">Název</label>
       <input type="text" id="calendarQuickEditNazev" placeholder="Název poznámky">
+    </div>
+    <div class="field">
+      <label for="calendarQuickEditTagInput">Štítky</label>
+      <div class="calendar-quick-edit-tags">
+        <div class="tag-chips" id="calendarQuickEditTagChips"></div>
+        <span class="tag-input-wrap">
+          <input type="text" id="calendarQuickEditTagInput" placeholder="+ štítek (Enter)" autocomplete="off" autocapitalize="off">
+          <div class="tag-suggest" id="calendarQuickEditTagSuggest" role="listbox"></div>
+        </span>
+      </div>
     </div>
     <div class="field">
       <label for="calendarQuickEditPopis">Popis</label>
@@ -784,7 +809,7 @@
   // viz shared-config.js.
   import { firebaseConfig, FASTING_GOAL_MIN, WATER_GOAL_ML } from "./shared-config.js";
 
-  const APP_VERSION = "33";
+  const APP_VERSION = "36";
   document.querySelectorAll(".app-version-badge").forEach(el => {
     el.textContent = "v" + APP_VERSION;
   });
@@ -801,6 +826,13 @@
   const STATS_FORMULA_VERSION = 2;
   const WATER_COL = "vodaDny";
   const FASTING_COL = "pustDny";
+  // Push notifikace termínů (3. 11. 2026) - odběry jednotlivých zařízení/
+  // prohlížečů. Odesílá je skript na GitHubu (notifikace/posli-notifikace.mjs,
+  // spouštěný každou celou hodinu), appka sem jen zapisuje/maže odběr.
+  const PUSH_COL = "pushOdbery";
+  // Veřejná část VAPID klíče - musí odpovídat soukromému klíči uloženému
+  // v GitHub Secrets (VAPID_PRIVATE_KEY) a veřejnému klíči ve skriptu.
+  const VAPID_PUBLIC_KEY = "BLP4lrkNgyOd2N5stc8IHQezIQlR3KCHwBdcW8NSpygrusKZ71SsgLqS7qqvjBCBCkR5ol0s3cowR6urv_OG_4I";
 
   const DEFAULT_FOLDERS = [
     { nazev: "Hláška", barva: "#b5502f", poradi: 0 },
@@ -819,6 +851,7 @@
   const logoutBtn = document.getElementById("logoutBtn");
   const jsonExportBtn = document.getElementById("jsonExportBtn");
   const themeToggleBtn = document.getElementById("themeToggleBtn");
+  const pushToggleBtn = document.getElementById("pushToggleBtn");
   const themeColorMeta = document.getElementById("themeColorMeta");
   const toast = document.getElementById("toast");
   const trashPreviewModal = document.getElementById("trashPreviewModal");
@@ -835,6 +868,9 @@
   const calendarQuickEditRepeat = document.getElementById("calendarQuickEditRepeat");
   const calendarQuickEditTerminTomorrowBtn = document.getElementById("calendarQuickEditTerminTomorrowBtn");
   const calendarQuickEditNazev = document.getElementById("calendarQuickEditNazev");
+  const calendarQuickEditTagChips = document.getElementById("calendarQuickEditTagChips");
+  const calendarQuickEditTagInput = document.getElementById("calendarQuickEditTagInput");
+  const calendarQuickEditTagSuggest = document.getElementById("calendarQuickEditTagSuggest");
   const calendarQuickEditPopis = document.getElementById("calendarQuickEditPopis");
   const calendarQuickEditStatus = document.getElementById("calendarQuickEditStatus");
   const calendarQuickEditDeleteBtn = document.getElementById("calendarQuickEditDeleteBtn");
@@ -890,6 +926,7 @@
   const editorDeleteBtn = document.getElementById("editorDeleteBtn");
   const tagChips = document.getElementById("tagChips");
   const tagInput = document.getElementById("tagInput");
+  const tagSuggest = document.getElementById("tagSuggest");
   const saveStatus = document.getElementById("saveStatus");
   const editedStatus = document.getElementById("editedStatus");
   const importUrlInput = document.getElementById("importUrlInput");
@@ -1142,6 +1179,15 @@
         toolbar: {
           container: toolbarOptions,
           handlers: { image: handleImageInsert, link: handleLinkInsert }
+        },
+        // Oprava 3. 11. 2026: obrázek vložený přes Ctrl+V (schránka) nebo
+        // přetažením šel dřív přes výchozí handler Quillu, který ho uložil
+        // v PLNÉ velikosti (fotka z telefonu = několik MB) - poznámka pak
+        // přesáhla limit Firestore 1 MB na dokument a nešla uložit. Teď se
+        // i takové obrázky zmenšují stejně jako přes tlačítko obrázku.
+        uploader: {
+          mimetypes: ["image/png", "image/jpeg", "image/webp", "image/bmp"],
+          handler: handlePastedImages
         }
       }
     });
@@ -1301,6 +1347,83 @@
     };
   }
 
+  function handlePastedImages(range, files) {
+    Promise.all(files.map(file => new Promise(resolve => compressImage(file, resolve)))).then(images => {
+      let index = range.index;
+      if (range.length) quill.deleteText(range.index, range.length, "user");
+      images.forEach(dataUrl => {
+        quill.insertEmbed(index, "image", dataUrl, "user");
+        index++;
+      });
+      quill.setSelection(index, 0, "silent");
+      scheduleSave();
+    });
+  }
+
+  // ---------- Hlídání velikosti poznámky (3. 11. 2026) ----------
+  // Firestore dovolí jeden dokument nejvýš 1 MiB (1 048 576 B) a obrázky jsou
+  // v poli popis jako base64 text. Appka proto před uložením (a při otevření
+  // poznámky) zmenší obrázky, které jsou zbytečně velké - typicky originály
+  // vložené dřív, než zmenšování fungovalo i pro Ctrl+V. Když je poznámka
+  // pořád moc velká, zkouší postupně přísnější zmenšení. Kdyby ani to
+  // nestačilo, uloží se aspoň ostatní pole a appka řekne, kolik je potřeba
+  // ubrat.
+  const POPIS_SAFE_BYTES = 950000;
+  const IMAGE_SHRINK_PASSES = [
+    { minChars: 150000, maxW: 800, quality: 0.7 },
+    { minChars: 60000, maxW: 640, quality: 0.6 },
+    { minChars: 30000, maxW: 480, quality: 0.5 }
+  ];
+
+  function byteSize(str) {
+    return new Blob([str || ""]).size;
+  }
+
+  function compressDataUrl(src, maxW, quality) {
+    return new Promise(resolve => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, maxW / img.width);
+        const w = Math.max(1, Math.round(img.width * scale));
+        const h = Math.max(1, Math.round(img.height * scale));
+        const canvas = document.createElement("canvas");
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+        const webp = canvas.toDataURL("image/webp", quality);
+        const out = webp.indexOf("data:image/webp") === 0 ? webp : canvas.toDataURL("image/jpeg", quality);
+        resolve(out.length < src.length ? out : src);
+      };
+      img.onerror = () => resolve(src);
+      img.src = src;
+    });
+  }
+
+  // Zmenší obrázky přímo v editoru. passes = kolik stupňů z IMAGE_SHRINK_PASSES
+  // se smí použít; další stupeň se použije, jen dokud je poznámka větší než
+  // POPIS_SAFE_BYTES. Vrací true, pokud se něco změnilo.
+  async function shrinkEditorImages(passes = IMAGE_SHRINK_PASSES.length) {
+    let changed = false;
+    for (let p = 0; p < passes; p++) {
+      if (p > 0 && byteSize(quill.root.innerHTML) <= POPIS_SAFE_BYTES) break;
+      const pass = IMAGE_SHRINK_PASSES[p];
+      const imgs = [...quill.root.querySelectorAll('img[src^="data:image"]')]
+        .filter(img => img.getAttribute("src").length > pass.minChars);
+      for (const img of imgs) {
+        const src = img.getAttribute("src");
+        const smaller = await compressDataUrl(src, pass.maxW, pass.quality);
+        if (smaller !== src && img.isConnected) {
+          img.setAttribute("src", smaller);
+          changed = true;
+        }
+      }
+    }
+    if (changed) quill.update("silent");
+    return changed;
+  }
+
   function compressImage(file, callback) {
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -1340,7 +1463,18 @@
       // Statistika místo výchozího chování (na mobilu jinak Kalendář, viz
       // níže). Přidáno 17. 9. 2026 na žádost Iri.
       const initialViewParam = new URLSearchParams(window.location.search).get("view");
-      if (initialViewParam === "statistika") {
+      // Klik na push notifikaci termínu otevře index.html?note=<id> (viz
+      // sw.js) - appka přepne na Kalendář a jakmile má poznámky načtené,
+      // otevře u ní dialog rychlé úpravy (viz maybeOpenPendingNote).
+      pendingOpenNoteId = new URLSearchParams(window.location.search).get("note");
+      initPushUi();
+      if (pendingOpenNoteId) {
+        if (window.innerWidth <= 900) {
+          calendarViewMode = "day";
+          localStorage.setItem("calendarViewMode", "day");
+        }
+        selectView({ type: "calendar" });
+      } else if (initialViewParam === "statistika") {
         selectView({ type: "statistika" });
       } else if (window.innerWidth <= 900) {
         calendarViewMode = "day";
@@ -1367,6 +1501,7 @@
       statsFormulaRecomputedUpTo = null;
       renderWaterHeaderWidget();
       renderFastingHeaderWidget();
+      pushToggleBtn.style.display = "none";
     }
   });
 
@@ -1404,6 +1539,137 @@
   }
 
   logoutBtn.addEventListener("click", () => signOut(auth));
+
+  // ---------- Push notifikace termínů (3. 11. 2026, na žádost Iri) ----------
+  // Zvonek v hlavičce menu zapíná/vypíná upozornění pro TENTO prohlížeč na
+  // TOMTO zařízení. Zapnutí: povolení notifikací -> registrace sw.js ->
+  // pushManager.subscribe (VAPID) -> uložení odběru do kolekce pushOdbery.
+  // Samotné notifikace posílá skript na GitHubu každou celou hodinu - pro
+  // každou poznámku s termínem v dané hodině jednu (viz
+  // notifikace/posli-notifikace.mjs). Zvonek se nezobrazí v prohlížeči, který
+  // Web Push neumí.
+  let pendingOpenNoteId = null;
+  let pushSwRegistration = null;
+  const pushSupported = ("serviceWorker" in navigator) && ("PushManager" in window) && ("Notification" in window);
+
+  function urlBase64ToUint8Array(base64String) {
+    const padding = "=".repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+    const raw = atob(base64);
+    return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+  }
+
+  // ID dokumentu odběru = SHA-256 z endpointu (endpoint je dlouhá URL se
+  // znaky, které ID dokumentu ve Firestore mít nesmí). Stejný prohlížeč tak
+  // vždy přepisuje svůj vlastní dokument, žádné duplicity.
+  async function pushSubscriptionDocId(endpoint) {
+    const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(endpoint));
+    return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, "0")).join("").slice(0, 40);
+  }
+
+  async function savePushSubscription(sub) {
+    const json = sub.toJSON();
+    const id = await pushSubscriptionDocId(json.endpoint);
+    await setDoc(doc(db, PUSH_COL, id), {
+      uid: currentUid,
+      endpoint: json.endpoint,
+      keys: { p256dh: json.keys.p256dh, auth: json.keys.auth },
+      zarizeni: navigator.userAgent.slice(0, 200),
+      upraveno: serverTimestamp()
+    }, { merge: true });
+  }
+
+  function renderPushToggleBtn(enabled) {
+    pushToggleBtn.style.display = "";
+    pushToggleBtn.textContent = enabled ? "🔔" : "🔕";
+    pushToggleBtn.classList.toggle("active", enabled);
+    pushToggleBtn.title = enabled ? "Upozornění na termíny jsou zapnutá (klikni pro vypnutí)" : "Zapnout upozornění na termíny";
+  }
+
+  async function initPushUi() {
+    if (!pushSupported) return;
+    try {
+      pushSwRegistration = await navigator.serviceWorker.register("sw.js");
+      const sub = await pushSwRegistration.pushManager.getSubscription();
+      const enabled = !!sub && Notification.permission === "granted";
+      renderPushToggleBtn(enabled);
+      // Odběr se může v prohlížeči časem obnovit (nový endpoint) - při
+      // každém přihlášení ho proto appka znovu uloží, ať skript na GitHubu
+      // posílá na aktuální adresu.
+      if (enabled) await savePushSubscription(sub);
+    } catch (err) {
+      console.warn("Push notifikace nejdou inicializovat:", err);
+    }
+  }
+
+  async function enablePush() {
+    const permission = await Notification.requestPermission();
+    if (permission !== "granted") {
+      showToast(permission === "denied"
+        ? "Notifikace jsou v prohlížeči zakázané - povol je v nastavení webu (ikona zámku u adresy)."
+        : "Upozornění nebyla povolena.");
+      return;
+    }
+    if (!pushSwRegistration) pushSwRegistration = await navigator.serviceWorker.register("sw.js");
+    await navigator.serviceWorker.ready;
+    let sub = await pushSwRegistration.pushManager.getSubscription();
+    if (!sub) {
+      sub = await pushSwRegistration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+      });
+    }
+    await savePushSubscription(sub);
+    renderPushToggleBtn(true);
+    showToast("Upozornění na termíny zapnuta 🔔");
+  }
+
+  async function disablePush() {
+    if (!confirm("Vypnout upozornění na termíny v tomto prohlížeči?")) return;
+    const sub = pushSwRegistration ? await pushSwRegistration.pushManager.getSubscription() : null;
+    if (sub) {
+      const id = await pushSubscriptionDocId(sub.endpoint);
+      try { await deleteDoc(doc(db, PUSH_COL, id)); } catch (e) { console.warn(e); }
+      try { await sub.unsubscribe(); } catch (e) { console.warn(e); }
+    }
+    renderPushToggleBtn(false);
+    showToast("Upozornění na termíny vypnuta");
+  }
+
+  pushToggleBtn.addEventListener("click", async () => {
+    pushToggleBtn.disabled = true;
+    try {
+      if (pushToggleBtn.classList.contains("active")) await disablePush();
+      else await enablePush();
+    } catch (err) {
+      showToast("Upozornění se nepodařilo nastavit: " + err.message);
+    } finally {
+      pushToggleBtn.disabled = false;
+    }
+  });
+
+  // Otevření poznámky z notifikace (index.html?note=<id>). Čeká se, až je
+  // poznámka v načtených datech - a když v nich není, rozhodne se až podle
+  // dat potvrzených serverem (lokální cache může být neúplná).
+  function maybeOpenPendingNote() {
+    if (!pendingOpenNoteId) return;
+    const n = allNotes.find(x => x.id === pendingOpenNoteId);
+    if (n && !n.smazano) {
+      const id = pendingOpenNoteId;
+      pendingOpenNoteId = null;
+      history.replaceState(null, "", window.location.pathname);
+      if (view.type !== "calendar") selectView({ type: "calendar" });
+      if (n.termin) calendarRefDate = n.termin;
+      renderCalendarView();
+      openCalendarQuickEdit(id);
+      return;
+    }
+    if (notesFromServer) {
+      pendingOpenNoteId = null;
+      history.replaceState(null, "", window.location.pathname);
+      showToast(n ? "Tahle poznámka už je v koši." : "Tahle poznámka už neexistuje.");
+    }
+  }
 
   async function seedDefaultFolders(uid) {
     const batch = writeBatch(db);
@@ -1703,6 +1969,8 @@
       }
       autoPurgeOldTrash();
       maybeFinalizeStats();
+      maybeOpenPendingNote();
+      storeKnownTags();
       if (view.type === "statistika") renderNotes();
     }, (err) => {
       notesList.innerHTML = `<div class="empty-state">Chyba při načítání: ${err.message}</div>`;
@@ -2586,12 +2854,15 @@
     calendarQuickEditCas.value = n.termin ? String(effectiveTerminCas(n)) : "";
     calendarQuickEditRepeat.value = n.opakovani || "";
     calendarQuickEditNazev.value = n.nazev || "";
+    calendarQuickEditTagCtl.reset();
+    renderCalendarQuickEditTags();
     calendarQuickEditPopis.value = htmlToShareText(n.popis || "", { markdown: false });
     calendarQuickEditStatus.textContent = "";
     calendarQuickEditModal.classList.add("visible");
   }
 
   function closeCalendarQuickEdit() {
+    calendarQuickEditTagCtl.flush();
     flushCalendarQuickEditSave();
     calendarQuickEditNoteId = null;
     calendarQuickEditModal.classList.remove("visible");
@@ -3634,7 +3905,7 @@
     editorFavBtn.classList.toggle("active", !!n.oblibene);
     currentTags = Array.isArray(n.stitky) ? [...n.stitky] : [];
     renderTagChips();
-    tagInput.value = "";
+    editorTagInputCtl.reset();
 
     let html = n.popis || "";
     if (html && !/<[a-z][\s\S]*>/i.test(html)) {
@@ -3642,6 +3913,9 @@
     }
     quill.root.innerHTML = html;
     if (fixBrokenLinksInCurrentNote()) scheduleSave();
+    // Obrázky vložené v plné velikosti (dřív přes Ctrl+V) se při otevření
+    // poznámky rovnou zmenší a uloží.
+    shrinkEditorImages(1).then(changed => { if (changed && selectedNoteId === id) scheduleSave(); });
     saveStatus.textContent = "Uloženo";
     editedStatus.textContent = n.upraveno && n.upraveno.toDate ? ("Upraveno " + n.upraveno.toDate().toLocaleString("cs-CZ")) : "";
     suppressAutosave = false;
@@ -3671,24 +3945,197 @@
     });
   }
 
-  function addTagFromInput() {
-    const raw = tagInput.value.trim().replace(/^#/, "");
-    if (!raw) return;
-    const exists = currentTags.some(t => t.toLowerCase() === raw.toLowerCase());
-    if (!exists) currentTags.push(raw);
-    tagInput.value = "";
-    renderTagChips();
-    scheduleSave();
+  // ---------- Našeptávání štítků (3. 11. 2026, na žádost Iri) ----------
+  // Při psaní do pole štítku appka nabídne už použité štítky, které ZAČÍNAJÍ
+  // napsanými písmeny (bez ohledu na velikost písmen a diakritiku - "lad"
+  // najde "Láďa"), seřazené podle četnosti použití, nejvýš 6. Štítky už
+  // přidané k poznámce se nenabízejí, varianta zápisu se bere ta nejčastější.
+  // Enter (nebo čárka) přidá napsaný text, šipkami se dá vybrat návrh (Enter
+  // ho pak přidá), Tab přidá první/vybraný návrh, klik/klepnutí přidá návrh
+  // rovnou. Stejné pole se používá v editoru i v dialogu rychlé úpravy z
+  // Kalendáře (attachTagInput níže).
+  // Seznam štítků se zároveň ukládá do localStorage ("vtipnici-stitky"),
+  // odkud ho čte i našeptávač v quick.html (ten poznámky sám nenačítá).
+  const TAG_SUGGEST_MAX = 6;
+  const TAG_STORAGE_KEY = "vtipnici-stitky";
+
+  function collectKnownTags() {
+    const byKey = new Map();
+    allNotes.forEach(n => {
+      (Array.isArray(n.stitky) ? n.stitky : []).forEach(raw => {
+        const t = (raw || "").toString().trim().replace(/^#/, "");
+        if (!t) return;
+        const key = normalizeTagKey(t);
+        let entry = byKey.get(key);
+        if (!entry) { entry = { key, count: 0, variants: new Map() }; byKey.set(key, entry); }
+        entry.count++;
+        entry.variants.set(t, (entry.variants.get(t) || 0) + 1);
+      });
+    });
+    return [...byKey.values()].map(e => {
+      const label = [...e.variants.entries()].sort((x, y) => y[1] - x[1])[0][0];
+      return { key: e.key, label, count: e.count };
+    }).sort((x, y) => y.count - x.count || x.label.localeCompare(y.label, "cs"));
   }
 
-  tagInput.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" || e.key === ",") {
-      e.preventDefault();
-      addTagFromInput();
+  let lastStoredTagsJson = "";
+  function storeKnownTags() {
+    try {
+      const json = JSON.stringify(collectKnownTags().slice(0, 300).map(t => ({ t: t.label, c: t.count })));
+      if (json !== lastStoredTagsJson) {
+        localStorage.setItem(TAG_STORAGE_KEY, json);
+        lastStoredTagsJson = json;
+      }
+    } catch (e) { /* localStorage nedostupné - nevadí */ }
+  }
+
+  // Připojí k textovému poli našeptávání + přidávání štítků.
+  //   getTags()   - pole štítků, které poznámka právě má
+  //   onAdd(tag)  - přidá štítek (volá se jen pro štítek, který tam ještě není)
+  function attachTagInput(input, suggestBox, { getTags, onAdd }) {
+    let items = [];
+    let active = -1;
+    let blurTimer = null;
+
+    function hide() {
+      items = [];
+      active = -1;
+      suggestBox.classList.remove("visible");
+      suggestBox.innerHTML = "";
+    }
+
+    function commit(rawValue) {
+      const raw = (rawValue != null ? rawValue : input.value).trim().replace(/^#/, "");
+      input.value = "";
+      hide();
+      if (!raw) return;
+      const key = normalizeTagKey(raw);
+      if (getTags().some(t => normalizeTagKey(t) === key)) return;
+      // Napsaný štítek, který už existuje (jen jinak psaný - "mami", "MAMI"),
+      // se uloží v zavedené podobě ("Mami"), ať se štítky netříští.
+      const known = collectKnownTags().find(t => t.key === key);
+      onAdd(known ? known.label : raw);
+    }
+
+    function render() {
+      const typed = normalizeTagKey(input.value.replace(/^#/, ""));
+      if (!typed) { hide(); return; }
+      const used = new Set(getTags().map(normalizeTagKey));
+      items = collectKnownTags()
+        .filter(t => t.key.startsWith(typed) && !used.has(t.key) && t.key !== typed)
+        .slice(0, TAG_SUGGEST_MAX);
+      if (items.length === 0) { hide(); return; }
+      if (active >= items.length) active = -1;
+      suggestBox.innerHTML = items.map((t, i) =>
+        `<button type="button" class="tag-suggest-item ${i === active ? "active" : ""}" data-index="${i}" role="option"><span>#${escapeHtml(t.label)}</span><span class="tag-suggest-count">${t.count}×</span></button>`
+      ).join("");
+      suggestBox.classList.add("visible");
+    }
+
+    function pick(index) {
+      const t = items[index];
+      if (!t) return;
+      clearTimeout(blurTimer);
+      commit(t.label);
+      input.focus();
+    }
+
+    suggestBox.addEventListener("mousedown", (e) => e.preventDefault()); // na počítači nechá fokus v poli
+    suggestBox.addEventListener("click", (e) => {
+      const btn = e.target.closest(".tag-suggest-item");
+      if (btn) pick(Number(btn.dataset.index));
+    });
+    input.addEventListener("input", () => { active = -1; render(); });
+    input.addEventListener("focus", () => render());
+    input.addEventListener("keydown", (e) => {
+      const open = items.length > 0;
+      if (open && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
+        e.preventDefault();
+        const n = items.length;
+        active = e.key === "ArrowDown" ? (active + 1) % n : (active <= 0 ? n - 1 : active - 1);
+        render();
+        return;
+      }
+      if (open && e.key === "Tab" && !e.shiftKey) {
+        e.preventDefault();
+        pick(active >= 0 ? active : 0);
+        return;
+      }
+      if (e.key === "Escape" && open) {
+        e.preventDefault();
+        e.stopPropagation(); // Escape zavře jen návrhy, ne celý dialog
+        hide();
+        return;
+      }
+      if (e.key === "Enter" || e.key === ",") {
+        e.preventDefault();
+        if (open && active >= 0) pick(active);
+        else commit();
+      }
+    });
+    // Na mobilu klepnutí na návrh nejdřív pole "rozostří" a klik přijde až
+    // potom - přidání napsaného textu při opuštění pole se proto chvíli
+    // odloží, aby ho klepnutí na návrh stihlo předběhnout.
+    input.addEventListener("blur", () => {
+      clearTimeout(blurTimer);
+      blurTimer = setTimeout(() => {
+        if (document.activeElement === input) return;
+        if (input.value.trim()) commit();
+        else hide();
+      }, 300);
+    });
+
+    return {
+      hide,
+      reset() { clearTimeout(blurTimer); input.value = ""; hide(); },
+      // Dopíše rozepsaný štítek hned (např. při zavření dialogu), místo čekání na blur.
+      flush() { clearTimeout(blurTimer); if (input.value.trim()) commit(); else hide(); }
+    };
+  }
+
+  const editorTagInputCtl = attachTagInput(tagInput, tagSuggest, {
+    getTags: () => currentTags,
+    onAdd: (tag) => {
+      currentTags.push(tag);
+      renderTagChips();
+      scheduleSave();
     }
   });
-  tagInput.addEventListener("blur", () => {
-    if (tagInput.value.trim()) addTagFromInput();
+
+  // Štítky v dialogu rychlé úpravy z Kalendáře (3. 11. 2026, na žádost Iri) -
+  // stejné chování jako v editoru, každá změna (přidání/odebrání) se ukládá
+  // hned, stejně jako složka nebo opakování v tomtéž dialogu.
+  function calendarQuickEditTags() {
+    const n = allNotes.find(x => x.id === calendarQuickEditNoteId);
+    return n && Array.isArray(n.stitky) ? n.stitky : [];
+  }
+
+  function renderCalendarQuickEditTags() {
+    const tags = calendarQuickEditTags();
+    calendarQuickEditTagChips.innerHTML = tags.map(t => `<span class="tag-chip">#${escapeHtml(t)}<button type="button" data-tag="${escapeHtml(t)}" title="Odebrat" aria-label="Odebrat štítek">×</button></span>`).join("");
+    calendarQuickEditTagChips.querySelectorAll("button").forEach(btn => {
+      btn.addEventListener("click", () => {
+        saveCalendarQuickEditTags(calendarQuickEditTags().filter(t => t !== btn.dataset.tag));
+      });
+    });
+  }
+
+  async function saveCalendarQuickEditTags(newTags) {
+    const id = calendarQuickEditNoteId;
+    if (!id || !allNotes.some(x => x.id === id)) return;
+    allNotes = allNotes.map(x => x.id === id ? { ...x, stitky: newTags } : x);
+    renderCalendarQuickEditTags();
+    try {
+      await updateDoc(doc(db, NOTES_COL, id), { stitky: newTags, upraveno: serverTimestamp() });
+      if (calendarQuickEditNoteId === id) calendarQuickEditStatus.textContent = "Uloženo";
+    } catch (err) {
+      showToast("Chyba při ukládání štítků: " + err.message);
+    }
+  }
+
+  const calendarQuickEditTagCtl = attachTagInput(calendarQuickEditTagInput, calendarQuickEditTagSuggest, {
+    getTags: calendarQuickEditTags,
+    onAdd: (tag) => saveCalendarQuickEditTags([...calendarQuickEditTags(), tag])
   });
 
   function updateEditorRatingBadge(hodnoceni) {
@@ -3916,8 +4363,17 @@
 
   async function saveCurrentNote() {
     if (!selectedNoteId) return;
+    const noteId = selectedNoteId;
+    let popis = quill.root.innerHTML;
+    if (byteSize(popis) > POPIS_SAFE_BYTES) {
+      saveStatus.textContent = "Zmenšuji obrázky…";
+      await shrinkEditorImages();
+      if (selectedNoteId !== noteId) return;
+      popis = quill.root.innerHTML;
+    }
+    const tooBig = byteSize(popis) > POPIS_SAFE_BYTES;
     try {
-      await updateDoc(doc(db, NOTES_COL, selectedNoteId), {
+      const payload = {
         druh: editorFolder.value,
         datum: editorDate.value,
         termin: editorTermin.value,
@@ -3925,10 +4381,19 @@
         opakovani: editorOpakovani.value,
         hodnoceni: editorHodnoceni.value,
         nazev: editorTitle.value,
-        popis: quill.root.innerHTML,
         stitky: currentTags,
         upraveno: serverTimestamp()
-      });
+      };
+      // Text poznámky přes limit se neposílá (Firestore by odmítl celý
+      // zápis) - ostatní pole se tak uloží aspoň bez něj.
+      if (!tooBig) payload.popis = popis;
+      await updateDoc(doc(db, NOTES_COL, noteId), payload);
+      if (tooBig) {
+        const mb = (byteSize(popis) / 1048576).toFixed(1).replace(".", ",");
+        saveStatus.textContent = "Text poznámky NEULOŽEN – je moc velký";
+        showToast(`Poznámka má s obrázky ${mb} MB, uložit jde nejvýš 1 MB. Smaž prosím některý obrázek nebo ji rozděl do dvou.`);
+        return;
+      }
       saveStatus.textContent = "Uloženo";
       editedStatus.textContent = "Upraveno " + new Date().toLocaleString("cs-CZ");
     } catch (err) {
