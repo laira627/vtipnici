@@ -1,0 +1,13 @@
+{
+  "name": "vtipnici-notifikace",
+  "private": true,
+  "description": "Odesílání push notifikací k termínům poznámek appky Vtipníci (spouští GitHub Actions)",
+  "type": "module",
+  "scripts": {
+    "start": "node posli-notifikace.mjs"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.7.0",
+    "web-push": "^3.6.7"
+  }
+}
