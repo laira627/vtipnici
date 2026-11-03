@@ -1,0 +1,47 @@
+# Push notifikace k termínům poznámek appky Vtipníci (3. 11. 2026).
+#
+# Hlavní spouštěč: služba cron-job.org každou celou hodinu (Europe/Prague)
+# zavolá GitHub API "workflow_dispatch" pro tenhle soubor - spuštění je tak
+# přesné na 1-2 minuty. Plán "schedule" níže je jen ZÁLOHA pro případ, že by
+# cron-job.org vypadl (GitHub plánované běhy často zdržuje, proto není
+# hlavní). Duplicitní běh nevadí - skript každé upozornění pošle jen jednou.
+#
+# Ruční spuštění: záložka Actions → "Notifikace termínů" → Run workflow
+# (zaškrtnutím "Poslat jen zkušební notifikaci" otestuješ doručení).
+
+name: Notifikace termínů
+
+on:
+  workflow_dispatch:
+    inputs:
+      test:
+        description: "Poslat jen zkušební notifikaci"
+        type: boolean
+        default: false
+  schedule:
+    - cron: "17 * * * *"
+
+concurrency:
+  group: notifikace
+  cancel-in-progress: false
+
+jobs:
+  posli:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: notifikace
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: notifikace/package-lock.json
+      - run: npm ci --omit=dev
+      - run: node posli-notifikace.mjs
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          TEST_NOTIFIKACE: ${{ inputs.test }}
