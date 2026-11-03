@@ -809,7 +809,7 @@
   // viz shared-config.js.
   import { firebaseConfig, FASTING_GOAL_MIN, WATER_GOAL_ML } from "./shared-config.js";
 
-  const APP_VERSION = "36";
+  const APP_VERSION = "37";
   document.querySelectorAll(".app-version-badge").forEach(el => {
     el.textContent = "v" + APP_VERSION;
   });
@@ -1424,6 +1424,49 @@
     return changed;
   }
 
+  // Dodatečné zmenšení obrázků v UŽ ULOŽENÝCH poznámkách (3. 11. 2026, na
+  // žádost Iri - obrázky vložené přes Ctrl+V před opravou ve v36 zůstaly v
+  // databázi v plné velikosti, pokud se poznámka vůbec vešla do 1 MB).
+  // Jednou za načtení appky, až jsou poznámky potvrzené serverem, projde
+  // appka na pozadí poznámky (ne v koši, ne právě otevřenou v editoru), které
+  // obsahují obrázek delší než 150 000 znaků, zmenší ho stejně jako při
+  // vložení (800 px, WebP 0,7) a uloží jen pole popis (upraveno se nemění,
+  // aby se kvůli tomu poznámky nepřeřadily). Poznámky, kde už nic velkého
+  // není, se jen rychle přeskočí podle délky textu - nic se nedekóduje.
+  let storedImagesShrinkDone = false;
+  const BIG_INLINE_IMAGE_RE = /src="data:image\/[a-z+]+;base64,[A-Za-z0-9+\/=]{150000,}"/;
+
+  async function maybeShrinkStoredImages() {
+    if (storedImagesShrinkDone || !notesFromServer || !currentUid) return;
+    storedImagesShrinkDone = true;
+    const candidates = allNotes.filter(n =>
+      !n.smazano && n.id !== selectedNoteId && typeof n.popis === "string" &&
+      n.popis.length > 150000 && BIG_INLINE_IMAGE_RE.test(n.popis));
+    if (candidates.length === 0) return;
+    let shrunk = 0;
+    for (const n of candidates) {
+      if (n.id === selectedNoteId) continue; // mezitím otevřená - zmenší ji editor sám
+      try {
+        const tpl = document.createElement("template");
+        tpl.innerHTML = n.popis;
+        let changed = false;
+        for (const img of tpl.content.querySelectorAll('img[src^="data:image"]')) {
+          const src = img.getAttribute("src");
+          if (src.length <= IMAGE_SHRINK_PASSES[0].minChars) continue;
+          const smaller = await compressDataUrl(src, IMAGE_SHRINK_PASSES[0].maxW, IMAGE_SHRINK_PASSES[0].quality);
+          if (smaller !== src) { img.setAttribute("src", smaller); changed = true; }
+        }
+        if (!changed || n.id === selectedNoteId) continue;
+        const popis = tpl.innerHTML;
+        await updateDoc(doc(db, NOTES_COL, n.id), { popis });
+        shrunk++;
+      } catch (err) {
+        console.warn("Zmenšení obrázků v poznámce " + n.id + " selhalo:", err);
+      }
+    }
+    if (shrunk > 0) showToast(`Zmenšeny obrázky v ${shrunk} ${shrunk === 1 ? "poznámce" : "poznámkách"}`);
+  }
+
   function compressImage(file, callback) {
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -1970,6 +2013,7 @@
       autoPurgeOldTrash();
       maybeFinalizeStats();
       maybeOpenPendingNote();
+      maybeShrinkStoredImages();
       storeKnownTags();
       if (view.type === "statistika") renderNotes();
     }, (err) => {
