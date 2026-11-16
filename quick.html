@@ -257,6 +257,7 @@
       <div class="field-inline-btns">
         <button type="button" id="terminTodayBtn">Dnes</button>
         <button type="button" id="terminTomorrowBtn">Zítra</button>
+        <button type="button" id="terminClearBtn" title="Zrušit termín" aria-label="Zrušit termín">✕ Bez termínu</button>
       </div>
     </div>
     <div class="field">
@@ -410,6 +411,8 @@
   terminTodayBtn.addEventListener("click", () => { terminEl.value = localTodayStr(); autoFillTerminCas(); });
   terminTomorrowBtn.addEventListener("click", () => { terminEl.value = localTomorrowStr(); autoFillTerminCas(); });
   terminEl.addEventListener("change", autoFillTerminCas);
+  // v38 (16. 11. 2026): Android neumí pole data vyprázdnit, proto tlačítko.
+  document.getElementById("terminClearBtn").addEventListener("click", () => { terminEl.value = ""; terminCasEl.value = ""; });
 
   // ---------- Auto-vyplnění Název z Popis ----------
   // Dokud je pole Název prázdné, odvodí se z první věty (do tečky/vykřičníku/

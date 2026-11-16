@@ -598,6 +598,7 @@
           <input type="date" id="editorTermin" title="Termín (nepovinné)" aria-label="Termín (nepovinné)">
           <select id="editorTerminCas" title="Čas termínu" aria-label="Čas termínu"></select>
           <button class="icon-btn small" id="editorTerminTomorrowBtn" type="button" title="Nastavit termín na zítřek" aria-label="Nastavit termín na zítřek">zítra</button>
+          <button class="icon-btn small" id="editorTerminClearBtn" type="button" title="Zrušit termín" aria-label="Zrušit termín">✕</button>
           <span class="editor-topbar-icon" title="Opakování">🔁</span>
           <select id="editorOpakovani" title="Opakování" aria-label="Opakování">
             <option value="">Bez opakování</option>
@@ -679,6 +680,7 @@
         <input type="date" id="calendarQuickEditTermin">
         <select id="calendarQuickEditCas" title="Čas termínu" aria-label="Čas termínu"></select>
         <button class="btn-mini" id="calendarQuickEditTerminTomorrowBtn" type="button">zítra</button>
+        <button class="btn-mini" id="calendarQuickEditTerminClearBtn" type="button" title="Zrušit termín" aria-label="Zrušit termín">✕</button>
       </div>
       <select id="calendarQuickEditRepeat" class="calendar-quick-edit-repeat" title="Opakování" aria-label="Opakování">
         <option value="">Bez opakování</option>
@@ -809,7 +811,7 @@
   // viz shared-config.js.
   import { firebaseConfig, FASTING_GOAL_MIN, WATER_GOAL_ML } from "./shared-config.js";
 
-  const APP_VERSION = "37";
+  const APP_VERSION = "38";
   document.querySelectorAll(".app-version-badge").forEach(el => {
     el.textContent = "v" + APP_VERSION;
   });
@@ -867,6 +869,7 @@
   const calendarQuickEditCas = document.getElementById("calendarQuickEditCas");
   const calendarQuickEditRepeat = document.getElementById("calendarQuickEditRepeat");
   const calendarQuickEditTerminTomorrowBtn = document.getElementById("calendarQuickEditTerminTomorrowBtn");
+  const calendarQuickEditTerminClearBtn = document.getElementById("calendarQuickEditTerminClearBtn");
   const calendarQuickEditNazev = document.getElementById("calendarQuickEditNazev");
   const calendarQuickEditTagChips = document.getElementById("calendarQuickEditTagChips");
   const calendarQuickEditTagInput = document.getElementById("calendarQuickEditTagInput");
@@ -912,6 +915,7 @@
   const editorDate = document.getElementById("editorDate");
   const editorTermin = document.getElementById("editorTermin");
   const editorTerminCas = document.getElementById("editorTerminCas");
+  const editorTerminClearBtn = document.getElementById("editorTerminClearBtn");
   const editorTerminTomorrowBtn = document.getElementById("editorTerminTomorrowBtn");
   const editorOpakovani = document.getElementById("editorOpakovani");
   const emojiPickerBtn = document.getElementById("emojiPickerBtn");
@@ -2866,6 +2870,21 @@
     }
   }
 
+  // Zrušení termínu (v38, 16. 11. 2026): na Androidu nativní výběr data
+  // neumí pole <input type="date"> vyprázdnit, proto vedle termínu tlačítko ✕.
+  // Spolu s termínem se maže i čas (poznámka bez termínu čas nemá).
+  async function clearTerminForNote(id) {
+    try {
+      const payload = { termin: "", terminCas: null, upraveno: serverTimestamp() };
+      await updateDoc(doc(db, NOTES_COL, id), payload);
+      allNotes = allNotes.map(x => x.id === id ? { ...x, ...payload } : x);
+      renderNotes();
+      showToast("Termín zrušen");
+    } catch (err) {
+      showToast("Chyba při rušení termínu: " + err.message);
+    }
+  }
+
   async function changeTerminCasForNote(id, hourValue) {
     try {
       const terminCas = hourValue === "" ? null : parseInt(hourValue, 10);
@@ -2971,7 +2990,14 @@
     }
   });
   calendarQuickEditTermin.addEventListener("change", () => {
-    if (!calendarQuickEditNoteId || !calendarQuickEditTermin.value) return;
+    if (!calendarQuickEditNoteId) return;
+    if (!calendarQuickEditTermin.value) {
+      // Prohlížeč, který pole vymazat umí (desktop) - totéž co tlačítko ✕.
+      calendarQuickEditCas.value = "";
+      clearTerminForNote(calendarQuickEditNoteId);
+      calendarQuickEditStatus.textContent = "Uloženo";
+      return;
+    }
     changeTerminForNote(calendarQuickEditNoteId, calendarQuickEditTermin.value);
     calendarQuickEditStatus.textContent = "Uloženo";
   });
@@ -2985,6 +3011,13 @@
     const tomorrow = addDaysToIsoDate(localTodayStr(), 1);
     calendarQuickEditTermin.value = tomorrow;
     changeTerminForNote(calendarQuickEditNoteId, tomorrow);
+    calendarQuickEditStatus.textContent = "Uloženo";
+  });
+  calendarQuickEditTerminClearBtn.addEventListener("click", () => {
+    if (!calendarQuickEditNoteId) return;
+    calendarQuickEditTermin.value = "";
+    calendarQuickEditCas.value = "";
+    clearTerminForNote(calendarQuickEditNoteId);
     calendarQuickEditStatus.textContent = "Uloženo";
   });
   calendarQuickEditNazev.addEventListener("input", () => {
@@ -4202,12 +4235,18 @@
     if (editorTermin.value && !editorTerminCas.value) {
       editorTerminCas.value = String(new Date().getHours());
     }
+    if (!editorTermin.value) editorTerminCas.value = "";
     scheduleSave();
   });
   editorTerminCas.addEventListener("change", () => scheduleSave());
   editorTerminTomorrowBtn.addEventListener("click", () => {
     editorTermin.value = addDaysToIsoDate(localTodayStr(), 1);
     if (!editorTerminCas.value) editorTerminCas.value = String(new Date().getHours());
+    scheduleSave();
+  });
+  editorTerminClearBtn.addEventListener("click", () => {
+    editorTermin.value = "";
+    editorTerminCas.value = "";
     scheduleSave();
   });
   editorOpakovani.addEventListener("change", () => scheduleSave());
